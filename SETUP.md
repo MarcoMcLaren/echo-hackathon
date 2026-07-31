@@ -211,6 +211,7 @@ people know to reinstall).
 | `expo-haptics` | ~57.0.1 | Proximity haptics. |
 | `expo-nearby-connections` | ^1.1.0 | Offline mesh transport (Google Nearby: Bluetooth + Wi-Fi Direct). |
 | `react-native-nitro-modules` | ^0.36.5 | Native runtime that `expo-nearby-connections` is built on. |
+| `react-native-keychain` | ^10.0.0 | Hardware-backed key storage (Android Keystore) for E2E-encrypted messaging. |
 
 > **`expo-nearby-connections` needs a shipped-file fix (automatic).** v1.1.0's
 > `android/build.gradle` does `apply from: './fix-prefab.gradle'`, but that file
@@ -219,9 +220,6 @@ people know to reinstall).
 > restores it, so `npm install` self-heals — builders don't do anything manual.
 
 > **Planned / not in the current build:**
-> - **Secure keys** — `react-native-keychain` (hardware-backed, Android Keystore)
->   for E2E-encrypted messaging will be re-added. Native dep → **new APK**. It
->   built cleanly before the pivot, so low risk.
 > - **Sidequest (datacenter GPU)** — online-only; **no native lib** (authenticated
 >   network calls), so no new APK needed. Breaks the offline story — keep opt-in.
 

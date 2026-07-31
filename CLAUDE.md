@@ -48,8 +48,8 @@ LLMs — offline, from one TypeScript codebase.
 5. **On-device security (keys)** — **react-native-keychain** (Android Keystore,
    hardware-backed). Each phone stores its keypair in hardware; mesh payloads are
    **end-to-end encrypted** so relays only pass opaque ciphertext. Keys never
-   leave hardware. (Removed in the blind-nav pivot; re-add for messaging — native
-   dep, so it needs a new APK.)
+   leave hardware. **Re-added and building** alongside the mesh transport (same
+   APK). The encrypt/decrypt + key-management logic is TS feature work.
 
 ### Sidequest (bonus, ONLINE) — remote datacenter GPU
 
