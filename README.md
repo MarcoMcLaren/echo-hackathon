@@ -50,6 +50,14 @@ React Native once had a reputation for "simple UIs only." This app is the counte
 
 The result: **one TypeScript codebase** orchestrating the camera, an ML runtime, Bluetooth/Wi-Fi radios, the vibration motor, the OS speech engine, and the hardware keystore — **offline**. The native libraries are the hands; TypeScript is the brain.
 
+## Where the AI models come from
+
+The models are **not** in the APK and **not** pre-installed (that's why the APK stays ~100 MB). They're hosted on **Hugging Face** — the download URLs are baked into `react-native-executorch`'s model constants — and **each phone downloads them once on first use, caches them locally, then runs 100% offline.**
+
+- **Fetching is wired** via `initExecutorch({ resourceFetcher: ExpoResourceFetcher })` in [`src/services/models`](src/services/models/index.ts), using `expo-file-system` to cache to device storage.
+- **`ModelPreloadScreen`** (the current home screen) pre-downloads them with a progress bar — run it **on wifi before an offline demo**.
+- **Per phone, one-time, needs wifi once.** Sizes: vision (detection + OCR) ≈ **50 MB**; language model (summaries) ≈ **400 MB**. Exact table in [SETUP.md](SETUP.md).
+
 ## Getting started
 
 Most contributors don't build anything — install the shared APK and hot-reload your own code on your own phone. See **[SETUP.md → Path A](SETUP.md)**. The 1–2 designated builders use **Path B**.

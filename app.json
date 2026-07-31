@@ -30,7 +30,8 @@
           "recordAudioAndroid": false
         }
       ],
-      "expo-nearby-connections"
+      "expo-nearby-connections",
+      "expo-asset"
     ]
   }
 }

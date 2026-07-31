@@ -230,6 +230,13 @@ offline**. **Pre-download everything on wifi before any offline demo.** Each hoo
 (`useObjectDetection` / `useOCR` / `useLLM`) exposes `downloadProgress` for a
 loading screen. Sizes below are exact (measured from the model host).
 
+**How it's wired:** the host screen is `src/screens/ModelPreloadScreen.tsx`;
+fetching is registered in `src/services/models` via
+`initExecutorch({ resourceFetcher: ExpoResourceFetcher })` (needs
+`expo-file-system` + `expo-asset`). Files download from Hugging Face and cache
+**per phone** in app storage — so every teammate's device downloads its own copy
+once. Uninstalling / clearing app data wipes the cache (re-download needed).
+
 | Feature | Hook | Model constant | Download |
 |---|---|---|---|
 | Obstacle detection → haptics | `useObjectDetection` | `SSDLITE_320_MOBILENET_V3_LARGE` | **13.3 MB** |
