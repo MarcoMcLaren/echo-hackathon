@@ -29,7 +29,8 @@
           "cameraPermission": "Echo uses the camera to detect obstacles around you.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "expo-nearby-connections"
     ]
   }
 }

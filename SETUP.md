@@ -209,12 +209,21 @@ people know to reinstall).
 | `expo-camera` | ~57.0.3 | Camera preview + snapshots fed to detection. |
 | `expo-speech` | ~57.0.1 | Offline text-to-speech for spoken feedback. |
 | `expo-haptics` | ~57.0.1 | Proximity haptics. |
+| `expo-nearby-connections` | ^1.1.0 | Offline mesh transport (Google Nearby: Bluetooth + Wi-Fi Direct). |
+| `react-native-nitro-modules` | ^0.36.5 | Native runtime that `expo-nearby-connections` is built on. |
 
-> **Planned, not yet installed/built — offline mesh-messaging transport.**
-> Leading candidate: **`expo-nearby-connections`** (Expo module; pulls
-> `react-native-nitro-modules`). It must be **build-verified on RN 0.86** before
-> we commit. Adding it is a native change → a **new APK** for the whole team.
-> Bridgefy was rejected (card-gated signup).
+> **`expo-nearby-connections` needs a shipped-file fix (automatic).** v1.1.0's
+> `android/build.gradle` does `apply from: './fix-prefab.gradle'`, but that file
+> is missing from the npm tarball → the Android build fails. A **postinstall**
+> (`scripts/fix-nearby-prefab.js`, vendoring `scripts/nearby-fix-prefab.gradle`)
+> restores it, so `npm install` self-heals — builders don't do anything manual.
+
+> **Planned / not in the current build:**
+> - **Secure keys** — `react-native-keychain` (hardware-backed, Android Keystore)
+>   for E2E-encrypted messaging will be re-added. Native dep → **new APK**. It
+>   built cleanly before the pivot, so low risk.
+> - **Sidequest (datacenter GPU)** — online-only; **no native lib** (authenticated
+>   network calls), so no new APK needed. Breaks the offline story — keep opt-in.
 
 ## AI models to download (ExecuTorch)
 
@@ -257,7 +266,8 @@ import {
 | Library | Symptom | Resolution |
 |---|---|---|
 | `react-native-vision-camera@5` | `expo prebuild` crashed — v5 moved to the Nitro stack, no Expo config plugin, extra bleeding-edge peers | Dropped for MVP; use `expo-camera` snapshots → `useObjectDetection.forward(uri)`. VisionCamera v5 + `runOnFrame` is an optional post-MVP real-time upgrade. |
-| ExecuTorch + expo-camera/speech/haptics on RN 0.86 | none — built clean | — |
+| `expo-nearby-connections@1.1.0` | Gradle failed: `Could not read script '.../fix-prefab.gradle'` (missing from npm tarball), cascading to `:expo > SoftwareComponent 'release' not found` | Restored the file (from the lib's repo) via a `postinstall` script. Then builds clean — Nitro C++ compiles on RN 0.86. |
+| ExecuTorch + expo-camera/speech/haptics + nearby/nitro on RN 0.86 | none — built clean | — |
 
 > Mesh history: `bridgefy-react-native` (which needed `desugar_jdk_libs ≥ 2.1.5`)
 > was dropped — its SDK signup is card-gated. Mesh messaging is **back in scope**

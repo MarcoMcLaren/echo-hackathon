@@ -38,8 +38,29 @@ LLMs — offline, from one TypeScript codebase.
 3. **On-device AI** — **react-native-executorch** `useOCR` ("read that"),
    `useLLM` (scene description **and** message-thread summaries). All offline.
 4. **Offline mesh messaging** — phone-to-phone relay with no internet.
-   **Transport TBD** (leading candidate: `expo-nearby-connections`; must be
-   build-verified on RN 0.86 first). **Not wired into the current APK yet.**
+   **Transport: `expo-nearby-connections`** (Google Nearby Connections over
+   Bluetooth + Wi-Fi Direct) + `react-native-nitro-modules`. **Integrated and
+   building on RN 0.86.** The lib ships a broken package (its
+   `android/build.gradle` references a `fix-prefab.gradle` it forgot to publish);
+   a **postinstall** (`scripts/fix-nearby-prefab.js`) restores that file so
+   `npm install` self-heals. Note: Nearby is P2P *clustering* — mesh-like in a
+   room; true multi-hop relay past radio range is app-layer logic we add.
+5. **On-device security (keys)** — **react-native-keychain** (Android Keystore,
+   hardware-backed). Each phone stores its keypair in hardware; mesh payloads are
+   **end-to-end encrypted** so relays only pass opaque ciphertext. Keys never
+   leave hardware. (Removed in the blind-nav pivot; re-add for messaging — native
+   dep, so it needs a new APK.)
+
+### Sidequest (bonus, ONLINE) — remote datacenter GPU
+
+At the event we get access to a datacenter GPU (access method shared there). The
+`features/sidequest` section can offload heavy work — e.g. **message-thread
+summaries** — to that GPU for bonus points. Two honest caveats:
+- It's an **online** feature — it breaks the 100%-offline story. Keep it
+  **opt-in and separate**; the on-device path stays the default.
+- Sending message content to a remote GPU **conflicts with the E2E-encryption
+  goal**. Only summarize what the user already sees, with consent. No native lib
+  needed — it's just authenticated network calls, so no new APK.
 
 ### Honest limitations (say them in the pitch)
 
@@ -60,10 +81,10 @@ LLMs — offline, from one TypeScript codebase.
   [SETUP.md](SETUP.md).
 - **Models download once over wifi, then run fully offline.** Pre-download before
   any offline demo. Model list + sizes are in [SETUP.md](SETUP.md).
-- **Mesh transport is not yet added.** Adding it is a *native* change → a new
-  dev-client APK for everyone. Leading candidate: **`expo-nearby-connections`**
-  (Expo module; pulls `react-native-nitro-modules`; verify it builds on RN 0.86
-  before committing). Bridgefy was dropped (card-gated).
+- **Mesh transport is integrated** — `expo-nearby-connections` +
+  `react-native-nitro-modules`, verified building on RN 0.86. A postinstall
+  restores the library's missing `fix-prefab.gradle` (see `scripts/`). Bridgefy
+  was dropped (card-gated). Adding native deps means a new dev-client APK.
 - Only **1–2 people** need the build environment; everyone else installs the
   debug APK and runs `npx expo start --dev-client` to hot-reload JS.
 
@@ -90,10 +111,14 @@ src/
 │   │   ├── api/  components/  hooks/ (useProximityFeedback)  types/
 │   ├── ai/            # OCR "read that" + LLM (describe scene, summarize threads)
 │   │   ├── api/  components/  hooks/ (useReadText, useDescribeScene, useSummarize)  types/
-│   └── messaging/     # offline mesh messaging (transport + relay + chat UI)
-│       ├── api/  components/  hooks/ (useMesh)  types/
+│   ├── messaging/     # offline mesh messaging (transport + relay + chat UI)
+│   │   ├── api/  components/  hooks/ (useMesh)  types/
+│   ├── vault/         # hardware-backed keys + E2E encryption (react-native-keychain)
+│   │   ├── api/  components/  hooks/ (useSecureVault)  types/
+│   └── sidequest/     # ONLINE: offload work to the datacenter GPU (bonus)
+│       ├── api/  components/  hooks/ (useRemoteGpu)  types/
 ├── hooks/             # global hooks used across features
-├── screens/           # NavigatorScreen, MessagingScreen
+├── screens/           # NavigatorScreen, MessagingScreen, SidequestScreen
 ├── services/          # models/ (download + warm-up), shared logic
 ├── store/             # global state — Zustand (low boilerplate)
 ├── styles/            # global theme/style constants
