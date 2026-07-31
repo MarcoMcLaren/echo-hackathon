@@ -2,40 +2,51 @@
 
 > Read the exact versioned Expo docs at https://docs.expo.dev/versions/v57.0.0/ before writing code. See also [AGENTS.md](AGENTS.md) and the design spec at [docs/superpowers/specs/2026-07-30-echo-blind-navigation-design.md](docs/superpowers/specs/2026-07-30-echo-blind-navigation-design.md).
 
-> **Pivot note:** this project began as *Swarm* (Bluetooth mesh messaging). It has
-> pivoted to **Echo**. Mesh / Bridgefy / encryption are no longer in scope.
+> **History / scope:** started as *Swarm* (Bluetooth mesh), then narrowed to
+> *Echo* (blind-navigation aid). It is now scoped to do **BOTH**, under the Echo
+> umbrella: the **navigation aid** *and* **offline mesh messaging**. Bridgefy is
+> out (card-gated signup); the mesh transport is still being chosen — see Build
+> strategy. **The mesh transport is not in the current build yet.**
 
 ## What we're building
 
-**Echo** is an **offline, on-device navigation aid for blind and low-vision
-users**. Point the phone forward; it detects obstacles from the camera and warns
-the user with **haptic feedback** (stronger/faster as an object gets closer) and
-**spoken labels** ("chair — close — ahead"). It runs **100% on the phone, with no
-internet**, built in React Native / TypeScript.
+**Echo** is an **offline-first, 100%-on-device** app in React Native / TypeScript
+with **two capabilities**:
 
-The thesis for the hackathon: **React Native can do hard, native-grade things** —
-real-time computer vision + voice + haptics, offline — from one TypeScript
-codebase.
+**A. Navigation aid for blind & low-vision users.** Point the phone forward; it
+detects obstacles from the camera and warns with **haptics** (stronger/faster as
+an object nears) and **spoken labels** ("chair — close — ahead").
 
-### The three technical pillars
+**B. Offline mesh messaging.** Phone-to-phone messaging with **no cell and no
+wifi** — devices relay for each other, so it works when infrastructure fails
+(packed stadiums, protests, disasters, remote areas).
 
-1. **On-device vision (core)** — **react-native-executorch**
-   `useObjectDetection` (SSDLite / COCO) run on **expo-camera** frame snapshots
-   (~3 fps loop via `forward(imageURI)`). Detects obstacles; bounding-box size
-   approximates closeness. Fully offline. (VisionCamera v5 was evaluated for
-   buttery real-time but it moved to the Nitro stack and pulls bleeding-edge
-   peer deps — deferred as an optional post-MVP upgrade.)
+Woven through both: **on-device AI** — OCR ("read that"), scene description
+("what's around me?"), and **message-thread summaries** — all offline.
+
+The hackathon thesis: **React Native can do hard, native-grade things** —
+real-time computer vision, voice, haptics, peer-to-peer networking, and on-device
+LLMs — offline, from one TypeScript codebase.
+
+### The technical pillars
+
+1. **On-device vision** — **react-native-executorch** `useObjectDetection`
+   (SSDLite / COCO) on **expo-camera** frame snapshots (~3 fps via
+   `forward(imageURI)`). Obstacle detection; bounding-box size ≈ closeness.
 2. **Eyes-free feedback** — **expo-haptics** (pulse rate/intensity scales with
-   proximity, "Geiger counter for obstacles") + **expo-speech** (offline OS
-   text-to-speech announcing the nearest obstacle and its direction).
-3. **On-device AI extras** — **react-native-executorch** `useOCR` ("Read that" →
-   speaks a sign/label) and `useLLM` ("What's around me?" → speaks a natural
-   sentence describing the scene). All offline.
+   proximity) + **expo-speech** (offline OS text-to-speech).
+3. **On-device AI** — **react-native-executorch** `useOCR` ("read that"),
+   `useLLM` (scene description **and** message-thread summaries). All offline.
+4. **Offline mesh messaging** — phone-to-phone relay with no internet.
+   **Transport TBD** (leading candidate: `expo-nearby-connections`; must be
+   build-verified on RN 0.86 first). **Not wired into the current APK yet.**
 
-### Honest limitation (say it in the pitch)
+### Honest limitations (say them in the pitch)
 
-No depth sensor on the device and no depth model in ExecuTorch → "distance" is
-inferred from bounding-box size. A solid demo heuristic, not true metric depth.
+- No depth sensor and no depth model → "distance" is inferred from bounding-box
+  size. A solid demo heuristic, not true metric depth.
+- Google-Nearby-style transport is P2P clustering (mesh-like in a room); true
+  multi-hop relay past radio range is app-layer logic we add on top.
 
 ## Build strategy (shapes everything)
 
@@ -48,15 +59,21 @@ inferred from bounding-box size. A solid demo heuristic, not true metric depth.
   required by ExecuTorch and keeps builds fast. Exact toolchain versions live in
   [SETUP.md](SETUP.md).
 - **Models download once over wifi, then run fully offline.** Pre-download before
-  any offline demo.
+  any offline demo. Model list + sizes are in [SETUP.md](SETUP.md).
+- **Mesh transport is not yet added.** Adding it is a *native* change → a new
+  dev-client APK for everyone. Leading candidate: **`expo-nearby-connections`**
+  (Expo module; pulls `react-native-nitro-modules`; verify it builds on RN 0.86
+  before committing). Bridgefy was dropped (card-gated).
 - Only **1–2 people** need the build environment; everyone else installs the
   debug APK and runs `npx expo start --dev-client` to hot-reload JS.
 
 ## This is a time-boxed hackathon project (Saturday)
 
 Prefer **simple, working, demoable** solutions over production-grade complexity.
-When in doubt, pick the path that gets a live demo running fastest. De-risk plan:
-prove detect → feedback with a simple frame loop before chasing smooth real-time.
+Two capabilities is ambitious for one day — **land the blind-navigation core
+first** (it reuses libraries that already build and needs no second device), then
+add mesh messaging as the stretch once its transport is proven. When in doubt,
+pick the path that gets a live demo running fastest.
 
 ## Folder structure convention
 
@@ -71,14 +88,16 @@ src/
 │   │   ├── api/  components/  hooks/ (useObstacles)  types/
 │   ├── feedback/      # proximity → haptics + speech
 │   │   ├── api/  components/  hooks/ (useProximityFeedback)  types/
-│   └── ai/            # OCR "read that" + LLM "describe scene"
-│       ├── api/  components/  hooks/ (useReadText, useDescribeScene)  types/
+│   ├── ai/            # OCR "read that" + LLM (describe scene, summarize threads)
+│   │   ├── api/  components/  hooks/ (useReadText, useDescribeScene, useSummarize)  types/
+│   └── messaging/     # offline mesh messaging (transport + relay + chat UI)
+│       ├── api/  components/  hooks/ (useMesh)  types/
 ├── hooks/             # global hooks used across features
-├── screens/           # NavigatorScreen (the single MVP screen)
+├── screens/           # NavigatorScreen, MessagingScreen
 ├── services/          # models/ (download + warm-up), shared logic
 ├── store/             # global state — Zustand (low boilerplate)
 ├── styles/            # global theme/style constants
-├── utils/             # generic helpers (proximity math, direction)
+├── utils/             # generic helpers (proximity math, direction, message relay)
 └── App.tsx            # root component (registered by /index.ts)
 ```
 
@@ -86,5 +105,5 @@ Rules of thumb:
 - Anything used by only one feature lives under that feature's folder.
 - Anything shared across features lives in the top-level folder of its kind.
 - `index.ts` barrels re-export each folder's public surface.
-- Proximity/direction math lives in `utils/` as **pure functions** (unit-testable,
-  no native calls).
+- Proximity/direction and message-relay (TTL/dedupe) math lives in `utils/` as
+  **pure functions** (unit-testable, no native calls).

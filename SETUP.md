@@ -1,7 +1,12 @@
 # Echo — Team Setup & Dev Guide
 
-**Echo** is an offline, on-device navigation aid for the blind (see
-[CLAUDE.md](CLAUDE.md) and the [design spec](docs/superpowers/specs/2026-07-30-echo-blind-navigation-design.md)).
+**Echo** is an offline-first, on-device React Native app with **two
+capabilities**: a **navigation aid for blind & low-vision users** (camera →
+obstacle detection → haptics + spoken labels) **and offline mesh messaging**
+(phone-to-phone, no cell or wifi). All AI runs on the device. See
+[CLAUDE.md](CLAUDE.md) and the [design spec](docs/superpowers/specs/2026-07-30-echo-blind-navigation-design.md).
+(The mesh-messaging transport is **not in the current build yet** — see App
+libraries below.)
 
 This guide has **two paths**. Pick the one that's you:
 
@@ -205,6 +210,42 @@ people know to reinstall).
 | `expo-speech` | ~57.0.1 | Offline text-to-speech for spoken feedback. |
 | `expo-haptics` | ~57.0.1 | Proximity haptics. |
 
+> **Planned, not yet installed/built — offline mesh-messaging transport.**
+> Leading candidate: **`expo-nearby-connections`** (Expo module; pulls
+> `react-native-nitro-modules`). It must be **build-verified on RN 0.86** before
+> we commit. Adding it is a native change → a **new APK** for the whole team.
+> Bridgefy was rejected (card-gated signup).
+
+## AI models to download (ExecuTorch)
+
+All models are fetched on **first use** over wifi, cached, then run **fully
+offline**. **Pre-download everything on wifi before any offline demo.** Each hook
+(`useObjectDetection` / `useOCR` / `useLLM`) exposes `downloadProgress` for a
+loading screen. Sizes below are exact (measured from the model host).
+
+| Feature | Hook | Model constant | Download |
+|---|---|---|---|
+| Obstacle detection → haptics | `useObjectDetection` | `SSDLITE_320_MOBILENET_V3_LARGE` | **13.3 MB** |
+| OCR "read that" | `useOCR` | `OCR_ENGLISH` (CRAFT detector 19.9 MB + English CRNN 17.5 MB) | **37.4 MB** |
+| Read text aloud | — | `expo-speech` (OS TTS) | **0 MB** |
+| Summaries / describe scene | `useLLM` | `QWEN2_5_0_5B_QUANTIZED` (recommended start) | **398 MB** |
+| ⤷ better quality | `useLLM` | `LLAMA3_2_1B_SPINQUANT` or `QWEN2_5_1_5B_QUANTIZED` | **~1.08 GB** |
+
+- **Blind-nav core footprint ≈ 50 MB** (detection + OCR; speech needs no model).
+  The LLM is the only heavy download.
+- Start with **Qwen2.5 0.5B (398 MB)** — low-RAM, fine on any modern phone. Move
+  to a 1B–1.5B model only if summaries feel weak (needs ~1–2 GB free RAM at
+  runtime). Each LLM also pulls small tokenizer/config files (a few MB).
+
+```ts
+import {
+  useObjectDetection, SSDLITE_320_MOBILENET_V3_LARGE,
+  useOCR, OCR_ENGLISH,
+  useLLM, QWEN2_5_0_5B_QUANTIZED,
+} from 'react-native-executorch';
+// + expo-speech for reading text aloud
+```
+
 ## Runtime notes
 
 - **Models download once over Wi-Fi, then run fully offline.** ExecuTorch fetches
@@ -218,5 +259,6 @@ people know to reinstall).
 | `react-native-vision-camera@5` | `expo prebuild` crashed — v5 moved to the Nitro stack, no Expo config plugin, extra bleeding-edge peers | Dropped for MVP; use `expo-camera` snapshots → `useObjectDetection.forward(uri)`. VisionCamera v5 + `runOnFrame` is an optional post-MVP real-time upgrade. |
 | ExecuTorch + expo-camera/speech/haptics on RN 0.86 | none — built clean | — |
 
-> Pre-pivot: `bridgefy-react-native` needed `desugar_jdk_libs ≥ 2.1.5`. Bridgefy
-> is no longer in the project (Echo replaced the Swarm mesh concept).
+> Mesh history: `bridgefy-react-native` (which needed `desugar_jdk_libs ≥ 2.1.5`)
+> was dropped — its SDK signup is card-gated. Mesh messaging is **back in scope**
+> with a different, still-to-be-verified transport (see App libraries above).
