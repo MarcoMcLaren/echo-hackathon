@@ -6,19 +6,36 @@ import { Display, Body, Mono } from '../components/Type';
 import { MeshStatus, AppBar, bottomInset } from '../components/Chrome';
 import Avatar from '../components/Avatar';
 import QrCode from '../features/vault/components/QrCode';
+import { useMesh } from '../store/mesh';
 
 const CORE = 52;
 const MAX = 150;
 
 // What the other phone reads. Same payload either way, so NFC and QR are two
 // doors into one pairing flow rather than two features.
-const MY_PAIR_PAYLOAD = 'echo://pair?id=rf7k2m&k=9fA2c4Be71D0&n=Reon';
-const MY_FINGERPRINT = '9FA2 C4BE 71D0';
+const pairPayload = (deviceId: string, display: string) =>
+  `echo://pair?id=${encodeURIComponent(deviceId)}&n=${encodeURIComponent(display)}`;
+
+/** Something short a human can read aloud and compare against the other screen. */
+const fingerprintOf = (deviceId: string) =>
+  (deviceId.toUpperCase().padEnd(12, '0').match(/.{1,4}/g) ?? []).slice(0, 3).join(' ');
+
+/** Never throws — a camera will happily hand us any barcode in the room. */
+function readPairPayload(raw: string): { id: string; name: string } | null {
+  if (!raw.startsWith('echo://pair')) return null;
+  const query = raw.slice(raw.indexOf('?') + 1);
+  const params = new URLSearchParams(query);
+  const id = params.get('id');
+  if (!id) return null;
+  return { id, name: params.get('n') || id };
+}
 
 type Mode = 'tap' | 'show' | 'scan';
 
 export default function TapScreen() {
   const { c } = useTheme();
+  const peers = useMesh((s) => s.peers);
+  const reachable = Object.entries(peers);
   const [mode, setMode] = useState<Mode>('tap');
   const [still, setStill] = useState(false);
   const [scanned, setScanned] = useState<string | null>(null);
@@ -74,15 +91,25 @@ export default function TapScreen() {
       )}
 
       <View style={[s.foot, { paddingBottom: bottomInset + 16 }]}>
-        <View style={[s.paired, { backgroundColor: c.card, borderColor: c.direct }]}>
-          <Avatar initials="SD" hops={0} size={30} />
-          <View style={{ flex: 1 }}>
-            <Mono size={9} dim={1}>
-              PAIRED WITH SIPHO DLAMINI
-            </Mono>
-            <Mono size={8.5}>KEYS EXCHANGED · SCANNED CODE · 09:47</Mono>
+        {reachable.length === 0 ? (
+          <View style={[s.paired, { backgroundColor: c.card, borderColor: c.hair2 }]}>
+            <Mono size={8.5}>NOBODY PAIRED YET</Mono>
           </View>
-        </View>
+        ) : (
+          <View style={[s.paired, { backgroundColor: c.card, borderColor: c.direct }]}>
+            <Avatar initials={reachable[0][1].display.slice(0, 2).toUpperCase()} hops={0} size={30} />
+            <View style={{ flex: 1 }}>
+              <Mono size={9} dim={1}>
+                {`PAIRED WITH ${reachable[0][1].display.toUpperCase()}`}
+              </Mono>
+              <Mono size={8.5}>
+                {reachable.length > 1
+                  ? `AND ${reachable.length - 1} MORE IN RANGE`
+                  : 'KEYS HELD ON EACH PHONE'}
+              </Mono>
+            </View>
+          </View>
+        )}
       </View>
     </>
   );
@@ -108,26 +135,31 @@ function TapMode({ still }: { still: boolean }) {
   );
 }
 
-/** The fallback half you hold up. */
+/** The fallback half you hold up. Encodes this phone, not a placeholder. */
 function ShowMode() {
   const { c } = useTheme();
+  const me = useMesh((s) => s.me);
+  const identified = me.deviceId !== 'pending';
+
   return (
     <View style={s.zone}>
       <View style={[s.qrPlate, { borderColor: c.hair }]}>
-        <QrCode value={MY_PAIR_PAYLOAD} size={196} />
+        <QrCode value={pairPayload(me.deviceId, me.display)} size={196} />
       </View>
       <Display size={26} style={s.h}>
         Let the other phone scan this
       </Display>
       <Body size={13} dim={2} style={s.p}>
-        Works on any phone with a camera. The code carries your public key, nothing else.
+        Works on any phone with a camera. The code carries who this phone is, nothing else.
       </Body>
       <View style={[s.fp, { borderColor: c.hair2, backgroundColor: c.card }]}>
         <Mono size={10} dim={1}>
-          {MY_FINGERPRINT}
+          {fingerprintOf(me.deviceId)}
         </Mono>
       </View>
-      <Mono size={8.5}>CHECK THIS MATCHES ON THEIR SCREEN</Mono>
+      <Mono size={8.5}>
+        {identified ? 'CHECK THIS MATCHES ON THEIR SCREEN' : 'START THE MESH TO CLAIM AN IDENTITY'}
+      </Mono>
     </View>
   );
 }
@@ -168,21 +200,23 @@ function ScanMode({ scanned, onScan }: { scanned: string | null; onScan: (v: str
   }
 
   if (scanned) {
-    const ok = scanned.startsWith('echo://pair');
+    const theirs = readPairPayload(scanned);
+    const ok = theirs !== null;
     return (
       <View style={s.zone}>
         <Display size={28} style={[s.h, { color: ok ? c.ink : c.direct }]}>
-          {ok ? 'Code read' : 'That is not an Echo code'}
+          {ok ? theirs.name : 'That is not an Echo code'}
         </Display>
         <Body size={13} dim={2} style={s.p}>
           {ok
-            ? 'Check the fingerprint matches what the other phone shows, then confirm.'
+            ? 'Check this fingerprint matches the one on their screen, then confirm.'
             : 'Point the camera at the code on the other phone’s Show code screen.'}
         </Body>
         {ok ? (
           <View style={[s.fp, { borderColor: c.hair2, backgroundColor: c.card }]}>
+            {/* Theirs, not ours — comparing our own code to itself proves nothing. */}
             <Mono size={10} dim={1}>
-              {MY_FINGERPRINT}
+              {fingerprintOf(theirs.id)}
             </Mono>
           </View>
         ) : null}

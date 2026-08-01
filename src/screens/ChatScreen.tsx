@@ -14,7 +14,6 @@ import { MeshStatus, AppBar, bottomInset } from '../components/Chrome';
 import { HopChip } from '../components/Chip';
 import MessageBubble from '../features/messaging/components/MessageBubble';
 import CatchMeUpSheet from './CatchMeUpSheet';
-import { byId } from '../store/mock';
 import { useMesh, SUMMARY_THRESHOLD } from '../store/mesh';
 import { useShake } from '../hooks/useShake';
 import EventComposer from '../features/messaging/components/EventComposer';
@@ -41,6 +40,7 @@ export default function ChatScreen({
   const markRead = useMesh((s) => s.markRead);
   const pending = useMesh((s) => s.pending);
   const peers = useMesh((s) => s.peers);
+  const me = useMesh((s) => s.me.deviceId);
   const peerName = (id: string) => peers[id]?.display ?? id;
   const cancelPending = useMesh((s) => s.cancelPending);
   const revertLastCoin = useMesh((s) => s.revertLastCoin);
@@ -158,7 +158,9 @@ export default function ChatScreen({
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}
       >
-        {thread.group ? <ReachBar /> : null}
+        {thread.group ? (
+          <ReachBar members={(thread.members ?? []).filter((id) => id !== me)} peers={peers} />
+        ) : null}
 
         <Mono size={8.5} style={s.day}>
           TODAY
@@ -168,9 +170,9 @@ export default function ChatScreen({
           <MessageBubble
             key={m.id}
             msg={m}
-            senderName={
-              thread.group ? byId(m.from)?.name.split(' ')[0] ?? peerName(m.from) : undefined
-            }
+            // The name rides with the message, so it works for a sender two
+            // hops away who is not a peer of this phone.
+            senderName={thread.group ? m.fromName ?? peerName(m.from) : undefined}
             animate={i >= baseline.current}
             onSaveEvent={addToCalendar}
           />
@@ -295,22 +297,40 @@ export default function ChatScreen({
   );
 }
 
-/** Who can actually hear you right now, before you type. */
-function ReachBar() {
+/**
+ * Who can actually hear you right now, before you type. Counted from the
+ * group's real membership against the peers currently in range — a group whose
+ * members are all away should say so rather than imply an audience.
+ */
+function ReachBar({
+  members,
+  peers,
+}: {
+  members: string[];
+  peers: Record<string, { display: string }>;
+}) {
   const { c } = useTheme();
-  const pips = [c.direct, c.direct, c.relay, c.dim];
+  const reachable = members.filter((id) => peers[id]);
+  const away = members.length - reachable.length;
+
   return (
     <View style={[s.reachbar, { backgroundColor: c.card, borderColor: c.hair2 }]}>
       <View style={s.pips}>
-        {pips.map((p, i) => (
-          <View key={i} style={[s.pip, { backgroundColor: p }]} />
+        {members.map((id) => (
+          <View key={id} style={[s.pip, { backgroundColor: peers[id] ? c.direct : c.dim }]} />
         ))}
       </View>
       <View style={{ flex: 1 }}>
         <Mono size={8.5} dim={2}>
-          2 DIRECT · 1 VIA THABO · 1 OUT OF REACH
+          {reachable.length} REACHABLE · {away} OUT OF REACH
         </Mono>
-        <Mono size={8.5}>SIPHO GETS IT WHEN HE’S BACK</Mono>
+        <Mono size={8.5}>
+          {away === 0
+            ? 'EVERYONE GETS THIS NOW'
+            : reachable.length === 0
+              ? 'NOBODY IS IN RANGE — THIS WILL WAIT'
+              : `${away} GET${away === 1 ? 'S' : ''} IT WHEN THEY ARE BACK`}
+        </Mono>
       </View>
     </View>
   );

@@ -5,7 +5,7 @@
 // it would undo the thing the app is for.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLLM, QWEN2_5_0_5B_QUANTIZED } from 'react-native-executorch';
-import type { Thread } from '../../../store/mock';
+import type { Thread } from '../../../store/types';
 
 /** Shown on the sheet. The claim of "on device" is worth nothing if the UI
  *  doesn't say which model ran and where. */
