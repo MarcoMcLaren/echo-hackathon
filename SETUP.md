@@ -212,12 +212,37 @@ people know to reinstall).
 | `expo-nearby-connections` | ^1.1.0 | Offline mesh transport (Google Nearby: Bluetooth + Wi-Fi Direct). |
 | `react-native-nitro-modules` | ^0.36.5 | Native runtime that `expo-nearby-connections` is built on. |
 | `react-native-keychain` | ^10.0.0 | Hardware-backed key storage (Android Keystore) for E2E-encrypted messaging. |
+| `react-native-audio-api` | ^0.13.2 | Microphone capture (16 kHz mono Float32 PCM) feeding on-device dictation. |
 
 > **`expo-nearby-connections` needs a shipped-file fix (automatic).** v1.1.0's
 > `android/build.gradle` does `apply from: './fix-prefab.gradle'`, but that file
 > is missing from the npm tarball → the Android build fails. A **postinstall**
 > (`scripts/fix-nearby-prefab.js`, vendoring `scripts/nearby-fix-prefab.gradle`)
 > restores it, so `npm install` self-heals — builders don't do anything manual.
+
+> **`react-native-audio-api` needs a Windows build fix (automatic).** Its
+> `downloadPrebuiltBinaries` Gradle task runs a bash script through
+> `C:\Program Files\Git\usr\bin\bash.exe`. Launched directly like that, bash
+> skips the MSYS profile, so `/usr/bin` is never on `PATH` — the script's
+> `mkdir -p` fails silently, every `curl -o` into the missing temp dir dies with
+> `(23) client returned ERROR on write`, and the task exits **127** on
+> `rm: command not found`. A **postinstall**
+> (`scripts/fix-audio-api-bash-path.js`) rewrites that one `commandLine` to
+> `bash -c 'export PATH=/usr/bin:$PATH; …'`, so `npm install` self-heals.
+> Upstream issue [#1012] is closed with no fix shipped. Setting `PATH` via
+> Gradle's `environment` does **not** work — on Windows the task's env map is
+> seeded from `System.getenv()`, whose key is `Path`, so adding `PATH` just
+> leaves two entries and the child keeps the original.
+>
+> [#1012]: https://github.com/software-mansion/react-native-audio-api/issues/1012
+
+> **Plugin config is deliberate, not default.** `app.json` passes
+> `androidPermissions: ["android.permission.RECORD_AUDIO"]` because the plugin's
+> default list does **not** include it (it defaults to foreground-service *media
+> playback* permissions). We also set `androidForegroundService: false` — Echo
+> only records while you hold the button, and the default would declare a
+> `mediaPlayback` service we never use — and `disableFFmpeg: true`, since we
+> capture raw PCM and never decode audio files.
 
 > **Planned / not in the current build:**
 > - **Sidequest (datacenter GPU)** — online-only; **no native lib** (authenticated
@@ -242,6 +267,7 @@ once. Uninstalling / clearing app data wipes the cache (re-download needed).
 | Obstacle detection → haptics | `useObjectDetection` | `SSDLITE_320_MOBILENET_V3_LARGE` | **13.3 MB** |
 | OCR "read that" | `useOCR` | `OCR_ENGLISH` (CRAFT detector 19.9 MB + English CRNN 17.5 MB) | **37.4 MB** |
 | Read text aloud | — | `expo-speech` (OS TTS) | **0 MB** |
+| Dictate a message (hold the mic) | `useSpeechToText` | `WHISPER_TINY_EN` (model 221.8 MB + tokenizer 2.3 MB) | **224.1 MB** |
 | Summaries / describe scene | `useLLM` | `QWEN2_5_0_5B_QUANTIZED` (recommended start) | **398 MB** |
 | ⤷ better quality | `useLLM` | `LLAMA3_2_1B_SPINQUANT` or `QWEN2_5_1_5B_QUANTIZED` | **~1.08 GB** |
 
@@ -273,6 +299,7 @@ import {
 | `react-native-vision-camera@5` | `expo prebuild` crashed — v5 moved to the Nitro stack, no Expo config plugin, extra bleeding-edge peers | Dropped for MVP; use `expo-camera` snapshots → `useObjectDetection.forward(uri)`. VisionCamera v5 + `runOnFrame` is an optional post-MVP real-time upgrade. |
 | `expo-nearby-connections@1.1.0` | Gradle failed: `Could not read script '.../fix-prefab.gradle'` (missing from npm tarball), cascading to `:expo > SoftwareComponent 'release' not found` | Restored the file (from the lib's repo) via a `postinstall` script. Then builds clean — Nitro C++ compiles on RN 0.86. |
 | ExecuTorch + expo-camera/speech/haptics + nearby/nitro on RN 0.86 | none — built clean | — |
+| `react-native-audio-api@0.13.2` | Gradle failed: `:react-native-audio-api:downloadPrebuiltBinaries` exit **127**, preceded by `curl: (23) client returned ERROR on write` and `rm: command not found`. Windows-only — `bash.exe` invoked directly has no `/usr/bin` on `PATH`, so the script's `mkdir`/`rm`/`unzip` never resolve and `common/cpp/audioapi/external/android` stays empty | `postinstall` rewrites the task to `bash -c 'export PATH=/usr/bin:$PATH; …'` (`scripts/fix-audio-api-bash-path.js`). Then builds clean on RN 0.86. |
 
 > Mesh history: `bridgefy-react-native` (which needed `desugar_jdk_libs ≥ 2.1.5`)
 > was dropped — its SDK signup is card-gated. Mesh messaging is **back in scope**

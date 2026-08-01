@@ -1,2 +1,2 @@
 // UI used only in messaging (chat list, thread, peers).
-export {};
+export { default as MicButton } from './MicButton';

@@ -12,6 +12,7 @@ import {
 import {
   VISION_MODELS,
   LANGUAGE_MODEL,
+  SPEECH_MODEL,
   downloadGroup,
   type ModelGroup,
 } from '../services/models';
@@ -81,6 +82,12 @@ export default function ModelPreloadScreen() {
       </Text>
       <GroupRow group={VISION_MODELS} auto={true} />
       <GroupRow group={LANGUAGE_MODEL} auto={false} />
+      {/* Opt-in like the LLM, and for the same reason: too big to pull down as
+          a side effect. Note this row calls `downloadGroup`, not
+          `downloadSpeechModel`, so it caches the files without writing the
+          opt-in marker — the chat composer will still offer the download, and
+          then finish it in seconds against the warm cache. */}
+      <GroupRow group={SPEECH_MODEL} auto={false} />
     </View>
   );
 }

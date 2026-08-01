@@ -48,6 +48,17 @@
         {
           "calendarPermission": "Echo saves events shared in a chat to your calendar."
         }
+      ],
+      [
+        "react-native-audio-api",
+        {
+          "iosMicrophonePermission": "Echo listens so you can dictate a message instead of typing it.",
+          "androidPermissions": [
+            "android.permission.RECORD_AUDIO"
+          ],
+          "androidForegroundService": false,
+          "disableFFmpeg": true
+        }
       ]
     ]
   }
