@@ -146,8 +146,9 @@ class EchoAppBar extends StatelessWidget {
   }
 }
 
-/// The three tabs of the app shell — reach (mesh contacts), wallet, tap (meet).
-enum AppTab { reach, wallet, tap }
+/// The four tabs of the app shell — reach (mesh contacts), wallet, tap
+/// (meet), read (on-device OCR).
+enum AppTab { reach, wallet, tap, read }
 
 class _NavItem {
   const _NavItem(this.tab, this.glyph, this.label);
@@ -160,13 +161,19 @@ const _navItems = [
   _NavItem(AppTab.reach, '◎', 'REACH'),
   _NavItem(AppTab.wallet, '◍', 'WALLET'),
   _NavItem(AppTab.tap, '⌁', 'MEET'),
+  _NavItem(AppTab.read, '⌾', 'READ'),
 ];
 
 class BottomNav extends StatelessWidget {
-  const BottomNav({super.key, required this.tab, required this.onTab});
+  const BottomNav({super.key, required this.tab, required this.onTab, this.disabled = false});
 
   final AppTab tab;
   final ValueChanged<AppTab> onTab;
+
+  /// Set while a screen is doing work that must not be interrupted by
+  /// unmount (ReadScreen mid-capture). The active tab stays pressable so a
+  /// lock never looks like a freeze.
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +192,7 @@ class BottomNav extends StatelessWidget {
                 child: _NavButton(
                   item: item,
                   selected: item.tab == tab,
+                  locked: disabled && item.tab != tab,
                   onTap: () => onTab(item.tab),
                   colors: c,
                 ),
@@ -200,12 +208,14 @@ class _NavButton extends StatelessWidget {
   const _NavButton({
     required this.item,
     required this.selected,
+    required this.locked,
     required this.onTap,
     required this.colors,
   });
 
   final _NavItem item;
   final bool selected;
+  final bool locked;
   final VoidCallback onTap;
   final tokens.Palette colors;
 
@@ -215,28 +225,32 @@ class _NavButton extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
+      enabled: !locked,
       label: item.label,
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: tokens.touchMin),
-          padding: const EdgeInsets.only(top: 8, bottom: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: selected ? colors.direct : Colors.transparent,
-                width: 2,
+      child: Opacity(
+        opacity: locked ? 0.4 : 1,
+        child: InkWell(
+          onTap: locked ? null : onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: tokens.touchMin),
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(
+                  color: selected ? colors.direct : Colors.transparent,
+                  width: 2,
+                ),
               ),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Display(item.glyph, size: 16, color: ink),
-              const SizedBox(height: 1),
-              Mono(item.label, size: 8.5, color: ink),
-            ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Display(item.glyph, size: 16, color: ink),
+                const SizedBox(height: 1),
+                Mono(item.label, size: 8.5, color: ink),
+              ],
+            ),
           ),
         ),
       ),

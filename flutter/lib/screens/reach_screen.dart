@@ -156,7 +156,7 @@ class _ConvRow extends StatelessWidget {
                   children: [
                     Display(t.title, size: 14, maxLines: 1),
                     const SizedBox(height: 1),
-                    Body(t.preview, size: 11.5, dim: 2, maxLines: 1),
+                    Body(t.preview, size: 11.5, dim: t.unread > 0 ? 1 : 2, maxLines: 1),
                   ],
                 ),
               ),
@@ -165,7 +165,15 @@ class _ConvRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Mono(t.at, size: 9),
+                  t.unread > 0
+                      ? Container(
+                          constraints: const BoxConstraints(minWidth: 18),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(color: colors.ink, borderRadius: BorderRadius.circular(9)),
+                          alignment: Alignment.center,
+                          child: Mono('${t.unread}', size: 8.5, color: colors.paper),
+                        )
+                      : Mono(t.at, size: 9),
                   const SizedBox(height: 4),
                   HopChip(
                     hops: t.hops,

@@ -32,7 +32,11 @@ class MessageBubble extends StatelessWidget {
     final mine = msg.from == 'me';
     final crossAxis = mine ? CrossAxisAlignment.end : CrossAxisAlignment.start;
 
-    final Widget footer = mine
+    // Sending is a transient placeholder — its own "SENDING" badge already
+    // says everything the footer would.
+    final Widget? footer = msg.pending
+        ? null
+        : mine
         ? Mono(_stateLine(msg), size: 8.5)
         : RouteStrip(
             hops: msg.hops,
@@ -46,12 +50,31 @@ class MessageBubble extends StatelessWidget {
     Widget content;
     if (msg.coin != null) {
       final relayed = msg.hops != null && msg.hops! > 0;
+      final tone = msg.reverted ? c.ink3 : c.coin;
+      final String badge;
+      if (msg.reverted) {
+        badge = 'TAKEN BACK';
+      } else if (msg.pending) {
+        badge = 'SENDING';
+      } else if (msg.state == mock.MsgState.queued) {
+        badge = 'WAITING FOR A ROUTE';
+      } else {
+        badge = mine ? 'SENT' : 'RECEIVED';
+      }
+      final String caption;
+      if (msg.reverted) {
+        caption = 'RETURNED · THE OTHER PHONE IS TOLD WHEN A ROUTE OPENS';
+      } else if (relayed) {
+        caption = 'SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}';
+      } else {
+        caption = 'SIGNED ON DEVICE · DIRECT';
+      }
       content = Container(
         constraints: const BoxConstraints(minWidth: 200),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: Border.all(color: c.coin, width: 1.5),
-          color: c.coin.withAlpha(0x12),
+          border: Border.all(color: tone, width: 1.5),
+          color: msg.reverted ? Colors.transparent : tone.withAlpha(0x12),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(tokens.AppRadius.bubble),
             topRight: const Radius.circular(tokens.AppRadius.bubble),
@@ -63,15 +86,22 @@ class MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Mono(mine ? 'SENT' : 'RECEIVED', size: 9, color: c.coin),
+            Mono(badge, size: 9, color: tone),
             Padding(
               padding: const EdgeInsets.only(top: 7),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CoinMark(size: 22, color: c.coin),
+                  CoinMark(size: 22, color: tone),
                   const SizedBox(width: 7),
-                  Display(msg.coin!.toStringAsFixed(2), size: 27, color: c.coin),
+                  Display(
+                    msg.coin!.toStringAsFixed(2),
+                    size: 27,
+                    color: tone,
+                    style: msg.reverted
+                        ? const TextStyle(decoration: TextDecoration.lineThrough)
+                        : null,
+                  ),
                 ],
               ),
             ),
@@ -79,13 +109,7 @@ class MessageBubble extends StatelessWidget {
               padding: const EdgeInsets.only(top: 7),
               child: Opacity(
                 opacity: 0.8,
-                child: Mono(
-                  relayed
-                      ? 'SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}'
-                      : 'SIGNED ON DEVICE · DIRECT',
-                  size: 8.5,
-                  color: c.coin,
-                ),
+                child: Mono(caption, size: 8.5, color: tone),
               ),
             ),
           ],
@@ -127,7 +151,7 @@ class MessageBubble extends StatelessWidget {
                   child: Mono(senderName!.toUpperCase(), size: 9),
                 ),
               content,
-              Padding(padding: const EdgeInsets.only(top: 4), child: footer),
+              if (footer != null) Padding(padding: const EdgeInsets.only(top: 4), child: footer),
             ],
           ),
         ),

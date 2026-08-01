@@ -89,14 +89,35 @@ void main() {
   });
 
   group('MockThreadSummarizer', () {
-    test('tags the demo summary with the actual message count', () async {
-      final summarizer = MockThreadSummarizer();
-      final messages = mock.threads.first.messages;
+    test('streams a loading progress, then generates lines, then completes', () async {
+      final summarizer = MockThreadSummarizer(
+        loadDelay: Duration.zero,
+        lineDelay: Duration.zero,
+      );
+      final thread = mock.threads.first;
 
-      final summary = await summarizer.summarize(messages);
+      final states = await summarizer.summarize(thread, thread.unread).toList();
 
-      expect(summary.count, messages.length);
-      expect(summary.points, isNotEmpty);
+      expect(states.first.isReady, isFalse);
+      expect(states.any((s) => s.downloadProgress == 1 && s.isReady), isTrue);
+      final last = states.last;
+      expect(last.done, isTrue);
+      expect(last.isGenerating, isFalse);
+      expect(last.lines, isNotEmpty);
+      expect(last.tookMs, isNotNull);
+    });
+
+    test('the model stays warm after the first summary — no loading state on the second', () async {
+      final summarizer = MockThreadSummarizer(
+        loadDelay: Duration.zero,
+        lineDelay: Duration.zero,
+      );
+      final thread = mock.threads.first;
+
+      await summarizer.summarize(thread, thread.unread).toList();
+      final states = await summarizer.summarize(thread, thread.unread).toList();
+
+      expect(states.every((s) => s.isReady), isTrue);
     });
   });
 }

@@ -1,21 +1,28 @@
 // Widget tests for lib/screens/* — each screen renders against the mock
 // stores/adapters (MeshStore + MockTransport, MockSecureVault,
-// MockThreadSummarizer), matching the same headless, no-device-required
-// approach as the rest of the suite.
+// MockThreadSummarizer, MockOcrReader, MockAppLock, MockShakeService),
+// matching the same headless, no-device-required approach as the rest of the
+// suite.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:echo/features/ai/ocr_reader.dart';
 import 'package:echo/features/ai/summarize.dart';
+import 'package:echo/features/feedback/proximity_feedback.dart';
 import 'package:echo/features/messaging/mock_transport.dart';
+import 'package:echo/features/vault/lock.dart';
 import 'package:echo/features/vault/vault.dart';
 import 'package:echo/screens/catch_me_up_sheet.dart';
 import 'package:echo/screens/chat_screen.dart';
 import 'package:echo/screens/model_preload_screen.dart';
+import 'package:echo/screens/lock_screen.dart';
 import 'package:echo/screens/reach_screen.dart';
+import 'package:echo/screens/read_screen.dart';
 import 'package:echo/screens/send_coin_screen.dart';
 import 'package:echo/screens/tap_screen.dart';
 import 'package:echo/screens/wallet_screen.dart';
+import 'package:echo/services/shake_service.dart';
 import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/mock.dart' as mock;
 import 'package:echo/store/theme_store.dart';
@@ -26,13 +33,23 @@ Widget harness(Widget child) {
       ChangeNotifierProvider(create: (_) => ThemeStore()),
       ChangeNotifierProvider(create: (_) => MeshStore(transport: MockTransport())),
       Provider<SecureVault>(create: (_) => MockSecureVault()),
+      Provider<AppLock>(create: (_) => MockAppLock()),
       Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
+      Provider<OcrReader>(create: (_) => MockOcrReader()),
+      Provider<ShakeService>(create: (_) => MockShakeService()),
+      Provider<HapticOutput>(create: (_) => _NoOpHaptics()),
+      Provider<SpeechOutput>(create: (_) => NoOpSpeechOutput()),
     ],
     child: MaterialApp(
       theme: ThemeData(brightness: Brightness.light),
       home: Scaffold(body: child),
     ),
   );
+}
+
+class _NoOpHaptics implements HapticOutput {
+  @override
+  Future<void> pulse(double intensity) async {}
 }
 
 void main() {
@@ -53,12 +70,12 @@ void main() {
     expect(find.text('Here, for the wood run'), findsOneWidget);
   });
 
-  testWidgets('ChatScreen opens the CatchMeUpSheet for a group thread', (tester) async {
+  testWidgets('ChatScreen opens the CatchMeUpSheet once unread crosses the summary threshold', (tester) async {
     await tester.pumpWidget(harness(ChatScreen(threadId: 'braai', onBack: () {}, onSendCoin: (_) {})));
     await tester.pump();
 
-    expect(find.text('Catch me up · 41 new'), findsOneWidget);
-    await tester.tap(find.text('Catch me up · 41 new'));
+    expect(find.text('Catch me up · 11 unread'), findsOneWidget);
+    await tester.tap(find.text('Catch me up · 11 unread'));
     await tester.pump();
     expect(find.byType(CatchMeUpSheet), findsOneWidget);
 
@@ -76,7 +93,7 @@ void main() {
   });
 
   testWidgets('SendCoinScreen renders the contact and keypad', (tester) async {
-    await tester.pumpWidget(harness(SendCoinScreen(contactId: 'naledi', onBack: () {})));
+    await tester.pumpWidget(harness(SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (_) {})));
     await tester.pump();
 
     expect(find.text('Send echocoin'), findsOneWidget);
@@ -85,6 +102,19 @@ void main() {
     await tester.tap(find.text('5'));
     await tester.pump();
     expect(find.text('20.005'), findsOneWidget);
+  });
+
+  testWidgets('SendCoinScreen queues a coin send and calls onQueued', (tester) async {
+    String? queuedFor;
+    await tester.pumpWidget(
+      harness(SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (id) => queuedFor = id)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('Send 20.00'));
+    await tester.pump();
+
+    expect(queuedFor, 'naledi');
   });
 
   testWidgets('TapScreen renders NFC mode by default and switches to Show code', (tester) async {
@@ -108,5 +138,73 @@ void main() {
 
     await tester.pumpAndSettle(const Duration(seconds: 2));
     expect(find.text('✓ Ready — offline'), findsOneWidget);
+  });
+
+  group('ReadScreen', () {
+    testWidgets('renders with nothing read yet, no camera plugin on this build', (tester) async {
+      await tester.pumpWidget(harness(const ReadScreen()));
+      await tester.pump();
+
+      expect(find.text('Read that'), findsWidgets); // title + button
+      expect(find.text('NO CAMERA ON THIS BUILD'), findsOneWidget);
+      expect(find.text('NOTHING READ YET'), findsOneWidget);
+    });
+
+    testWidgets('tapping Read that shows the transcript and reports busy then idle', (tester) async {
+      final busyStates = <bool>[];
+      await tester.pumpWidget(harness(ReadScreen(onBusyChange: busyStates.add)));
+      await tester.pump();
+
+      await tester.tap(find.text('Read that').last); // title + button share the label
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('LAST READ'), findsOneWidget);
+      expect(find.text('EXIT'), findsOneWidget);
+      expect(busyStates, [true, false]);
+    });
+  });
+
+  group('LockScreen', () {
+    testWidgets('offers to turn the lock on when nothing is enabled yet', (tester) async {
+      await tester.pumpWidget(harness(LockScreen(onUnlocked: () {})));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lock Echo to this phone'), findsOneWidget);
+      expect(find.text('Turn on unlock'), findsOneWidget);
+      expect(find.text('Not now'), findsOneWidget);
+    });
+
+    testWidgets('Not now continues without enabling the lock', (tester) async {
+      var unlocked = false;
+      await tester.pumpWidget(harness(LockScreen(onUnlocked: () => unlocked = true)));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Not now'));
+      await tester.pump();
+
+      expect(unlocked, isTrue);
+    });
+
+    testWidgets('turning the lock on then unlocks through it', (tester) async {
+      var unlocked = false;
+      await tester.pumpWidget(harness(LockScreen(onUnlocked: () => unlocked = true)));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Turn on unlock'));
+      // Bounded pumps, not pumpAndSettle: once unlocked the real app swaps
+      // this screen out, but here it stays mounted mid-"prompting" pulse
+      // (by design — the pulse only stops once a settled phase is reached),
+      // which would make pumpAndSettle hang waiting for an animation that
+      // this harness has no reason to stop.
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+
+      expect(unlocked, isTrue);
+    });
   });
 }

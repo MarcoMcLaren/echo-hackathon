@@ -1,12 +1,14 @@
 // Port of src/screens/ChatScreen.tsx.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../components/chip.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/type.dart';
-import '../features/ai/summarize.dart';
 import '../features/messaging/message_bubble.dart';
+import '../services/shake_service.dart';
 import '../store/mesh_store.dart';
 import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
@@ -28,24 +30,79 @@ class _ChatScreenState extends State<ChatScreen> {
   final _draftController = TextEditingController();
   final _scroll = ScrollController();
   bool _summary = false;
-  Future<mock.Summary>? _summaryFuture;
+
+  ShakeService? _shake;
+  StreamSubscription<void>? _shakeSub;
+  Timer? _countdown;
+  Timer? _noteTimer;
+  String? _note;
 
   // Anything past this index arrived while the screen was open, so its route
   // strip draws itself rather than appearing already there.
   int _baseline = 0;
   bool _baselineSet = false;
 
+  // Held from the moment the screen opened. Clearing the unread badge
+  // immediately would also remove the offer to summarise what you have not
+  // read yet.
+  int? _backlog;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd(animated: false));
+
+    final shake = context.read<ShakeService>();
+    _shake = shake;
+    shake.start();
+    _shakeSub = shake.onShake.listen((_) => _onShake());
   }
 
   @override
   void dispose() {
     _draftController.dispose();
     _scroll.dispose();
+    _shakeSub?.cancel();
+    _countdown?.cancel();
+    _noteTimer?.cancel();
+    _shake?.stop();
     super.dispose();
+  }
+
+  void _onShake() {
+    final mesh = context.read<MeshStore>();
+    final holding = mesh.pending?.threadId == widget.threadId ? mesh.pending : null;
+    if (holding != null) {
+      mesh.cancelPending();
+      _showNote('Send cancelled');
+    } else {
+      mesh.revertLastCoin(widget.threadId).then((did) {
+        _showNote(did ? 'Last payment taken back' : 'Nothing to take back');
+      });
+    }
+  }
+
+  /// Ticks the "in Ns" countdown on the coin-cancel banner independently of
+  /// any MeshStore change — runs only while a hold is actually showing, so a
+  /// screen with nothing pending never schedules a frame on its own.
+  void _syncCountdown({required bool active}) {
+    if (active) {
+      _countdown ??= Timer.periodic(const Duration(milliseconds: 200), (_) {
+        if (mounted) setState(() {});
+      });
+    } else {
+      _countdown?.cancel();
+      _countdown = null;
+    }
+  }
+
+  void _showNote(String text) {
+    if (!mounted) return;
+    setState(() => _note = text);
+    _noteTimer?.cancel();
+    _noteTimer = Timer(const Duration(milliseconds: 2600), () {
+      if (mounted) setState(() => _note = null);
+    });
   }
 
   void _scrollToEnd({required bool animated}) {
@@ -76,6 +133,20 @@ class _ChatScreenState extends State<ChatScreen> {
       _baseline = thread.messages.length;
       _baselineSet = true;
     }
+    _backlog ??= thread.unread;
+    final backlog = _backlog!;
+
+    if (thread.unread > 0) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) mesh.markRead(widget.threadId);
+      });
+    }
+
+    final holding = mesh.pending?.threadId == widget.threadId ? mesh.pending : null;
+    _syncCountdown(active: holding != null);
+    final left = holding == null
+        ? 0
+        : ((holding.until - DateTime.now().millisecondsSinceEpoch) / 1000).ceil().clamp(0, 999);
 
     final sub = thread.group
         ? '${thread.members!.length} members · 3 reachable'
@@ -110,19 +181,16 @@ class _ChatScreenState extends State<ChatScreen> {
                       senderName: thread.group ? mock.byId(thread.messages[i].from)?.name.split(' ').first : null,
                       animate: i >= _baseline,
                     ),
-                  if (thread.group)
+                  if (backlog >= summaryThreshold)
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Semantics(
                           button: true,
                           excludeSemantics: true,
-                          label: 'Catch me up · 41 new',
+                          label: 'Summarise $backlog unread messages on this phone',
                           child: GestureDetector(
-                            onTap: () => setState(() {
-                              _summary = true;
-                              _summaryFuture = context.read<ThreadSummarizer>().summarize(thread.messages);
-                            }),
+                            onTap: () => setState(() => _summary = true),
                             child: Container(
                               constraints: const BoxConstraints(minHeight: 36),
                               alignment: Alignment.center,
@@ -132,7 +200,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                 borderRadius: BorderRadius.circular(tokens.AppRadius.pill),
                                 color: c.card,
                               ),
-                              child: const Display('Catch me up · 41 new', size: 13),
+                              child: Display('Catch me up · $backlog unread', size: 13),
                             ),
                           ),
                         ),
@@ -141,6 +209,57 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+            if (holding != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                color: c.coin,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Mono('SENDING ${holding.amount.toStringAsFixed(2)} IN ${left}s', size: 9, color: Colors.white),
+                          Opacity(
+                            opacity: 0.75,
+                            child: const Mono('OR SHAKE THE PHONE', size: 8.5, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: 'Cancel send',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        onTap: () {
+                          mesh.cancelPending();
+                          _showNote('Send cancelled');
+                        },
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: tokens.touchMin),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          alignment: Alignment.center,
+                          child: const Display('Cancel', size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (_note != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: c.ink, borderRadius: BorderRadius.circular(14)),
+                    child: Mono(_note!.toUpperCase(), size: 9, color: c.paper),
+                  ),
+                ),
+              ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
@@ -215,7 +334,8 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         if (_summary)
           CatchMeUpSheet(
-            summary: _summaryFuture!,
+            thread: thread,
+            unread: backlog,
             onClose: () => setState(() => _summary = false),
           ),
       ],

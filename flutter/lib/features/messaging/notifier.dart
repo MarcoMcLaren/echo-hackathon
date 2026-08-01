@@ -7,8 +7,11 @@
 // Port intent of src/features/messaging/api/notify.ts. The real implementation
 // is a platform-notification plugin (flutter_local_notifications or
 // equivalent) that lands separately; this defines the contract MeshStore
-// drives and a fake that records calls so tests can assert on them without a
-// plugin channel.
+// drives, a fake that records calls so tests can assert on them without a
+// plugin channel, and an in-app [BannerMeshNotifier] that surfaces the same
+// event as a SnackBar — no plugin dependency needed for that.
+import 'package:flutter/material.dart';
+
 class NotifyPayload {
   const NotifyPayload({
     required this.from,
@@ -47,5 +50,32 @@ class MockMeshNotifier implements MeshNotifier {
   @override
   Future<void> notify(NotifyPayload payload) async {
     sent.add(payload);
+  }
+}
+
+/// Surfaces an arriving message as an in-app SnackBar via the app's
+/// [ScaffoldMessengerState]. This is the whole "local notification" while the
+/// app is open — a platform notification plugin would take over for the
+/// backgrounded case, which is native work this build doesn't have.
+class BannerMeshNotifier implements MeshNotifier {
+  BannerMeshNotifier(this._messengerKey);
+
+  final GlobalKey<ScaffoldMessengerState> _messengerKey;
+
+  @override
+  Future<void> prepare() async {}
+
+  @override
+  Future<void> notify(NotifyPayload payload) async {
+    final messenger = _messengerKey.currentState;
+    if (messenger == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('${payload.from}: ${payload.body}'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
   }
 }

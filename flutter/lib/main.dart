@@ -6,17 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'components/chrome.dart' show AppTab, BottomNav;
+import 'features/ai/ocr_reader.dart';
 import 'features/ai/summarize.dart';
 import 'features/feedback/proximity_feedback.dart';
 import 'features/messaging/mock_transport.dart';
+import 'features/messaging/notifier.dart';
 import 'features/sidequest/remote_gpu.dart';
+import 'features/vault/lock.dart';
 import 'features/vault/vault.dart';
 import 'features/vision/obstacle_detector.dart';
 import 'screens/chat_screen.dart';
+import 'screens/lock_screen.dart';
 import 'screens/reach_screen.dart';
+import 'screens/read_screen.dart';
 import 'screens/send_coin_screen.dart';
 import 'screens/tap_screen.dart';
 import 'screens/wallet_screen.dart';
+import 'services/shake_service.dart';
 import 'store/mesh_store.dart';
 import 'store/theme_store.dart';
 import 'styles/theme.dart' as tokens;
@@ -24,6 +30,8 @@ import 'styles/theme.dart' as tokens;
 void main() {
   runApp(const EchoApp());
 }
+
+final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class EchoApp extends StatelessWidget {
   const EchoApp({super.key});
@@ -35,12 +43,19 @@ class EchoApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeStore()),
         // Mock-first adapters: every feature area from the project brief is
         // reachable from the provider tree, even the ones no screen in this
-        // pass consumes yet (vision/feedback/sidequest), so a later screen
-        // never has to instantiate an adapter ad hoc inside a widget.
-        ChangeNotifierProvider(create: (_) => MeshStore(transport: MockTransport())),
+        // pass consumes yet (vision/sidequest), so a later screen never has
+        // to instantiate an adapter ad hoc inside a widget.
+        ChangeNotifierProvider(
+          create: (_) => MeshStore(transport: MockTransport(), notifier: BannerMeshNotifier(_scaffoldMessengerKey)),
+        ),
         Provider<SecureVault>(create: (_) => MockSecureVault()),
+        Provider<AppLock>(create: (_) => MockAppLock()),
         Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
+        Provider<OcrReader>(create: (_) => MockOcrReader()),
+        Provider<ShakeService>(create: (_) => MockShakeService()),
         Provider<ObstacleDetector>(create: (_) => MockObstacleDetector()),
+        Provider<HapticOutput>(create: (_) => SystemHapticOutput()),
+        Provider<SpeechOutput>(create: (_) => NoOpSpeechOutput()),
         Provider<ProximityFeedback>(
           create: (_) => ProximityFeedback(haptics: SystemHapticOutput(), speech: NoOpSpeechOutput()),
         ),
@@ -51,8 +66,18 @@ class EchoApp extends StatelessWidget {
   }
 }
 
-class _EchoMaterialApp extends StatelessWidget {
+class _EchoMaterialApp extends StatefulWidget {
   const _EchoMaterialApp();
+
+  @override
+  State<_EchoMaterialApp> createState() => _EchoMaterialAppState();
+}
+
+class _EchoMaterialAppState extends State<_EchoMaterialApp> {
+  // Once past the door it stays open for the life of the launch —
+  // re-prompting every time you glance at another app would make the mesh
+  // unusable.
+  bool _unlocked = false;
 
   @override
   Widget build(BuildContext context) {
@@ -60,10 +85,13 @@ class _EchoMaterialApp extends StatelessWidget {
     return MaterialApp(
       title: 'Echo',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       themeMode: mode,
       theme: _themeData(tokens.light),
       darkTheme: _themeData(tokens.dark),
-      home: const AppShell(),
+      // Nothing behind the lock is built until it opens, so a shoulder-surfer
+      // can't read a thread off the screen behind a modal.
+      home: _unlocked ? const AppShell() : LockScreen(onUnlocked: () => setState(() => _unlocked = true)),
     );
   }
 
@@ -100,6 +128,10 @@ class _AppShellState extends State<AppShell> {
   AppTab _tab = AppTab.reach;
   _Route? _route;
 
+  // Switching tabs mid-read would unmount ReadScreen while a capture is in
+  // flight, so the nav locks rather than interrupting it.
+  bool _readBusy = false;
+
   void _back() => setState(() => _route = null);
 
   @override
@@ -116,6 +148,7 @@ class _AppShellState extends State<AppShell> {
       (_RouteName.send, _) => SendCoinScreen(
         contactId: route!.id,
         onBack: _back,
+        onQueued: (id) => setState(() => _route = _Route(_RouteName.chat, id)),
       ),
       (null, AppTab.reach) => ReachScreen(
         onOpen: (id) => setState(() => _route = _Route(_RouteName.chat, id)),
@@ -126,6 +159,7 @@ class _AppShellState extends State<AppShell> {
         onTap: () => setState(() => _tab = AppTab.tap),
       ),
       (null, AppTab.tap) => const TapScreen(),
+      (null, AppTab.read) => ReadScreen(onBusyChange: (busy) => setState(() => _readBusy = busy)),
     };
 
     return PopScope(
@@ -136,7 +170,7 @@ class _AppShellState extends State<AppShell> {
       child: Scaffold(
         body: SafeArea(child: body),
         bottomNavigationBar: route == null
-            ? BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t))
+            ? BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t), disabled: _readBusy)
             : null,
       ),
     );

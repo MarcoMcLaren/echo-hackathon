@@ -6,6 +6,7 @@ import '../components/avatar.dart';
 import '../components/chip.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/type.dart';
+import '../store/mesh_store.dart';
 import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
 import '../styles/theme.dart' as tokens;
@@ -13,10 +14,14 @@ import '../styles/theme.dart' as tokens;
 const _keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
 class SendCoinScreen extends StatefulWidget {
-  const SendCoinScreen({super.key, required this.contactId, required this.onBack});
+  const SendCoinScreen({super.key, required this.contactId, required this.onBack, required this.onQueued});
 
   final String contactId;
   final VoidCallback onBack;
+
+  /// Land in the conversation, where the cancel window is visible. Returning
+  /// to the tab list would hide the only control that can stop the send.
+  final ValueChanged<String> onQueued;
 
   @override
   State<SendCoinScreen> createState() => _SendCoinScreenState();
@@ -140,7 +145,10 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
                   label: 'Send $_amount',
                   excludeSemantics: true,
                   child: GestureDetector(
-                    onTap: () {},
+                    onTap: () {
+                      context.read<MeshStore>().queueCoin(widget.contactId, double.tryParse(_amount) ?? 0);
+                      widget.onQueued(widget.contactId);
+                    },
                     child: Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(minHeight: 48),
