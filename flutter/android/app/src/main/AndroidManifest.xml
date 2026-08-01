@@ -1,13 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-<<<<<<< HEAD
     <!-- MlkitOcrReader captures a frame for on-device text recognition. -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- LocalNotificationsMeshNotifier posts a system notification for -->
     <!-- messages arriving while the app isn't foregrounded (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-=======
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
->>>>>>> 2ef58f0077ac9afdde4f59f2c8d2e17f0459f1b3
     <application
         android:label="welcome_app"
         android:name="${applicationName}"

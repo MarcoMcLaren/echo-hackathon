@@ -1,11 +1,7 @@
 // Smoke test: the app opens behind the lock screen, then boots on the Reach
-<<<<<<< HEAD
 // tab. There is no seed data any more (see lib/store/mesh_store.dart), so a
 // fresh boot has no conversations — pairing one, and opening it, is exercised
 // in the pairing-ux screens rather than here.
-=======
-// tab and can navigate into a real chat thread and back, wired through
-// MeshStore's seeded demo data.
 //
 // main.dart wires the real BiometricAppLock (local_auth) and
 // SecureStorageVault (flutter_secure_storage) adapters, and LockScreen probes
@@ -14,7 +10,6 @@
 // immediately — simulating a phone with a fingerprint enrolled but the lock
 // not yet turned on, matching this test's "offer" phase / "Not now" path.
 import 'package:flutter/services.dart';
->>>>>>> 2ef58f0077ac9afdde4f59f2c8d2e17f0459f1b3
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
@@ -25,9 +20,6 @@ const _secureStorageChannel = MethodChannel(
 );
 
 void main() {
-<<<<<<< HEAD
-  testWidgets('boots on Reach tab with no conversations yet', (
-=======
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_localAuthChannel, (call) async {
@@ -51,8 +43,7 @@ void main() {
         .setMockMethodCallHandler(_secureStorageChannel, null);
   });
 
-  testWidgets('boots on Reach tab and opens/closes a chat thread', (
->>>>>>> 2ef58f0077ac9afdde4f59f2c8d2e17f0459f1b3
+  testWidgets('boots on Reach tab with no conversations yet', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const EchoApp());
