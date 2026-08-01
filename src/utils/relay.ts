@@ -13,7 +13,8 @@ export type Envelope = {
   from: string;
   /** Device id of the intended reader, or a thread id for a group. */
   to: string;
-  kind: 'msg' | 'coin';
+  /** `revert` carries the id of an earlier coin message to undo. */
+  kind: 'msg' | 'coin' | 'revert';
   /** Opaque to relays. Ciphertext once the vault lands. */
   body: string;
   /** Hops remaining. A relay forwards only while this is above zero. */

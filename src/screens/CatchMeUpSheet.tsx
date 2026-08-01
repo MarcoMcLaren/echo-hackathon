@@ -1,17 +1,29 @@
 import { useEffect, useRef } from 'react';
-import { View, Pressable, Animated, Easing, StyleSheet } from 'react-native';
-import { useTheme, radius } from '../styles/theme';
+import { View, Pressable, Animated, Easing, StyleSheet, ActivityIndicator } from 'react-native';
+import { useTheme, radius, TOUCH_MIN } from '../styles/theme';
 import { Display, Body, Mono } from '../components/Type';
-import { summary } from '../store/mock';
+import { useThreadSummary, SUMMARY_MODEL } from '../features/ai/hooks/useThreadSummary';
+import type { Thread } from '../store/mock';
 
 /**
- * The local model summarises what you missed while you had no route.
- * The model name and "nothing left this device" stay on the sheet, not buried in
- * settings — the claim of on-device is worth nothing if the UI doesn't show it.
+ * A small model, running here, summarising what arrived while you had no route.
+ * The model name and "nothing left this device" stay on the sheet rather than
+ * buried in settings — that claim is the reason this runs locally at all.
  */
-export default function CatchMeUpSheet({ onClose }: { onClose: () => void }) {
+export default function CatchMeUpSheet({
+  thread,
+  unread,
+  onClose,
+}: {
+  thread: Thread;
+  unread: number;
+  onClose: () => void;
+}) {
   const { c } = useTheme();
   const rise = useRef(new Animated.Value(0)).current;
+  const started = useRef(false);
+  const { lines, summarise, isReady, isGenerating, downloadProgress, done, tookMs, error } =
+    useThreadSummary({ enabled: true });
 
   useEffect(() => {
     Animated.timing(rise, {
@@ -21,6 +33,21 @@ export default function CatchMeUpSheet({ onClose }: { onClose: () => void }) {
       useNativeDriver: true,
     }).start();
   }, [rise]);
+
+  // Run as soon as the model is in RAM; nobody wants a second button here.
+  useEffect(() => {
+    if (isReady && !started.current) {
+      started.current = true;
+      summarise(thread, unread);
+    }
+  }, [isReady, summarise, thread, unread]);
+
+  const retry = () => {
+    started.current = true;
+    summarise(thread, unread);
+  };
+
+  const pct = Math.round((downloadProgress ?? 0) * 100);
 
   return (
     <View style={s.overlay} pointerEvents="box-none">
@@ -38,30 +65,62 @@ export default function CatchMeUpSheet({ onClose }: { onClose: () => void }) {
       >
         <View style={[s.grab, { backgroundColor: c.hair }]} />
         <Mono size={10} style={s.caps}>
-          Catch me up · {summary.model}
+          Catch me up · {SUMMARY_MODEL}
         </Mono>
-        <Display size={23}>{summary.count} messages while you were out of range.</Display>
+        <Display size={23}>
+          {unread} message{unread === 1 ? '' : 's'} while you were out of range.
+        </Display>
 
-        <View style={{ gap: 12 }}>
-          {summary.points.map((p) => (
-            <View key={p.k} style={s.point}>
-              <Mono size={8.5} style={s.k}>
-                {p.k}
-              </Mono>
-              <Body size={12.5} style={{ flex: 1 }}>
-                {p.text}
+        {error ? (
+          <View style={{ gap: 10 }}>
+            <Body size={12.5} color={c.direct}>
+              The summary did not finish. Every message is still in the thread above.
+            </Body>
+            <Mono size={8.5}>{error.slice(0, 120).toUpperCase()}</Mono>
+            <Pressable
+              onPress={retry}
+              accessibilityRole="button"
+              style={[s.btn, { borderWidth: 1.5, borderColor: c.hair }]}
+            >
+              <Display size={14}>Try again</Display>
+            </Pressable>
+          </View>
+        ) : !isReady ? (
+          <View style={s.waiting}>
+            <ActivityIndicator color={c.ink3} />
+            <View style={{ flex: 1 }}>
+              <Body size={12.5} dim={2}>
+                {pct > 0 && pct < 100
+                  ? 'Fetching the model once. After this it runs with no network at all.'
+                  : 'Loading the model onto this phone.'}
               </Body>
+              {pct > 0 && pct < 100 ? <Mono size={8.5}>{pct}%</Mono> : null}
             </View>
-          ))}
-        </View>
+          </View>
+        ) : (
+          <View style={{ gap: 12 }}>
+            {lines.map((line, i) => (
+              <View key={i} style={s.point}>
+                <View style={[s.tick, { backgroundColor: c.relay }]} />
+                <Body size={12.5} style={{ flex: 1 }}>
+                  {line}
+                </Body>
+              </View>
+            ))}
+            {isGenerating ? (
+              <View style={s.waiting}>
+                <ActivityIndicator color={c.ink3} size="small" />
+                <Mono size={8.5}>READING {unread} MESSAGES</Mono>
+              </View>
+            ) : null}
+          </View>
+        )}
 
-        <Mono size={8.5}>NOTHING LEFT THIS DEVICE · {summary.took}</Mono>
+        <Mono size={8.5}>
+          NOTHING LEFT THIS DEVICE{done && tookMs ? ` · ${(tookMs / 1000).toFixed(1)} S` : ''}
+        </Mono>
 
-        <Pressable
-          onPress={onClose}
-          accessibilityRole="button"
-          style={[s.btn, { backgroundColor: c.ink }]}
-        >
+        <Pressable onPress={onClose} accessibilityRole="button" style={[s.btn, { backgroundColor: c.ink }]}>
           <Display size={14} color={c.paper}>
             Back to chat
           </Display>
@@ -83,8 +142,9 @@ const s = StyleSheet.create({
     gap: 12,
   },
   grab: { width: 34, height: 3, borderRadius: 2, alignSelf: 'center', marginBottom: 2 },
-  point: { flexDirection: 'row', gap: 9 },
-  k: { width: 38, paddingTop: 3 },
-  btn: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
+  point: { flexDirection: 'row', gap: 9, alignItems: 'flex-start' },
+  tick: { width: 6, height: 6, borderRadius: 3, marginTop: 6 },
+  waiting: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  btn: { borderRadius: 10, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', minHeight: TOUCH_MIN },
   caps: { textTransform: 'uppercase' },
 });

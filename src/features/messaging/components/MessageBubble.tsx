@@ -27,30 +27,48 @@ export default function MessageBubble({
 
   // Money is a first-class message, not an attachment.
   if (msg.coin != null) {
+    const tone = msg.reverted ? c.ink3 : c.coin;
     return (
       <View style={[s.slot, mine && s.right]}>
         <View
           style={[
             s.coinCard,
-            { borderColor: c.coin, backgroundColor: c.coin + '12' },
+            { borderColor: tone, backgroundColor: msg.reverted ? 'transparent' : c.coin + '12' },
             mine ? s.coinRight : s.coinLeft,
+            msg.reverted && s.dashed,
           ]}
         >
-          <Mono size={9} color={c.coin}>
-            {mine ? 'SENT' : 'RECEIVED'}
+          <Mono size={9} color={tone}>
+            {msg.reverted
+              ? 'TAKEN BACK'
+              : msg.pending
+                ? 'SENDING'
+                : msg.state === 'queued'
+                  ? 'WAITING FOR A ROUTE'
+                  : mine
+                    ? 'SENT'
+                    : 'RECEIVED'}
           </Mono>
           <View style={s.amtRow}>
-            <CoinMark size={22} />
-            <Display size={27} color={c.coin}>
+            <CoinMark size={22} color={tone} />
+            <Display
+              size={27}
+              color={tone}
+              style={msg.reverted ? { textDecorationLine: 'line-through' } : undefined}
+            >
               {msg.coin.toFixed(2)}
             </Display>
           </View>
-          <Mono size={8.5} color={c.coin} style={{ opacity: 0.8 }}>
-            {msg.hops ? `SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}` : 'SIGNED ON DEVICE · DIRECT'}
+          <Mono size={8.5} color={tone} style={{ opacity: 0.8 }}>
+            {msg.reverted
+              ? 'RETURNED · THE OTHER PHONE IS TOLD WHEN A ROUTE OPENS'
+              : msg.hops
+                ? `SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}`
+                : 'SIGNED ON DEVICE · DIRECT'}
           </Mono>
         </View>
         <View style={{ marginTop: 4 }}>
-          {mine ? (
+          {msg.pending ? null : mine ? (
             <Mono size={8.5}>{stateLine(msg)}</Mono>
           ) : (
             <RouteStrip
@@ -101,6 +119,7 @@ const s = StyleSheet.create({
   right: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   bub: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.bubble },
   coinCard: { borderWidth: 1.5, borderRadius: radius.bubble, padding: 12, gap: 7, minWidth: 200 },
+  dashed: { borderStyle: 'dashed' },
   coinLeft: { borderBottomLeftRadius: radius.tail },
   coinRight: { borderBottomRightRadius: radius.tail },
   amtRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },

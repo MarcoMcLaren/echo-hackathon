@@ -8,6 +8,7 @@ import ChatScreen from './screens/ChatScreen';
 import WalletScreen from './screens/WalletScreen';
 import TapScreen from './screens/TapScreen';
 import SendCoinScreen from './screens/SendCoinScreen';
+import LockScreen from './screens/LockScreen';
 
 // Hand-rolled navigation: three tabs and a one-deep stack. react-navigation would
 // pull in react-native-screens + safe-area-context, which means a new dev-client
@@ -21,6 +22,9 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('system');
   const [tab, setTab] = useState<Tab>('reach');
   const [route, setRoute] = useState<Route>(null);
+  // Once past the door it stays open for the life of the launch — re-prompting
+  // every time you glance at another app would make the mesh unusable.
+  const [unlocked, setUnlocked] = useState(false);
 
   const isDark = mode === 'system' ? system === 'dark' : mode === 'dark';
 
@@ -47,6 +51,17 @@ export default function App() {
     return () => sub.remove();
   }, [route, back]);
 
+  // Nothing behind the lock is rendered until it opens, so a shoulder-surfer
+  // can't read a thread off the screen behind a modal.
+  if (!unlocked) {
+    return (
+      <ThemeContext.Provider value={theme}>
+        <LockScreen onUnlocked={() => setUnlocked(true)} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </ThemeContext.Provider>
+    );
+  }
+
   return (
     <ThemeContext.Provider value={theme}>
       <Screen>
@@ -58,7 +73,11 @@ export default function App() {
               onSendCoin={(id) => setRoute({ name: 'send', id })}
             />
           ) : route?.name === 'send' ? (
-            <SendCoinScreen contactId={route.id} onBack={back} />
+            <SendCoinScreen
+              contactId={route.id}
+              onBack={back}
+              onQueued={(id) => setRoute({ name: 'chat', id })}
+            />
           ) : tab === 'reach' ? (
             <ReachScreen onOpen={(id) => setRoute({ name: 'chat', id })} />
           ) : tab === 'wallet' ? (

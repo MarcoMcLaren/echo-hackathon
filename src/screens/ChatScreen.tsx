@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -15,7 +15,8 @@ import { HopChip } from '../components/Chip';
 import MessageBubble from '../features/messaging/components/MessageBubble';
 import CatchMeUpSheet from './CatchMeUpSheet';
 import { byId } from '../store/mock';
-import { useMesh } from '../store/mesh';
+import { useMesh, SUMMARY_THRESHOLD } from '../store/mesh';
+import { useShake } from '../hooks/useShake';
 
 export default function ChatScreen({
   threadId,
@@ -29,6 +30,41 @@ export default function ChatScreen({
   const { c } = useTheme();
   const threads = useMesh((s) => s.threads);
   const sendToMesh = useMesh((s) => s.send);
+  const markRead = useMesh((s) => s.markRead);
+  const pending = useMesh((s) => s.pending);
+  const cancelPending = useMesh((s) => s.cancelPending);
+  const revertLastCoin = useMesh((s) => s.revertLastCoin);
+  const [left, setLeft] = useState(0);
+  const [note, setNote] = useState<string | null>(null);
+
+  const holding = pending?.threadId === threadId ? pending : null;
+
+  // Shake does whatever the visible control does: cancel what is still held,
+  // otherwise take back the last payment that already went.
+  useShake(() => {
+    if (holding) {
+      cancelPending();
+      setNote('Send cancelled');
+    } else {
+      revertLastCoin(threadId).then((did) =>
+        setNote(did ? 'Last payment taken back' : 'Nothing to take back')
+      );
+    }
+  });
+
+  useEffect(() => {
+    if (!holding) return setLeft(0);
+    const tick = () => setLeft(Math.max(0, Math.ceil((holding.until - Date.now()) / 1000)));
+    tick();
+    const id = setInterval(tick, 200);
+    return () => clearInterval(id);
+  }, [holding]);
+
+  useEffect(() => {
+    if (!note) return;
+    const id = setTimeout(() => setNote(null), 2600);
+    return () => clearTimeout(id);
+  }, [note]);
   const baseline = useRef(0);
   const thread = useMemo(() => threads.find((t) => t.id === threadId)!, [threads, threadId]);
   const [draft, setDraft] = useState('');
@@ -38,6 +74,13 @@ export default function ChatScreen({
   // Anything past this index arrived while the screen was open, so its route
   // strip draws itself rather than appearing already there.
   if (baseline.current === 0) baseline.current = thread.messages.length;
+
+  // Held from the moment the screen opened. Clearing the badge immediately
+  // would also remove the offer to summarise what you have not read yet.
+  const backlog = useRef(thread.unread ?? 0);
+  useEffect(() => {
+    if (thread.unread) markRead(threadId);
+  }, [markRead, threadId, thread.unread]);
 
   const send = () => {
     const text = draft.trim();
@@ -86,16 +129,50 @@ export default function ChatScreen({
           />
         ))}
 
-        {thread.group ? (
+        {backlog.current >= SUMMARY_THRESHOLD ? (
           <Pressable
             onPress={() => setSummary(true)}
             accessibilityRole="button"
+            accessibilityLabel={`Summarise ${backlog.current} unread messages on this phone`}
             style={[s.catch, { borderColor: c.hair, backgroundColor: c.card }]}
           >
-            <Display size={13}>Catch me up · 41 new</Display>
+            <Display size={13}>Catch me up · {backlog.current} unread</Display>
           </Pressable>
         ) : null}
       </ScrollView>
+
+      {holding ? (
+        <View style={[s.undo, { backgroundColor: c.coin }]}>
+          <View style={{ flex: 1 }}>
+            <Mono size={9} color="#fff">
+              SENDING {holding.amount.toFixed(2)} IN {left}s
+            </Mono>
+            <Mono size={8.5} color="#fff" style={{ opacity: 0.75 }}>
+              OR SHAKE THE PHONE
+            </Mono>
+          </View>
+          <Pressable
+            onPress={() => {
+              cancelPending();
+              setNote('Send cancelled');
+            }}
+            accessibilityRole="button"
+            style={s.undoBtn}
+          >
+            <Display size={14} color="#fff">
+              Cancel
+            </Display>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {note ? (
+        <View style={[s.note, { backgroundColor: c.ink }]}>
+          <Mono size={9} color={c.paper}>
+            {note.toUpperCase()}
+          </Mono>
+        </View>
+      ) : null}
 
       <View
         style={[s.composer, { backgroundColor: c.card, borderTopColor: c.hair2, paddingBottom: bottomInset + 9 }]}
@@ -129,7 +206,9 @@ export default function ChatScreen({
         </Pressable>
       </View>
 
-      {summary ? <CatchMeUpSheet onClose={() => setSummary(false)} /> : null}
+      {summary ? (
+        <CatchMeUpSheet thread={thread} unread={backlog.current} onClose={() => setSummary(false)} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -162,6 +241,9 @@ const s = StyleSheet.create({
   pips: { flexDirection: 'row', gap: 3 },
   pip: { width: 7, height: 7, borderRadius: 4 },
   catch: { alignSelf: 'center', borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 7, marginTop: 6, minHeight: 36, justifyContent: 'center' },
+  undo: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
+  undoBtn: { paddingHorizontal: 14, paddingVertical: 8, minHeight: 40, justifyContent: 'center' },
+  note: { alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, marginBottom: 8 },
   composer: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 9, borderTopWidth: 1 },
   field: { flex: 1, borderWidth: 1, borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8, fontSize: 12.5, minHeight: 40 },
   rbtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
