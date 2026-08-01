@@ -222,7 +222,7 @@ class ThreadSummary extends ChangeNotifier {
       await for (final response in _chat!.generateChatResponseAsync()) {
         if (response is! TextResponse) continue;
         buffer.write(response.token);
-        final text = buffer.toString();
+        final text = _normalizeNewlines(buffer.toString());
         lines = toLines(text);
         _notify();
         _maybeCap(text);
