@@ -66,6 +66,15 @@ export const SUMMARY_THRESHOLD = 5;
 
 export type MeshStatus = 'off' | 'starting' | 'live' | 'error';
 
+/**
+ * Nearby can hang on start instead of failing — most often when a previous
+ * session, or a hot reload that reset our JS state, left the radio still
+ * advertising. Without a ceiling the header sits on "starting mesh" forever,
+ * and since start() refuses to run while it is already starting, the only way
+ * out is killing the app. Give up instead, so the next tap can try again.
+ */
+const START_TIMEOUT_MS = 15_000;
+
 type State = {
   me: { deviceId: string; display: string };
   status: MeshStatus;
@@ -463,8 +472,22 @@ export const useMesh = create<State>((set, get) => ({
       onError: (message) => set({ error: message }),
     });
 
-    const result = await transport.start();
+    const result = await Promise.race([
+      transport.start(),
+      new Promise<{ ok: boolean; reason?: string }>((resolve) =>
+        setTimeout(
+          () => resolve({ ok: false, reason: 'Radio did not answer — tap to try again' }),
+          START_TIMEOUT_MS
+        )
+      ),
+    ]);
     if (!result.ok) {
+      // Drop the half-started transport so a retry begins from nothing. Not
+      // awaited: if start() is what hung, stop() may well hang too, and waiting
+      // on it would put us straight back in the state we are escaping.
+      const dead = transport;
+      transport = null;
+      void dead?.stop().catch(() => {});
       set({ status: 'error', error: result.reason });
       return;
     }
