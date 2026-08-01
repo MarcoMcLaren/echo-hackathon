@@ -188,7 +188,8 @@ Envelope? decode(String text) {
         e['to'] is! String ||
         e['body'] is! String ||
         e['ttl'] is! num ||
-        e['path'] is! List) {
+        e['path'] is! List ||
+        (e['path'] as List).any((p) => p is! String)) {
       return null;
     }
     return Envelope(
@@ -198,7 +199,7 @@ Envelope? decode(String text) {
       kind: EnvelopeKind.fromWire(e['kind'] as String? ?? 'msg'),
       body: e['body'] as String,
       ttl: (e['ttl'] as num).toInt(),
-      path: (e['path'] as List).cast<String>(),
+      path: List<String>.from(e['path'] as List),
       at: (e['at'] as num?)?.toInt() ?? 0,
     );
   } catch (_) {

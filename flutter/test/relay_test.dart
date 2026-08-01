@@ -155,5 +155,14 @@ void main() {
     test('returns null when a field has the wrong type', () {
       expect(decode('{"id":1,"from":"a","to":"b","body":"x","ttl":3,"path":[]}'), isNull);
     });
+
+    test('returns null when path contains non-string entries', () {
+      // A payload like this from an older/other build must not decode into a
+      // booby-trapped Envelope that throws later, inside route().
+      final malformed = decode(
+        '{"id":"a","from":"b","to":"c","kind":"msg","body":"hi","ttl":3,"path":[1,2],"at":0}',
+      );
+      expect(malformed, isNull);
+    });
   });
 }

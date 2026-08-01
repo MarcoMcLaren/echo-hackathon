@@ -61,9 +61,8 @@ String _randomBase36(int length) {
 }
 
 class MeshStore extends ChangeNotifier {
-  MeshStore({MeshTransport? transport, String? deviceId, String? display})
-    : _transport = transport,
-      me = MeshSelf(
+  MeshStore({this._transport, String? deviceId, String? display})
+    : me = MeshSelf(
         deviceId: deviceId ?? _randomDeviceId(),
         display: display ?? _fallbackDisplayName,
       );
@@ -122,8 +121,15 @@ class MeshStore extends ChangeNotifier {
   Future<void> stop() async {
     await _transport?.stop();
     status = MeshStatus.off;
+    error = null;
     peers = {};
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _transport?.stop();
+    super.dispose();
   }
 
   Future<void> send(String threadId, String body, {EnvelopeKind kind = EnvelopeKind.msg}) async {
