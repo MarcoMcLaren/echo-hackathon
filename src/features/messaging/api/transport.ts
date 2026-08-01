@@ -40,7 +40,7 @@ export type PeerInfo = { peerId: string; deviceId: string; display: string };
  * that to someone mid-demo tells them nothing, so translate the ones we can
  * actually hit into what to do about them.
  */
-function explain(e: unknown): string {
+export function explain(e: unknown): string {
   const text = String(e);
   const code = Number(text.match(/\b(8\d{3})\b/)?.[1]);
   switch (code) {

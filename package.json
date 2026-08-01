@@ -28,8 +28,12 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@types/jest": "~29.5.14",
     "@types/node": "^26.1.2",
     "@types/react": "~19.2.2",
+    "babel-preset-expo": "~57.0.0",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -37,7 +41,19 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test": "jest",
     "postinstall": "node scripts/fix-nearby-prefab.js"
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": ["<rootDir>/jest.setup.js"],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/flutter/",
+      "<rootDir>/test/",
+      "<rootDir>/currency-rn/",
+      "<rootDir>/currency-flutter/"
+    ]
   },
   "private": true
 }

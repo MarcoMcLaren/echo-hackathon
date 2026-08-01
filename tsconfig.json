@@ -2,13 +2,14 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    // The unit tests run under `node --experimental-strip-types`, which requires
-    // relative imports to carry their .ts extension. Safe here because Expo's
-    // base config is noEmit — tsc only ever typechecks this project.
+    // The ocr.test.ts suite runs under `node --experimental-strip-types`, which
+    // requires relative imports to carry their .ts extension. Safe here because
+    // Expo's base config is noEmit — tsc only ever typechecks this project.
     "allowImportingTsExtensions": true,
-    // Pin the ambient @types to what we actually use. Without "node" the test
-    // files cannot see node:test / node:assert; the rest (emscripten, yargs,
-    // istanbul) are transitive junk that only slows resolution down.
-    "types": ["node", "react"]
+    // Pin the ambient @types to what we actually use: "node" for node:test /
+    // node:assert (the ocr suite), "jest" for describe/expect (the Jest
+    // suites), "react" for JSX. Without this, expo/tsconfig.base doesn't
+    // auto-include ambient @types packages, so none of the above resolve.
+    "types": ["node", "jest", "react"]
   }
 }
