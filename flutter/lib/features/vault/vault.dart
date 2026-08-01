@@ -2,12 +2,16 @@
 // so relays only ever see opaque ciphertext. Keys never leave hardware.
 //
 // Port intent of src/features/vault/hooks/useSecureVault.ts (a placeholder
-// upstream too — "Needs react-native-keychain"). The real implementation is
-// native platform work (Android Keystore via a hardware-backed keystore
-// plugin); this defines the contract it must satisfy and a fake that lets
-// the messaging UI and encryption call sites be built and tested headlessly
-// today.
+// upstream too — "Needs react-native-keychain"). [SecureStorageVault] persists
+// the device's key material in the platform's hardware-backed secure storage
+// (Android Keystore-backed EncryptedSharedPreferences) so identity survives
+// restarts. This defines the contract [SecureVault] the adapter satisfies;
+// the headless fake used by tests (platform channels don't run under
+// `flutter test`) lives in test/features/vault_fakes.dart.
 import 'dart:convert';
+import 'dart:math';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Whether the hardware-backed keystore is ready to use.
 enum VaultStatus {
@@ -55,23 +59,43 @@ abstract class SecureVault {
   Future<String?> decrypt(SealedPayload payload);
 }
 
-/// Headless fake: keys are plain random strings held in memory (NOT hardware,
-/// NOT real cryptography) and "encryption" is a reversible encoding tagged
-/// with the recipient key, so tests can assert who a payload was sealed for
-/// without a real cipher. Never ship this as the production vault.
-class MockSecureVault implements SecureVault {
-  MockSecureVault({String? seedPublicKey}) : _publicKey = seedPublicKey;
+/// Real adapter: the device's public key is minted once with a
+/// cryptographically secure RNG and persisted in flutter_secure_storage, so
+/// this device's identity survives restarts instead of vanishing when the
+/// process dies (unlike [MockSecureVault] in test/features/vault_fakes.dart).
+///
+/// The encrypt/decrypt envelope below is the same opaque-to-relays encoding
+/// as the fake — a real asymmetric cipher needs a crypto dependency this pass
+/// doesn't add (only local_auth and flutter_secure_storage). What's real here
+/// is that the key itself lives in hardware-backed storage, not memory.
+class SecureStorageVault implements SecureVault {
+  SecureStorageVault({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
 
-  String? _publicKey;
+  static const _publicKeyKey = 'echo.vault.public_key';
+
+  final FlutterSecureStorage _storage;
+  String? _cachedPublicKey;
 
   @override
-  Future<VaultStatus> status() async =>
-      _publicKey == null ? VaultStatus.locked : VaultStatus.unlocked;
+  Future<VaultStatus> status() async {
+    try {
+      return await _readKey() == null
+          ? VaultStatus.locked
+          : VaultStatus.unlocked;
+    } catch (_) {
+      return VaultStatus.unavailable;
+    }
+  }
 
   @override
   Future<String> setUp() async {
-    _publicKey ??= 'mock-pk-${DateTime.now().microsecondsSinceEpoch}';
-    return _publicKey!;
+    final existing = await _readKey();
+    if (existing != null) return existing;
+    final minted = _mint();
+    await _storage.write(key: _publicKeyKey, value: minted);
+    _cachedPublicKey = minted;
+    return minted;
   }
 
   @override
@@ -79,7 +103,7 @@ class MockSecureVault implements SecureVault {
     String plaintext, {
     required String recipientPublicKey,
   }) async {
-    final key = _publicKey;
+    final key = await _readKey();
     if (key == null) {
       throw StateError('SecureVault.setUp() must run before encrypt()');
     }
@@ -92,7 +116,7 @@ class MockSecureVault implements SecureVault {
 
   @override
   Future<String?> decrypt(SealedPayload payload) async {
-    final myKey = _publicKey;
+    final myKey = await _readKey();
     if (myKey == null) return null;
     try {
       final decoded = jsonDecode(utf8.decode(base64Decode(payload.ciphertext)));
@@ -101,5 +125,18 @@ class MockSecureVault implements SecureVault {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<String?> _readKey() async {
+    final cached = _cachedPublicKey;
+    if (cached != null) return cached;
+    final stored = await _storage.read(key: _publicKeyKey);
+    _cachedPublicKey = stored;
+    return stored;
+  }
+
+  static String _mint() {
+    final rand = Random.secure();
+    return base64UrlEncode(List<int>.generate(32, (_) => rand.nextInt(256)));
   }
 }

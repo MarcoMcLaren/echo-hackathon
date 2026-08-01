@@ -30,6 +30,8 @@ import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/mock.dart' as mock;
 import 'package:echo/store/theme_store.dart';
 
+import 'features/vault_fakes.dart';
+
 Widget harness(Widget child, {MeshStore? mesh}) {
   return MultiProvider(
     providers: [
@@ -219,7 +221,10 @@ void main() {
       String? created;
 
       await tester.pumpWidget(
-        harness(NewGroupScreen(onBack: () {}, onCreated: (id) => created = id), mesh: mesh),
+        harness(
+          NewGroupScreen(onBack: () {}, onCreated: (id) => created = id),
+          mesh: mesh,
+        ),
       );
       await tester.pump();
 

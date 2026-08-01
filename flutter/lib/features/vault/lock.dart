@@ -5,17 +5,22 @@
 // getting into the app means satisfying the keystore — the same mechanism
 // that will guard the E2E message keys.
 //
-// Port intent of src/features/vault/api/lock.ts (react-native-keychain,
-// biometry-or-device-passcode). The real implementation is native platform
-// work (Android Keystore); this defines the contract [AppLock] a native
-// adapter must satisfy and a headless fake so the lock screen can be built
-// and tested without a device.
+// Port of src/features/vault/api/lock.ts (react-native-keychain,
+// biometry-or-device-passcode) onto local_auth + flutter_secure_storage:
+// [BiometricAppLock] drives the real BiometricPrompt, gated by an "enabled"
+// flag persisted in the platform's secure storage so it survives restarts.
+// This defines the contract [AppLock] the adapter satisfies; the headless
+// fake used by tests (platform channels don't run under `flutter test`)
+// lives in test/features/vault_fakes.dart.
 //
 // IMPORTANT: on a phone with nothing enrolled, creating a key that requires
 // user authentication makes Android launch its fingerprint-enrollment flow.
-// That must never happen as a side effect of opening the app — a real
-// adapter's [enable] must only ever run from an explicit opt-in, mirrored
-// here by [MockAppLock] never enrolling anything on its own.
+// That must never happen as a side effect of opening the app — [enable] must
+// only ever run from an explicit opt-in, never from [hasBiometricHardware] or
+// [isEnabled].
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
+
 enum LockFailureReason { cancelled, unavailable, error }
 
 class LockOutcome {
@@ -47,48 +52,101 @@ abstract class AppLock {
   Future<void> forget();
 }
 
-/// Headless fake: no Keystore, no biometric prompt. Behavior is driven by
-/// fields tests can flip directly, so every branch of [LockScreen]'s state
-/// machine — offered, prompting, locked, error, no hardware — is reachable
-/// without a device.
-class MockAppLock implements AppLock {
-  MockAppLock({
-    this._hasHardware = true,
-    this._enabled = false,
-    this.nextUnlockOutcome = const LockOutcome.ok(),
-  });
+/// Real adapter: BiometryAny-or-device-passcode via local_auth, gated by an
+/// "enabled" flag persisted in flutter_secure_storage (Android
+/// Keystore-backed EncryptedSharedPreferences) so the lock stays on across
+/// restarts. `biometricOnly: false` mirrors the upstream RN adapter's
+/// `BIOMETRY_ANY_OR_DEVICE_PASSCODE`: biometrics first, device PIN/pattern as
+/// fallback, so a phone whose owner uses a PIN isn't shut out.
+class BiometricAppLock implements AppLock {
+  BiometricAppLock({LocalAuthentication? auth, FlutterSecureStorage? storage})
+    : _auth = auth ?? LocalAuthentication(),
+      _storage = storage ?? const FlutterSecureStorage();
 
-  final bool _hasHardware;
-  bool _enabled;
+  static const _enabledKey = 'echo.vault.lock_enabled';
 
-  /// What [unlock] returns the next time it is called. Defaults to success.
-  LockOutcome nextUnlockOutcome;
-
-  @override
-  Future<bool> hasBiometricHardware() async => _hasHardware;
+  final LocalAuthentication _auth;
+  final FlutterSecureStorage _storage;
 
   @override
-  Future<bool> isEnabled() async => _enabled;
+  Future<bool> hasBiometricHardware() async {
+    try {
+      return await _auth.canCheckBiometrics;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> isEnabled() async {
+    try {
+      return await _storage.read(key: _enabledKey) == 'true';
+    } catch (_) {
+      return false;
+    }
+  }
 
   @override
   Future<LockOutcome> enable() async {
-    if (!_hasHardware) {
+    if (!await hasBiometricHardware()) {
       return const LockOutcome.failure(LockFailureReason.unavailable);
     }
-    _enabled = true;
-    return const LockOutcome.ok();
+    try {
+      await _storage.write(key: _enabledKey, value: 'true');
+      return const LockOutcome.ok();
+    } catch (e) {
+      return LockOutcome.failure(
+        LockFailureReason.error,
+        message: e.toString(),
+      );
+    }
   }
 
   @override
   Future<LockOutcome> unlock() async {
-    if (!_enabled) {
+    if (!await isEnabled()) {
       return const LockOutcome.failure(LockFailureReason.unavailable);
     }
-    return nextUnlockOutcome;
+    try {
+      final didAuthenticate = await _auth.authenticate(
+        localizedReason: 'Unlock Echo',
+      );
+      return didAuthenticate
+          ? const LockOutcome.ok()
+          : const LockOutcome.failure(LockFailureReason.cancelled);
+    } on LocalAuthException catch (e) {
+      return LockOutcome.failure(
+        _reasonFor(e.code),
+        message: e.description ?? e.code.name,
+      );
+    } catch (e) {
+      return LockOutcome.failure(
+        LockFailureReason.error,
+        message: e.toString(),
+      );
+    }
   }
 
   @override
   Future<void> forget() async {
-    _enabled = false;
+    try {
+      await _storage.delete(key: _enabledKey);
+    } catch (_) {
+      // Nothing stored — already where we wanted to be.
+    }
   }
+
+  static LockFailureReason _reasonFor(LocalAuthExceptionCode code) =>
+      switch (code) {
+        LocalAuthExceptionCode.userCanceled ||
+        LocalAuthExceptionCode.systemCanceled ||
+        LocalAuthExceptionCode.userRequestedFallback =>
+          LockFailureReason.cancelled,
+        LocalAuthExceptionCode.noCredentialsSet ||
+        LocalAuthExceptionCode.noBiometricsEnrolled ||
+        LocalAuthExceptionCode.noBiometricHardware ||
+        LocalAuthExceptionCode.biometricHardwareTemporarilyUnavailable =>
+          LockFailureReason.unavailable,
+        _ => LockFailureReason.error,
+      };
 }

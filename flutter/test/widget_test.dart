@@ -1,11 +1,47 @@
 // Smoke test: the app opens behind the lock screen, then boots on the Reach
 // tab and can navigate into a real chat thread and back, wired through
 // MeshStore's seeded demo data.
+//
+// main.dart wires the real BiometricAppLock (local_auth) and
+// SecureStorageVault (flutter_secure_storage) adapters, and LockScreen probes
+// them as soon as EchoApp mounts. Their platform channels never resolve
+// under `flutter test` without a mock handler, so this stubs both to answer
+// immediately — simulating a phone with a fingerprint enrolled but the lock
+// not yet turned on, matching this test's "offer" phase / "Not now" path.
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
 
+const _localAuthChannel = MethodChannel('plugins.flutter.io/local_auth');
+const _secureStorageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
+
 void main() {
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_localAuthChannel, (call) async {
+          switch (call.method) {
+            case 'getAvailableBiometrics':
+              return <String>['fingerprint'];
+            case 'isDeviceSupported':
+              return true;
+            default:
+              return null;
+          }
+        });
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_secureStorageChannel, (_) async => null);
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_localAuthChannel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(_secureStorageChannel, null);
+  });
+
   testWidgets('boots on Reach tab and opens/closes a chat thread', (
     WidgetTester tester,
   ) async {
