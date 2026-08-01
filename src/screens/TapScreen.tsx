@@ -16,6 +16,9 @@ const MAX = 150;
 const pairPayload = (deviceId: string, display: string) =>
   `echo://pair?id=${encodeURIComponent(deviceId)}&n=${encodeURIComponent(display)}`;
 
+/** "1 NODES IN RANGE" is the kind of thing people notice on a demo screen. */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 'S'}`;
+
 /** Something short a human can read aloud and compare against the other screen. */
 const fingerprintOf = (deviceId: string) =>
   (deviceId.toUpperCase().padEnd(12, '0').match(/.{1,4}/g) ?? []).slice(0, 3).join(' ');
@@ -58,7 +61,7 @@ export default function TapScreen() {
 
   return (
     <>
-      <MeshStatus right={mode === 'tap' ? 'NFC READY' : 'CAMERA PAIRING'} />
+      <MeshStatus right={mode === 'tap' ? 'PAIR IN PERSON' : 'CAMERA PAIRING'} />
       <AppBar title="Meet a phone" sub="Adds a contact and swaps keys" />
 
       <View style={s.segs}>
@@ -87,7 +90,7 @@ export default function TapScreen() {
       </View>
 
       {mode === 'tap' ? (
-        <TapMode still={still} />
+        <TapMode still={still} onPick={setMode} />
       ) : mode === 'show' ? (
         <ShowMode />
       ) : (
@@ -101,7 +104,7 @@ export default function TapScreen() {
               {`YOU ARE ${me.display.toUpperCase()} · ${fingerprintOf(me.deviceId)}`}
             </Mono>
             <Mono size={8.5}>
-              {`${Object.keys(contacts).length} CONTACTS · ${reachable.length} NODES IN RANGE`}
+              {`${plural(Object.keys(contacts).length, 'CONTACT')} · ${plural(reachable.length, 'NODE')} IN RANGE`}
             </Mono>
           </View>
           <Pressable
@@ -124,21 +127,48 @@ export default function TapScreen() {
   );
 }
 
-/** NFC: the fastest path when both phones have the hardware. */
-function TapMode({ still }: { still: boolean }) {
+/**
+ * Meeting a phone is a physical act, so this stays the first thing you see —
+ * but the exchange itself goes through the camera, and the screen says so.
+ *
+ * It used to promise "hold them back to back until both buzz", which is Android
+ * Beam: an NDEF push between two phones. Google deprecated that in Android 10
+ * and removed it in Android 14, so on any phone this app targets there is no
+ * such thing to wait for. Claiming otherwise left a screen that said NFC READY
+ * over nothing at all. Still hold the phones together — one shows, one reads.
+ */
+function TapMode({ still, onPick }: { still: boolean; onPick: (m: Mode) => void }) {
+  const { c } = useTheme();
   return (
     <View style={s.zone}>
       <Sonar still={still} />
       <Display size={28} style={s.h}>
-        Hold the phones back to back
+        Hold the phones together
       </Display>
       <Body size={13} dim={2} style={s.p}>
-        Keep them together until both buzz. Keys are generated and stored on each phone — nothing is
-        uploaded.
+        One of you shows a code and the other reads it. Keys are generated and stored on each phone
+        — nothing is uploaded.
       </Body>
-      <Mono size={9}>WAITING FOR THE OTHER PHONE</Mono>
-      <Mono size={9} dim={2}>
-        NO NFC ON ONE OF THEM? USE SHOW CODE
+      <View style={s.pick}>
+        <Pressable
+          onPress={() => onPick('show')}
+          accessibilityRole="button"
+          style={[s.btn, s.half, { backgroundColor: c.ink }]}
+        >
+          <Display size={14} color={c.paper}>
+            Show mine
+          </Display>
+        </Pressable>
+        <Pressable
+          onPress={() => onPick('scan')}
+          accessibilityRole="button"
+          style={[s.btn, s.half, s.ghost, { borderColor: c.hair }]}
+        >
+          <Display size={14}>Read theirs</Display>
+        </Pressable>
+      </View>
+      <Mono size={8.5} dim={2}>
+        WHOEVER READS THE CODE ADDS THE CONTACT
       </Mono>
     </View>
   );
@@ -322,8 +352,8 @@ function Sonar({ still }: { still: boolean }) {
         />
       ))}
       <View style={[s.core, { backgroundColor: c.coin }]}>
-        <Display size={15} color="#fff">
-          NFC
+        <Display size={13} color="#fff">
+          MEET
         </Display>
       </View>
     </View>
@@ -348,6 +378,9 @@ const s = StyleSheet.create({
   bl: { bottom: 10, left: 10, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 6 },
   br: { bottom: 10, right: 10, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 6 },
   btn: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', minHeight: TOUCH_MIN },
+  pick: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
+  half: { flex: 1, paddingHorizontal: 8 },
+  ghost: { borderWidth: 1.5 },
   foot: { paddingHorizontal: 14 },
   paired: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, borderRadius: 10, borderWidth: 1 },
 });
