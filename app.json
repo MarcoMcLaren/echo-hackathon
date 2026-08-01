@@ -11,6 +11,9 @@
     },
     "android": {
       "package": "com.echo.app",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,7 +34,21 @@
         }
       ],
       "expo-nearby-connections",
-      "expo-asset"
+      "expo-asset",
+      "expo-notifications",
+      "expo-system-ui",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Echo attaches photos you pick to a chat. They stay on the phones in your mesh."
+        }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Echo saves events shared in a chat to your calendar."
+        }
+      ]
     ]
   }
 }

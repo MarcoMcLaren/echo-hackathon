@@ -12,7 +12,7 @@ export default function ReachScreen({ onOpen }: { onOpen: (id: string) => void }
   const { c, mode, cycle } = useTheme();
   const { status, error, peers, threads, stats, start, stop } = useMesh();
 
-  const live = Object.values(peers).filter((p) => p.connected).length;
+  const live = Object.keys(peers).length;
 
   const statusLine =
     status === 'live'
@@ -27,11 +27,7 @@ export default function ReachScreen({ onOpen }: { onOpen: (id: string) => void }
   // phone still shows what the screen is for.
   const nodes: MapNode[] =
     status === 'live' && Object.keys(peers).length > 0
-      ? Object.entries(peers).map(([id, p]) => ({
-          id,
-          name: p.display,
-          hops: p.connected ? 0 : null,
-        }))
+      ? Object.entries(peers).map(([id, p]) => ({ id, name: p.display, hops: 0 }))
       : demoContacts.map((p) => ({ id: p.id, name: p.name, hops: p.hops }));
 
   return (
@@ -82,12 +78,20 @@ export default function ReachScreen({ onOpen }: { onOpen: (id: string) => void }
               <Avatar initials={t.initials} hops={t.hops} />
               <View style={s.col}>
                 <Display size={14}>{t.title}</Display>
-                <Body size={11.5} dim={2} numberOfLines={1}>
+                <Body size={11.5} dim={t.unread ? 1 : 2} numberOfLines={1}>
                   {t.preview}
                 </Body>
               </View>
               <View style={s.right}>
-                <Mono size={9}>{t.at}</Mono>
+                {t.unread ? (
+                  <View style={[s.unread, { backgroundColor: c.ink }]}>
+                    <Mono size={8.5} color={c.paper}>
+                      {t.unread}
+                    </Mono>
+                  </View>
+                ) : (
+                  <Mono size={9}>{t.at}</Mono>
+                )}
                 <HopChip
                   hops={t.hops}
                   via={t.via}
@@ -107,5 +111,6 @@ const s = StyleSheet.create({
   conv: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, minHeight: TOUCH_MIN },
   col: { flex: 1, minWidth: 0, gap: 1 },
   right: { alignItems: 'flex-end', gap: 4 },
+  unread: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 9, alignItems: 'center' },
   caps: { textTransform: 'uppercase' },
 });
