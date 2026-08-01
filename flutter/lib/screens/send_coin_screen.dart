@@ -52,6 +52,11 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
     final initials = thread?.initials ?? '··';
     final hops = thread?.hops;
     final via = thread?.via;
+<<<<<<< HEAD
+=======
+    final amount = double.tryParse(_amount) ?? 0;
+    final enough = amount > 0 && amount <= wallet.balance;
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 
     final routeNote = hops == null
         ? 'QUEUES UNTIL A ROUTE OPENS'
@@ -141,19 +146,25 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
                 ),
                 Semantics(
                   button: true,
+                  enabled: enough,
                   label: 'Send $_amount',
                   excludeSemantics: true,
                   child: GestureDetector(
                     onTap: () {
-                      context.read<MeshStore>().queueCoin(widget.contactId, double.tryParse(_amount) ?? 0);
+                      if (!enough) return;
+                      context.read<MeshStore>().queueCoin(widget.contactId, amount);
                       widget.onQueued(widget.contactId);
                     },
                     child: Container(
                       width: double.infinity,
                       constraints: const BoxConstraints(minHeight: 48),
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(color: c.coin, borderRadius: BorderRadius.circular(10)),
-                      child: Display('Send $_amount', size: 15, color: Colors.white),
+                      decoration: BoxDecoration(color: enough ? c.coin : c.sunk, borderRadius: BorderRadius.circular(10)),
+                      child: Display(
+                        amount > wallet.balance ? 'More than you have' : 'Send $_amount',
+                        size: 15,
+                        color: enough ? Colors.white : c.ink3,
+                      ),
                     ),
                   ),
                 ),

@@ -1,10 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<<<<<<< HEAD
     <!-- MlkitOcrReader captures a frame for on-device text recognition. -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- LocalNotificationsMeshNotifier posts a system notification for -->
     <!-- messages arriving while the app isn't foregrounded (Android 13+). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+=======
+    <!-- Nearby Connections mesh transport (lib/features/messaging/nearby_transport.dart).
+         BLUETOOTH_SCAN/ADVERTISE/CONNECT (API 31+) and NEARBY_WIFI_DEVICES
+         (API 33+) are declared unconditionally: the OS ignores a permission
+         declaration the running SDK predates, so no maxSdkVersion split is
+         needed. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
     <application
         android:label="welcome_app"
         android:name="${applicationName}"

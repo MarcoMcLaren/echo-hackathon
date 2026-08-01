@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // Smoke test: the app opens behind the lock screen, asks a first-run name on
 // the SetupScreen, then boots on the Reach tab. There is no seed data any
 // more (see lib/store/mesh_store.dart), so a fresh boot has no conversations
@@ -12,6 +13,12 @@
 // not yet turned on, matching this test's "offer" phase / "Not now" path.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+=======
+// Smoke test: the app opens behind the lock screen, then boots on the Reach
+// tab. There is no seed data any more (see lib/store/mesh_store.dart), so a
+// fresh boot has no conversations — pairing one, and opening it, is exercised
+// in the pairing-ux screens rather than here.
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
@@ -41,6 +48,7 @@ Future<void> _bootToReach(WidgetTester tester) async {
 }
 
 void main() {
+<<<<<<< HEAD
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_localAuthChannel, (call) async {
@@ -64,6 +72,8 @@ void main() {
         .setMockMethodCallHandler(_secureStorageChannel, null);
   });
 
+=======
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
   testWidgets('boots on Reach tab with no conversations yet', (
     WidgetTester tester,
   ) async {
@@ -96,5 +106,24 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Reach'), findsOneWidget);
+  });
+
+  testWidgets('Wallet Send on a fresh install goes to Reach, not a phantom conversation', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('WALLET'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+
+    // Money goes to a conversation, so with nobody paired yet, Send lands on
+    // Reach (the list you'd pick one from) rather than a picked contact.
+    expect(find.text('Reach'), findsOneWidget);
+    expect(find.text('Send echocoin'), findsNothing);
   });
 }

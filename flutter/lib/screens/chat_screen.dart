@@ -214,7 +214,12 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _scroll,
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
                 children: [
-                  if (thread.group) _ReachBar(colors: c),
+                  if (thread.group)
+                    _ReachBar(
+                      colors: c,
+                      members: (thread.members ?? []).where((id) => id != mesh.me.deviceId).toList(),
+                      peers: mesh.peers,
+                    ),
                   const Center(child: Padding(padding: EdgeInsets.only(bottom: 8), child: Mono('TODAY', size: 8.5))),
                   for (var i = 0; i < thread.messages.length; i++)
                     MessageBubble(
@@ -479,16 +484,26 @@ class _AttachOption extends StatelessWidget {
   }
 }
 
-/// Who can actually hear you right now, before you type.
+/// Who can actually hear you right now, before you type. Counted from the
+/// group's real membership against the peers currently in range — a group
+/// whose members are all away should say so rather than imply an audience.
 class _ReachBar extends StatelessWidget {
-  const _ReachBar({required this.colors});
+  const _ReachBar({required this.colors, required this.members, required this.peers});
 
   final tokens.Palette colors;
+  final List<String> members;
+  final Map<String, MeshPeer> peers;
 
   @override
   Widget build(BuildContext context) {
     final c = colors;
-    final pips = [c.direct, c.direct, c.relay, c.dim];
+    final reachable = members.where((id) => peers.containsKey(id)).length;
+    final away = members.length - reachable;
+    final String status = away == 0
+        ? 'EVERYONE GETS THIS NOW'
+        : reachable == 0
+        ? 'NOBODY IS IN RANGE — THIS WILL WAIT'
+        : '$away GET${away == 1 ? 'S' : ''} IT WHEN THEY ARE BACK';
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(9),
@@ -503,10 +518,17 @@ class _ReachBar extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final p in pips)
+              for (final id in members)
                 Padding(
                   padding: const EdgeInsets.only(right: 3),
-                  child: Container(width: 7, height: 7, decoration: BoxDecoration(color: p, shape: BoxShape.circle)),
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: peers.containsKey(id) ? c.direct : c.dim,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -515,9 +537,9 @@ class _ReachBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Mono('2 DIRECT · 1 VIA THABO · 1 OUT OF REACH', size: 8.5, dim: 2),
-                Mono('SIPHO GETS IT WHEN HE’S BACK', size: 8.5),
+              children: [
+                Mono('$reachable REACHABLE · $away OUT OF REACH', size: 8.5, dim: 2),
+                Mono(status, size: 8.5),
               ],
             ),
           ),

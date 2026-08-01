@@ -53,6 +53,7 @@ class _ReachScreenState extends State<ReachScreen> {
     };
 
     // Everything in range goes on the map, but only people you have met are
+<<<<<<< HEAD
     // named. The rest are nodes: they carry traffic and nothing else. Off
     // the mesh, or with nobody in range, there is nothing to show — no
     // seeded demo standing in for it.
@@ -66,6 +67,14 @@ class _ReachScreenState extends State<ReachScreen> {
         ),
     ];
     final strangers = nodes.where((n) => n.stranger).length;
+=======
+    // named. Off the mesh, or with nobody in range, there is nothing to show
+    // — no seeded demo standing in for it.
+    final nodes = [
+      for (final entry in mesh.peers.entries)
+        MapNode(id: entry.key, name: mesh.contacts[entry.key]?.name ?? entry.value.display, hops: 0),
+    ];
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 
     final VoidCallback? onPress = switch (mesh.status) {
       transport.MeshStatus.live => mesh.stop,
@@ -75,6 +84,7 @@ class _ReachScreenState extends State<ReachScreen> {
 
     return Stack(
       children: [
+<<<<<<< HEAD
         Column(
           children: [
             MeshStatus(
@@ -97,6 +107,46 @@ class _ReachScreenState extends State<ReachScreen> {
                     child: GestureDetector(
                       onTap: themeStore.cycle,
                       child: Mono(themeStore.mode.name.toUpperCase(), size: 9),
+=======
+        MeshStatus(
+          right: statusLine,
+          state: _chromeState(mesh.status),
+          onPress: onPress,
+        ),
+        EchoAppBar(
+          title: 'Reach',
+          sub: mesh.status == transport.MeshStatus.live
+              ? '$live reachable · ${mesh.stats.relayed} relayed for others'
+              : 'Mesh off · nothing in range',
+          right: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                button: true,
+                label: 'Theme: ${themeStore.mode.name}. Tap to change.',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: themeStore.cycle,
+                  child: Mono(themeStore.mode.name.toUpperCase(), size: 9),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Semantics(
+                button: true,
+                label: 'New group',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onNewGroup,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: tokens.touchMin, minHeight: tokens.touchMin),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.hair, width: 1.5)),
+                      child: Display('+', size: 17, dim: 1),
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
                     ),
                   ),
                   const SizedBox(width: 10),

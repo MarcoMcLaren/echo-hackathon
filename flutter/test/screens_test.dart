@@ -32,6 +32,11 @@ import 'package:echo/services/shake_service.dart';
 import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/theme_store.dart';
 import 'package:echo/store/types.dart';
+<<<<<<< HEAD
+=======
+
+import 'support/demo_data.dart';
+>>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 
 import 'support/demo_data.dart';
 
@@ -184,6 +189,27 @@ void main() {
 
     expect(find.text('Thabo Mokoena'), findsOneWidget);
     expect(find.text('Here, for the wood run'), findsOneWidget);
+  });
+
+  testWidgets('ChatScreen ReachBar counts group members against real peers, not a fixed script', (tester) async {
+    final mesh = demoStore();
+    // Of braai's four members, only Thabo is currently in range.
+    mesh.peers = {'thabo': const MeshPeer(display: 'Thabo Mokoena', peerId: 'p-thabo')};
+
+    await tester.pumpWidget(
+      harness(ChatScreen(threadId: 'braai', onBack: () {}, onSendCoin: (_) {}), mesh: mesh),
+    );
+    await tester.pump();
+
+    // The thread opens scrolled to its latest message, same as any chat — the
+    // ReachBar sits above the messages, so scroll back up to see it.
+    final vertical = find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down);
+    await tester.drag(vertical, const Offset(0, 2000));
+    await tester.pump();
+
+    expect(find.text('1 REACHABLE · 3 OUT OF REACH'), findsOneWidget);
+    expect(find.text('3 GET IT WHEN THEY ARE BACK'), findsOneWidget);
+    expect(find.textContaining('SIPHO'), findsNothing);
   });
 
   testWidgets('ChatScreen opens the CatchMeUpSheet once unread crosses the summary threshold', (tester) async {
@@ -361,6 +387,43 @@ void main() {
     await tester.pump();
 
     expect(queuedFor, 'naledi');
+  });
+
+  testWidgets('SendCoinScreen disables Send and warns when the amount exceeds the balance', (tester) async {
+    final handle = tester.ensureSemantics();
+    // Opening balance 100, less a prior 90 sent, leaves 10 — below the
+    // screen's own default amount of 20.00, so the guard applies immediately.
+    final mesh = MeshStore(transport: MockTransport(), deviceId: 'me');
+    mesh.threads = [
+      const Thread(
+        id: 'naledi',
+        title: 'Naledi Khumalo',
+        initials: 'NK',
+        preview: 'Sent 90',
+        at: 'now',
+        hops: 0,
+        messages: [Msg(id: 'm1', from: 'me', coin: 90, at: '09:00', hops: 0, state: MsgState.sent)],
+      ),
+    ];
+    String? queuedFor;
+    await tester.pumpWidget(
+      harness(
+        SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (id) => queuedFor = id),
+        mesh: mesh,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('BALANCE 10.00'), findsOneWidget);
+    expect(find.text('More than you have'), findsOneWidget);
+    final semantics = tester.getSemantics(find.bySemanticsLabel('Send 20.00'));
+    expect(semantics.flagsCollection.isEnabled.toBoolOrNull(), isFalse);
+
+    await tester.tap(find.text('More than you have'));
+    await tester.pump();
+
+    expect(queuedFor, isNull);
+    handle.dispose();
   });
 
   testWidgets('TapScreen renders NFC mode by default and switches to Show code', (tester) async {
