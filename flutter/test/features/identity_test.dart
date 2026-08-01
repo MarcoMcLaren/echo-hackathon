@@ -3,80 +3,132 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:echo/features/vault/identity.dart';
 
 void main() {
-  group('InMemoryIdentityStore', () {
+  group('InMemoryProfileStore', () {
     test('read returns null until something has been written', () async {
-      final store = InMemoryIdentityStore();
+      final store = InMemoryProfileStore();
       expect(await store.read(), isNull);
 
-      await store.write('abc123');
-      expect(await store.read(), 'abc123');
+      await store.write(const Profile(id: 'abc123', name: 'Reon'));
+      expect((await store.read())?.id, 'abc123');
+    });
+
+    test('delete clears a previously written profile', () async {
+      final store = InMemoryProfileStore();
+      await store.write(const Profile(id: 'abc123', name: 'Reon'));
+
+      await store.delete();
+
+      expect(await store.read(), isNull);
     });
   });
 
-  group('DeviceIdentity', () {
-    test('mints and persists an id on first resolve', () async {
-      final store = InMemoryIdentityStore();
-      final identity = DeviceIdentity(store);
-
-      final id = await identity.resolve();
-      expect(id, isNotEmpty);
-      expect(await store.read(), id);
+  group('IdentityVault.loadProfile', () {
+    test('returns null when nothing has been set up', () async {
+      final vault = IdentityVault(InMemoryProfileStore());
+      expect(await vault.loadProfile(), isNull);
     });
 
-    test('caches in memory — repeated calls return the same id', () async {
-      final identity = DeviceIdentity(InMemoryIdentityStore());
-      final first = await identity.resolve();
-      final second = await identity.resolve();
-      expect(second, first);
+    test('returns the persisted profile once created', () async {
+      final store = InMemoryProfileStore();
+      final vault = IdentityVault(store);
+      final created = await vault.createProfile('Reon Fourie');
+
+      final loaded = await IdentityVault(store).loadProfile();
+
+      expect(loaded?.id, created.id);
+      expect(loaded?.name, 'Reon Fourie');
     });
 
-    test(
-      'a fresh DeviceIdentity backed by the same store resolves to the '
-      'previously persisted id, not a new one',
-      () async {
-        final store = InMemoryIdentityStore();
-        final first = await DeviceIdentity(store).resolve();
+    test('caches in memory — repeated calls return the same profile', () async {
+      final vault = IdentityVault(InMemoryProfileStore());
+      await vault.createProfile('Reon');
 
-        final second = await DeviceIdentity(store).resolve();
+      final first = await vault.loadProfile();
+      final second = await vault.loadProfile();
 
-        expect(second, first);
-      },
-    );
+      expect(second?.id, first?.id);
+    });
+  });
 
-    test('defaults to a private in-memory store when none is given', () async {
-      final a = await DeviceIdentity().resolve();
-      final b = await DeviceIdentity().resolve();
-      expect(a, isNot(b), reason: 'each defaults to its own unshared store');
+  group('IdentityVault.createProfile', () {
+    test('mints an id and trims the given name', () async {
+      final vault = IdentityVault(InMemoryProfileStore());
+
+      final profile = await vault.createProfile('  Reon Fourie  ');
+
+      expect(profile.id, isNotEmpty);
+      expect(profile.name, 'Reon Fourie');
+    });
+
+    test('each vault defaults to its own unshared store', () async {
+      final a = await IdentityVault().createProfile('A');
+      final b = await IdentityVault().createProfile('B');
+      expect(a.id, isNot(b.id));
+    });
+  });
+
+  group('IdentityVault.renameProfile', () {
+    test('changes the name without changing the id', () async {
+      final vault = IdentityVault(InMemoryProfileStore());
+      final created = await vault.createProfile('Old Name');
+
+      final renamed = await vault.renameProfile('New Name');
+
+      expect(renamed?.id, created.id);
+      expect(renamed?.name, 'New Name');
+    });
+
+    test('returns null when no profile exists yet', () async {
+      final vault = IdentityVault(InMemoryProfileStore());
+      expect(await vault.renameProfile('Someone'), isNull);
+    });
+  });
+
+  group('IdentityVault.resetIdentity', () {
+    test('clears the cache and the store', () async {
+      final store = InMemoryProfileStore();
+      final vault = IdentityVault(store);
+      await vault.createProfile('Reon');
+
+      await vault.resetIdentity();
+
+      expect(await vault.loadProfile(), isNull);
+      expect(await store.read(), isNull);
     });
   });
 
   group('a storage failure', () {
-    test('read() throwing still resolves a usable (per-call) id', () async {
-      final identity = DeviceIdentity(_ThrowingIdentityStore());
-      final id = await identity.resolve();
-      expect(id, isNotEmpty);
+    test('loadProfile() surviving a throwing read returns null rather than throwing', () async {
+      final vault = IdentityVault(_ThrowingProfileStore());
+      expect(await vault.loadProfile(), isNull);
     });
 
-    test('write() throwing still resolves a usable (per-call) id', () async {
-      final identity = DeviceIdentity(_WriteThrowingIdentityStore());
-      final id = await identity.resolve();
-      expect(id, isNotEmpty);
+    test('createProfile() still resolves a usable profile when write() throws', () async {
+      final vault = IdentityVault(_WriteThrowingProfileStore());
+      final profile = await vault.createProfile('Reon');
+      expect(profile.name, 'Reon');
     });
   });
 }
 
-class _ThrowingIdentityStore implements IdentityStore {
+class _ThrowingProfileStore implements ProfileStore {
   @override
-  Future<String?> read() async => throw StateError('disk unavailable');
+  Future<Profile?> read() async => throw StateError('disk unavailable');
 
   @override
-  Future<void> write(String id) async {}
+  Future<void> write(Profile profile) async {}
+
+  @override
+  Future<void> delete() async {}
 }
 
-class _WriteThrowingIdentityStore implements IdentityStore {
+class _WriteThrowingProfileStore implements ProfileStore {
   @override
-  Future<String?> read() async => null;
+  Future<Profile?> read() async => null;
 
   @override
-  Future<void> write(String id) async => throw StateError('disk full');
+  Future<void> write(Profile profile) async => throw StateError('disk full');
+
+  @override
+  Future<void> delete() async {}
 }

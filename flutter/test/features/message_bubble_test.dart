@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 import 'package:echo/features/messaging/events.dart';
 import 'package:echo/features/messaging/message_bubble.dart';
-import 'package:echo/store/mock.dart' as mock;
+import 'package:echo/store/types.dart';
 import 'package:echo/store/theme_store.dart';
 
 Widget harness(Widget child) {
@@ -28,7 +28,7 @@ void main() {
       await tester.pumpWidget(
         harness(
           const MessageBubble(
-            msg: mock.Msg(id: 'i1', from: 'thabo', image: _fakeDataUri, at: '09:00', hops: 0),
+            msg: Msg(id: 'i1', from: 'thabo', image: _fakeDataUri, at: '09:00', hops: 0),
           ),
         ),
       );
@@ -43,7 +43,7 @@ void main() {
       await tester.pumpWidget(
         harness(
           const MessageBubble(
-            msg: mock.Msg(id: 'i2', from: 'thabo', image: 'not a data uri', at: '09:00', hops: 0),
+            msg: Msg(id: 'i2', from: 'thabo', image: 'not a data uri', at: '09:00', hops: 0),
           ),
         ),
       );
@@ -63,7 +63,7 @@ void main() {
       await tester.pumpWidget(
         harness(
           MessageBubble(
-            msg: const mock.Msg(id: 'e1', from: 'thabo', event: event, at: '09:00', hops: 0),
+            msg: const Msg(id: 'e1', from: 'thabo', event: event, at: '09:00', hops: 0),
             onSaveEvent: (e) => saved = e,
           ),
         ),
@@ -81,7 +81,7 @@ void main() {
 
     testWidgets('the calendar button is inert without an onSaveEvent handler', (tester) async {
       await tester.pumpWidget(
-        harness(const MessageBubble(msg: mock.Msg(id: 'e2', from: 'me', event: event, at: '09:00', hops: 0))),
+        harness(const MessageBubble(msg: Msg(id: 'e2', from: 'me', event: event, at: '09:00', hops: 0))),
       );
       await tester.pump();
 

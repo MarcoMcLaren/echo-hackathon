@@ -1,9 +1,11 @@
 // Live mesh state. Owns the transport and applies the relay rules to anything
 // that arrives, so screens only ever read plain data.
 //
-// Port of src/store/mesh.ts. The demo/mock threads are preserved as the seed so
-// screens have real content whether or not a transport has been wired in yet —
-// see [MeshTransport] in features/messaging/types.dart for the contract a
+// Port of src/store/mesh.ts (through ff3f159, "pairing is the only way to
+// become a person you can talk to"). There is no seed data — every thread and
+// contact here comes from a real pairing or a real message, so an empty
+// screen means "nothing has happened yet," not "the demo set is showing."
+// See [MeshTransport] in features/messaging/types.dart for the contract a
 // native implementation must satisfy.
 import 'dart:async';
 import 'dart:convert';
@@ -14,9 +16,10 @@ import 'package:flutter/foundation.dart';
 import '../features/messaging/events.dart' show decodeEvent;
 import '../features/messaging/notifier.dart';
 import '../features/messaging/types.dart';
+import '../features/vault/contacts.dart';
 import '../features/vault/identity.dart';
 import '../utils/relay.dart';
-import 'mock.dart' as mock;
+import 'types.dart';
 
 class MeshSelf {
   const MeshSelf({required this.deviceId, required this.display});
@@ -87,11 +90,36 @@ const int summaryThreshold = 5;
 /// Long enough to catch a mistake, short enough not to feel broken.
 const int cancelWindowMs = 5000;
 
-const _fallbackDisplayName = 'Echo phone';
+/// What every phone starts with. There is no issuer and no ledger server —
+/// this is a demo currency, and pretending otherwise would be dishonest.
+/// Everything after this point is real: the balance is opening minus what you
+/// sent plus what you received.
+const double openingBalance = 100;
 
-/// A stand-in used only until [MeshStore.start] resolves (and persists) a
-/// real one via [DeviceIdentity] — see the [MeshStore] constructor.
-String _randomDeviceId() => _randomBase36(6);
+/// The wallet, derived from coin messages rather than stored separately. One
+/// source of truth means the balance can never disagree with the thread it
+/// came from. Reverted transfers stay visible but do not count.
+({double balance, List<Entry> entries}) walletFrom(List<Thread> threads) {
+  final entries = <Entry>[];
+  for (final t in threads) {
+    for (final m in t.messages) {
+      if (m.coin == null || m.pending) continue;
+      entries.add(
+        Entry(
+          id: m.id,
+          amount: m.from == 'me' ? -m.coin! : m.coin!,
+          who: t.title,
+          hops: m.hops,
+          via: m.via,
+          note: m.state == MsgState.queued ? 'WAITING FOR A ROUTE · ${m.at}' : m.at,
+          reverted: m.reverted,
+        ),
+      );
+    }
+  }
+  final net = entries.where((e) => !e.reverted).fold<double>(0, (sum, e) => sum + e.amount);
+  return (balance: openingBalance + net, entries: entries.reversed.toList());
+}
 
 String _randomBase36(int length) {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -100,49 +128,141 @@ String _randomBase36(int length) {
 }
 
 class MeshStore extends ChangeNotifier {
-  /// [deviceId] pins the id outright (what tests do). Leave it null to have
-  /// [start] resolve a persisted one from [identityStore] instead — mirrors
-  /// upstream's `me.deviceId` starting as a placeholder and being replaced
-  /// once `deviceIdentity()` resolves.
+  /// [deviceId] pins the id outright (what tests do) and skips the identity
+  /// vault entirely, so [ready] starts true and [setName] is a plain state
+  /// update. Leave it null to have [init]/[start] resolve a persisted
+  /// [Profile] from [profileStore] instead.
   MeshStore({
-    this._transport,
+    MeshTransport? transport,
     MeshNotifier? notifier,
     String? deviceId,
     String? display,
-    IdentityStore? identityStore,
-  }) : _notifier = notifier ?? MockMeshNotifier(),
-       _identity = deviceId == null ? DeviceIdentity(identityStore) : null,
-       me = MeshSelf(
-         deviceId: deviceId ?? _randomDeviceId(),
-         display: display ?? _fallbackDisplayName,
-       );
+    ProfileStore? profileStore,
+    ContactsStore? contactsStore,
+  }) : _transport = transport, // ignore: prefer_initializing_formals
+       _notifier = notifier ?? MockMeshNotifier(),
+       _identity = deviceId == null ? IdentityVault(profileStore) : null,
+       _contacts = ContactBook(contactsStore),
+       ready = deviceId != null,
+       me = MeshSelf(deviceId: deviceId ?? 'pending', display: display ?? '');
 
   final SeenCache _seen = SeenCache();
   final Reassembler _inbound = Reassembler();
   final MeshTransport? _transport;
   final MeshNotifier _notifier;
+  final ContactBook _contacts;
 
   /// Null when [deviceId] was pinned explicitly at construction — nothing to
   /// resolve, and nothing that should override it.
-  final DeviceIdentity? _identity;
+  final IdentityVault? _identity;
   Timer? _cancelTimer;
 
   MeshSelf me;
+
+  /// False until a name has been chosen (or a deviceId was pinned at
+  /// construction). Drives the first-run screen.
+  bool ready;
   MeshStatus status = MeshStatus.off;
   String? error;
 
-  /// deviceId -> what we know about them right now.
+  /// deviceId -> what we know about them right now. Most of these are
+  /// strangers whose only job is carrying traffic.
   Map<String, MeshPeer> peers = {};
-  List<mock.Thread> threads = List.of(mock.threads);
+
+  /// The people you have actually met, by tap or by scanned code. Only these
+  /// get a conversation, and only these can put a message in front of you.
+  Map<String, Contact> contacts = {};
+
+  /// Empty. Conversations appear when you pair with someone or a message
+  /// arrives.
+  List<Thread> threads = [];
 
   /// Counts for the demo — proof the relay actually did something.
   MeshStats stats = const MeshStats();
 
   PendingCoin? pending;
 
-  void setName(String display) {
-    me = me.withDisplay(display);
+  /// Claim this phone's identity and load its contacts. Called once at
+  /// launch (via [start], but safe to call earlier), not when the mesh
+  /// starts — identity is who you are, not something that only exists while
+  /// the radio is on.
+  Future<void> init() async {
+    if (ready) return;
+    final identity = _identity;
+    if (identity == null) {
+      ready = true;
+      return;
+    }
+    final profile = await identity.loadProfile();
+    // Never set up. The first-run screen asks for a name, and only then does
+    // this phone get an id.
+    if (profile == null) {
+      return;
+    }
+    final loaded = await _contacts.load();
+    me = MeshSelf(deviceId: profile.id, display: profile.name);
+    contacts = loaded;
+    if (threads.isEmpty) {
+      threads = [
+        for (final k in loaded.values)
+          Thread(
+            id: k.id,
+            title: k.name,
+            initials: _initialsOf(k.name),
+            preview: 'Paired',
+            at: '',
+            hops: null,
+            messages: const [],
+            unread: 0,
+          ),
+      ];
+    }
+    ready = true;
     notifyListeners();
+  }
+
+  /// First launch: pick a name, get an id.
+  Future<void> createIdentity(String name) async {
+    final identity = _identity;
+    if (identity == null) return;
+    final profile = await identity.createProfile(name);
+    me = MeshSelf(deviceId: profile.id, display: profile.name);
+    contacts = {};
+    ready = true;
+    notifyListeners();
+  }
+
+  /// Wipe everything and go back to first launch, with a brand new id.
+  Future<void> resetApp() async {
+    await stop();
+    await _contacts.clear();
+    contacts = {};
+    threads = [];
+    peers = {};
+    pending = null;
+    stats = const MeshStats();
+    error = null;
+    final identity = _identity;
+    if (identity != null) {
+      await identity.resetIdentity();
+      ready = false;
+      me = const MeshSelf(deviceId: 'pending', display: '');
+    }
+    notifyListeners();
+  }
+
+  Future<void> setName(String display) async {
+    final identity = _identity;
+    if (identity == null) {
+      me = me.withDisplay(display);
+      notifyListeners();
+      return;
+    }
+    final profile = await identity.renameProfile(display);
+    if (profile != null) {
+      me = me.withDisplay(profile.name);
+      notifyListeners();
+    }
   }
 
   void markRead(String threadId) {
@@ -152,13 +272,55 @@ class MeshStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A tap or a scanned code proved you met. Creates the conversation.
+  Future<void> pair(String deviceId, String name) async {
+    contacts = await _contacts.add(deviceId, name);
+    final i = threads.indexWhere((t) => t.id == deviceId);
+    if (i >= 0) {
+      final t = threads[i];
+      final next = [...threads];
+      next[i] = _withHops(t, t.hops, title: name);
+      threads = next;
+    } else {
+      threads = [
+        Thread(
+          id: deviceId,
+          title: name,
+          initials: _initialsOf(name),
+          preview: 'Paired — say something',
+          at: 'now',
+          hops: peers.containsKey(deviceId) ? 0 : null,
+          messages: const [],
+          unread: 0,
+        ),
+        ...threads,
+      ];
+    }
+    notifyListeners();
+  }
+
+  /// Remove someone. They go back to being a node — still relaying for the
+  /// mesh, no longer able to reach you. No block needed: the contact list is
+  /// an allowlist, so being off it is enough.
+  Future<void> unpair(String deviceId) async {
+    contacts = await _contacts.remove(deviceId);
+    threads = threads.where((t) => t.id != deviceId).toList();
+    notifyListeners();
+  }
+
+  /// Forget a conversation that has no contact behind it, such as a group.
+  void forgetThread(String threadId) {
+    threads = threads.where((t) => t.id != threadId).toList();
+    notifyListeners();
+  }
+
   /// Make a group from peers you can currently reach, and tell them about it.
   Future<String> createGroup(String name, List<String> memberIds) async {
     final id = newGroupId();
     final members = [me.deviceId, ...memberIds];
 
     threads = [
-      mock.Thread(
+      Thread(
         id: id,
         title: name,
         initials: _initialsOf(name),
@@ -190,12 +352,9 @@ class MeshStore extends ChangeNotifier {
     error = null;
     notifyListeners();
 
-    final identity = _identity;
-    if (identity != null) {
-      // Stable across restarts, so the phone you spoke to earlier is still
-      // the same phone and doesn't come back as a stranger.
-      me = me.withDeviceId(await identity.resolve());
-    }
+    // Identity and contacts are claimed at launch, but starting the mesh
+    // without them would advertise as "pending", so make sure they are in.
+    await init();
 
     // Asked for here rather than at launch: the permission makes sense to
     // someone who has just turned the mesh on, and nowhere else.
@@ -284,7 +443,7 @@ class MeshStore extends ChangeNotifier {
     threads = _upsertMessage(
       threads,
       threadId,
-      mock.Msg(
+      Msg(
         id: envelope.id,
         from: 'me',
         text: kind == EnvelopeKind.msg ? body : null,
@@ -295,8 +454,8 @@ class MeshStore extends ChangeNotifier {
         hops: reachable ? 0 : (fanout > 0 ? 1 : null),
         // No peer at all means it waits — never show it as sent.
         state: fanout == 0
-            ? mock.MsgState.queued
-            : (reachable ? mock.MsgState.delivered : mock.MsgState.sent),
+            ? MsgState.queued
+            : (reachable ? MsgState.delivered : MsgState.sent),
       ),
     );
     notifyListeners();
@@ -321,7 +480,7 @@ class MeshStore extends ChangeNotifier {
     threads = _upsertMessage(
       threads,
       threadId,
-      mock.Msg(
+      Msg(
         id: msgId,
         from: 'me',
         coin: amount,
@@ -374,7 +533,7 @@ class MeshStore extends ChangeNotifier {
     final idx = threads.indexWhere((t) => t.id == threadId);
     if (idx < 0) return false;
 
-    mock.Msg? target;
+    Msg? target;
     for (final m in threads[idx].messages.reversed) {
       if (m.from == 'me' && m.coin != null && !m.reverted && !m.pending) {
         target = m;
@@ -411,39 +570,16 @@ class MeshStore extends ChangeNotifier {
       );
     }
 
-    // A phone you can reach has to be a phone you can open a chat with, or the
-    // mesh is live and there is nothing to do with it.
-    var nextThreads = threads;
-    final hasThread = threads.any((t) => t.id == peer.deviceId);
-    if (state == PeerLinkState.connected && !hasThread) {
-      nextThreads = [
-        mock.Thread(
-          id: peer.deviceId,
-          title: peer.display,
-          initials: _initialsOf(peer.display),
-          preview: 'Connected over the mesh',
-          at: 'now',
-          hops: 0,
-          messages: const [],
-          unread: 0,
-        ),
-        ...threads,
-      ];
-    } else if (hasThread) {
-      nextThreads = [
-        for (final t in threads)
-          t.id == peer.deviceId
-              ? _withHops(
-                  t,
-                  state == PeerLinkState.connected ? 0 : null,
-                  // A thread created from a message that predates knowing
-                  // the sender's name is titled with their raw device id.
-                  // Now that they are a peer, give it their actual name.
-                  title: t.title == t.id ? peer.display : null,
-                )
-              : t,
-      ];
-    }
+    // Connecting to a node does NOT create a conversation. Being in range of
+    // a stranger is not a relationship — it just means they can carry
+    // traffic. Conversations come from pairing, nowhere else.
+    //
+    // What a connection does do is update the route on a conversation you
+    // already have with this person.
+    final route = state == PeerLinkState.connected ? 0 : null;
+    final nextThreads = [
+      for (final t in threads) t.id == peer.deviceId ? _withHops(t, route) : t,
+    ];
 
     peers = nextPeers;
     threads = nextThreads;
@@ -486,13 +622,33 @@ class MeshStore extends ChangeNotifier {
     if (whole == null) return;
     final e = partial.copyWith(body: whole);
 
+    // Only people you have met can put something in front of you. A
+    // stranger's message is still relayed onward for whoever it is for — we
+    // just do not show it. This is the difference between being a node in
+    // someone's mesh and being in their contacts.
+    final known = contacts.containsKey(e.from) || isGroup(e.to);
+    if (!known) {
+      stats = stats.copyWith(dropped: stats.dropped + 1);
+      notifyListeners();
+      return;
+    }
+
     final hops = hopsTaken(e);
     final relay = relayedBy(e);
 
-    // An invite creates the group locally — but only for people actually
-    // named in it. Everyone in radio range sees the envelope; that is not
-    // the same as being in the group.
+    // An invite creates the group locally — but only from someone you have
+    // met, and only if you are actually named in it. Group messages are
+    // exempt from the contact check above, because the group itself is the
+    // trust boundary: two people in Alice's group need not have paired with
+    // each other. An invite is what draws that boundary, so it cannot come
+    // from a stranger — otherwise anyone in radio range could put a group on
+    // your phone and talk to you through it.
     if (e.kind == EnvelopeKind.invite) {
+      if (!contacts.containsKey(e.from)) {
+        stats = stats.copyWith(dropped: stats.dropped + 1);
+        notifyListeners();
+        return;
+      }
       _handleInvite(e, hops, relay);
       return;
     }
@@ -533,16 +689,17 @@ class MeshStore extends ChangeNotifier {
       threads,
       // A group message belongs to the group, not to whoever sent it.
       isGroup(e.to) ? e.to : e.from,
-      mock.Msg(
+      Msg(
         id: e.id,
         from: e.from,
+        fromName: e.fromName,
         text: e.kind == EnvelopeKind.msg ? e.body : null,
         coin: e.kind == EnvelopeKind.coin ? double.tryParse(e.body) : null,
         image: e.kind == EnvelopeKind.image ? e.body : null,
         event: e.kind == EnvelopeKind.event ? decodeEvent(e.body) : null,
         at: _clock(e.at),
         hops: hops,
-        via: relay != null ? _displayOf(relay) : null,
+        via: relay != null ? (peers[relay]?.display ?? relay) : null,
       ),
       unread: true,
       // Name the thread from the envelope, not the peer list — a relayed
@@ -570,7 +727,7 @@ class MeshStore extends ChangeNotifier {
 
       final name = decoded['name'] as String;
       threads = [
-        mock.Thread(
+        Thread(
           id: id,
           title: name,
           initials: _initialsOf(name),
@@ -579,7 +736,7 @@ class MeshStore extends ChangeNotifier {
           preview: '${members.length} people',
           at: _clock(e.at),
           hops: hops,
-          via: relay != null ? _displayOf(relay) : null,
+          via: relay != null ? (peers[relay]?.display ?? relay) : null,
           messages: const [],
           unread: 0,
         ),
@@ -591,31 +748,21 @@ class MeshStore extends ChangeNotifier {
     }
   }
 
-  String _displayOf(String id) {
-    final peer = peers[id];
-    if (peer != null) return peer.display;
-    for (final t in mock.threads) {
-      if (t.id == id) return t.title;
-    }
-    return id;
-  }
+  Thread _withHops(Thread t, Hops hops, {String? title}) => Thread(
+    id: t.id,
+    title: title ?? t.title,
+    initials: title != null ? _initialsOf(title) : t.initials,
+    group: t.group,
+    members: t.members,
+    preview: t.preview,
+    at: t.at,
+    hops: hops,
+    via: t.via,
+    messages: t.messages,
+    unread: t.unread,
+  );
 
-  mock.Thread _withHops(mock.Thread t, mock.Hops hops, {String? title}) =>
-      mock.Thread(
-        id: t.id,
-        title: title ?? t.title,
-        initials: title != null ? _initialsOf(title) : t.initials,
-        group: t.group,
-        members: t.members,
-        preview: t.preview,
-        at: t.at,
-        hops: hops,
-        via: t.via,
-        messages: t.messages,
-        unread: t.unread,
-      );
-
-  mock.Thread _withUnread(mock.Thread t, int unread) => mock.Thread(
+  Thread _withUnread(Thread t, int unread) => Thread(
     id: t.id,
     title: t.title,
     initials: t.initials,
@@ -629,20 +776,19 @@ class MeshStore extends ChangeNotifier {
     unread: unread,
   );
 
-  mock.Thread _withMessages(mock.Thread t, List<mock.Msg> messages) =>
-      mock.Thread(
-        id: t.id,
-        title: t.title,
-        initials: t.initials,
-        group: t.group,
-        members: t.members,
-        preview: t.preview,
-        at: t.at,
-        hops: t.hops,
-        via: t.via,
-        messages: messages,
-        unread: t.unread,
-      );
+  Thread _withMessages(Thread t, List<Msg> messages) => Thread(
+    id: t.id,
+    title: t.title,
+    initials: t.initials,
+    group: t.group,
+    members: t.members,
+    preview: t.preview,
+    at: t.at,
+    hops: t.hops,
+    via: t.via,
+    messages: messages,
+    unread: t.unread,
+  );
 }
 
 String _initialsOf(String name) {
@@ -665,10 +811,10 @@ String _clock(int ms) {
 }
 
 /// Append to a thread, creating one for a sender we've never heard from.
-List<mock.Thread> _upsertMessage(
-  List<mock.Thread> threads,
+List<Thread> _upsertMessage(
+  List<Thread> threads,
   String threadId,
-  mock.Msg msg, {
+  Msg msg, {
   bool unread = false,
   String? title,
 }) {
@@ -681,7 +827,7 @@ List<mock.Thread> _upsertMessage(
   if (i < 0) {
     final resolvedTitle = title ?? threadId;
     return [
-      mock.Thread(
+      Thread(
         id: threadId,
         title: resolvedTitle,
         initials: _initialsOf(resolvedTitle),
@@ -697,7 +843,7 @@ List<mock.Thread> _upsertMessage(
   }
   final t = threads[i];
   final next = [...threads];
-  next[i] = mock.Thread(
+  next[i] = Thread(
     id: t.id,
     title: t.title,
     initials: t.initials,

@@ -1,12 +1,13 @@
 // Smoke test: the app opens behind the lock screen, then boots on the Reach
-// tab and can navigate into a real chat thread and back, wired through
-// MeshStore's seeded demo data.
+// tab. There is no seed data any more (see lib/store/mesh_store.dart), so a
+// fresh boot has no conversations — pairing one, and opening it, is exercised
+// in the pairing-ux screens rather than here.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
 
 void main() {
-  testWidgets('boots on Reach tab and opens/closes a chat thread', (
+  testWidgets('boots on Reach tab with no conversations yet', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const EchoApp());
@@ -24,16 +25,8 @@ void main() {
     expect(find.text('MEET'), findsOneWidget);
     expect(find.text('READ'), findsOneWidget);
 
-    await tester.tap(find.text('Thabo Mokoena'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('REACH'), findsNothing);
-    expect(find.text('Here, for the wood run'), findsOneWidget);
-
-    await tester.tap(find.bySemanticsLabel('Back'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Reach'), findsOneWidget);
+    // Real data only — nobody is paired on a fresh boot.
+    expect(find.text('Thabo Mokoena'), findsNothing);
   });
 
   testWidgets('switching to the READ tab and back does not crash the shell', (

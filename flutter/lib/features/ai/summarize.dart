@@ -10,7 +10,7 @@
 // quantized) over the thread's recent messages; this defines the contract
 // and a fake that emits the same state shape — loading, generating, done,
 // error — so the sheet can be built and tested without a model loaded.
-import '../../store/mock.dart' as mock;
+import '../../store/types.dart';
 
 /// Shown on the sheet. The claim of "on device" is worth nothing if the UI
 /// doesn't say which model ran and where.
@@ -48,7 +48,7 @@ class SummaryState {
 abstract class ThreadSummarizer {
   /// Streams state as the model loads (first use only) and generates. Never
   /// throws — a failure surfaces as a state with [SummaryState.error] set.
-  Stream<SummaryState> summarize(mock.Thread thread, int unread);
+  Stream<SummaryState> summarize(Thread thread, int unread);
 }
 
 /// Loads once per instance — mirrors the real model staying warm in RAM for
@@ -65,7 +65,7 @@ class MockThreadSummarizer implements ThreadSummarizer {
   bool _ready = false;
 
   @override
-  Stream<SummaryState> summarize(mock.Thread thread, int unread) async* {
+  Stream<SummaryState> summarize(Thread thread, int unread) async* {
     if (!_ready) {
       for (final progress in const [0.4, 0.8, 1.0]) {
         await Future<void>.delayed(loadDelay);
@@ -112,7 +112,7 @@ class MockThreadSummarizer implements ThreadSummarizer {
     );
   }
 
-  List<String> _linesFor(mock.Thread thread, int unread) {
+  List<String> _linesFor(Thread thread, int unread) {
     final backlog = unread > 0 && unread <= thread.messages.length
         ? thread.messages.sublist(thread.messages.length - unread)
         : thread.messages;
