@@ -144,28 +144,6 @@ class AppStore extends ChangeNotifier {
       }
     }
 
-    // TEMP: manual verification of the on-device LLM summary fix. Not for
-    // commit — revert before this branch ships.
-    if (kDebugMode) {
-      threads.add(Thread(
-        id: '__debug_summary_test__',
-        title: 'Summary Test',
-        initials: 'ST',
-        preview: 'Debug thread for Catch me up',
-        at: _clock(),
-        hops: 0,
-        unread: 6,
-        messages: [
-          const Msg(id: 'd1', from: 'stranger', fromName: 'Sam', text: 'Meet at the north gate at 7?', at: '10:01', hops: 0),
-          const Msg(id: 'd2', from: 'me', text: 'Works for me, bringing the tent', at: '10:02', hops: 0),
-          const Msg(id: 'd3', from: 'stranger', fromName: 'Sam', text: 'Can you grab 20 for the campsite fee, I will pay you back', at: '10:05', hops: 0),
-          const Msg(id: 'd4', from: 'me', coin: 20.0, at: '10:06', hops: 0),
-          const Msg(id: 'd5', from: 'stranger', fromName: 'Sam', text: 'Got it, thanks. Also did you find the flashlight?', at: '10:10', hops: 0),
-          const Msg(id: 'd6', from: 'stranger', fromName: 'Sam', text: 'No rush but let me know before dark', at: '10:12', hops: 0),
-        ],
-      ));
-    }
-
     ready = true;
     notifyListeners();
   }
