@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { MeshTransport, type PeerInfo } from '../features/messaging/api/transport';
 import { deviceIdentity } from '../features/vault/api/identity';
-import { SeenCache, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
+import { SeenCache, Reassembler, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
 import { threads as seedThreads, type Thread, type Msg, type Hops } from './mock';
 
 /** The phone model, so demo handsets are told apart on sight. Replace with a
@@ -50,6 +50,7 @@ type State = {
 export const CANCEL_WINDOW_MS = 5000;
 
 const seen = new SeenCache();
+const inbound = new Reassembler();
 let transport: MeshTransport | null = null;
 let cancelTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -130,8 +131,13 @@ export const useMesh = create<State>((set, get) => ({
           return;
         }
 
-        // Delivered to us.
-        const e = decision.envelope;
+        // Delivered to us. A split payload only becomes a message once every
+        // part has landed; until then there is nothing to show.
+        const partial = decision.envelope;
+        const whole = inbound.add(partial);
+        if (whole === null) return;
+        const e = { ...partial, body: whole };
+
         const hops = hopsTaken(e) as Hops;
         const relay = relayedBy(e);
 
