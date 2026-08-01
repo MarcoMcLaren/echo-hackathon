@@ -35,8 +35,20 @@ class Me {
 const me = Me(id: 'me', name: 'You', initials: 'RF');
 
 const List<Contact> contacts = [
-  Contact(id: 'lerato', name: 'Lerato Ndlovu', initials: 'LN', hops: 0, rssi: -48),
-  Contact(id: 'thabo', name: 'Thabo Mokoena', initials: 'TM', hops: 0, rssi: -52),
+  Contact(
+    id: 'lerato',
+    name: 'Lerato Ndlovu',
+    initials: 'LN',
+    hops: 0,
+    rssi: -48,
+  ),
+  Contact(
+    id: 'thabo',
+    name: 'Thabo Mokoena',
+    initials: 'TM',
+    hops: 0,
+    rssi: -52,
+  ),
   Contact(
     id: 'naledi',
     name: 'Naledi Khumalo',
@@ -67,6 +79,8 @@ class Msg {
     required this.hops,
     this.via,
     this.state,
+    this.pending = false,
+    this.reverted = false,
   });
 
   final String id;
@@ -79,6 +93,26 @@ class Msg {
   final Hops hops;
   final String? via;
   final MsgState? state;
+
+  /// Held locally during the cancel window — not on the air yet.
+  final bool pending;
+
+  /// Sent, then taken back. The row stays visible; money that vanishes
+  /// silently is worse than money you can see was returned.
+  final bool reverted;
+
+  Msg withReverted(bool reverted) => Msg(
+    id: id,
+    from: from,
+    text: text,
+    coin: coin,
+    at: at,
+    hops: hops,
+    via: via,
+    state: state,
+    pending: pending,
+    reverted: reverted,
+  );
 }
 
 class Thread {
@@ -93,6 +127,7 @@ class Thread {
     required this.hops,
     this.via,
     required this.messages,
+    this.unread = 0,
   });
 
   final String id;
@@ -105,6 +140,9 @@ class Thread {
   final Hops hops;
   final String? via;
   final List<Msg> messages;
+
+  /// Arrived since you last opened the thread. Drives the summary offer.
+  final int unread;
 }
 
 const List<Thread> threads = [
@@ -117,6 +155,9 @@ const List<Thread> threads = [
     preview: 'Naledi: someone bring tongs',
     at: '2m',
     hops: 0,
+    // Enough real backlog that the on-device summary has something to work
+    // with — a summary of four messages proves nothing.
+    unread: 11,
     messages: [
       Msg(
         id: 'g1',
@@ -142,9 +183,60 @@ const List<Thread> threads = [
       ),
       Msg(
         id: 'g4',
+        from: 'lerato',
+        text: 'Gate code is 4417, the buzzer is broken',
+        at: '09:38',
+        hops: 0,
+      ),
+      Msg(
+        id: 'g5',
         from: 'naledi',
         text: 'Are you actually coming this time?',
         at: '09:41',
+        hops: 1,
+        via: 'Thabo',
+      ),
+      Msg(
+        id: 'g6',
+        from: 'thabo',
+        text: 'Can someone bring a second grid? Mine warped.',
+        at: '09:44',
+        hops: 0,
+      ),
+      Msg(
+        id: 'g7',
+        from: 'lerato',
+        text: 'I have a spare grid',
+        at: '09:45',
+        hops: 0,
+      ),
+      Msg(
+        id: 'g8',
+        from: 'naledi',
+        text: 'Nobody has said anything about drinks',
+        at: '09:47',
+        hops: 1,
+        via: 'Thabo',
+      ),
+      Msg(
+        id: 'g9',
+        from: 'thabo',
+        text: 'Parking is tight, rather share a lift',
+        at: '09:50',
+        hops: 0,
+      ),
+      Msg(
+        id: 'g10',
+        from: 'lerato',
+        text: 'Starting the fire at 13:30 so we eat at 14:00 sharp',
+        at: '09:52',
+        hops: 0,
+      ),
+      Msg(
+        id: 'g11',
+        from: 'naledi',
+        text: 'Someone bring tongs, Lerato only has one pair',
+        at: '09:55',
         hops: 1,
         via: 'Thabo',
       ),
@@ -158,7 +250,13 @@ const List<Thread> threads = [
     at: '8m',
     hops: 0,
     messages: [
-      Msg(id: 't1', from: 'thabo', text: 'Here, for the wood run', at: '09:11', hops: 0),
+      Msg(
+        id: 't1',
+        from: 'thabo',
+        text: 'Here, for the wood run',
+        at: '09:11',
+        hops: 0,
+      ),
       Msg(id: 't2', from: 'thabo', coin: 12.5, at: '09:12', hops: 0),
       Msg(
         id: 't3',
@@ -263,8 +361,21 @@ class Entry {
 const double balance = 148.25;
 
 const List<Entry> ledger = [
-  Entry(id: 'l1', amount: -20, who: 'Naledi Khumalo', hops: 1, via: 'Thabo', note: '09:41'),
-  Entry(id: 'l2', amount: 12.5, who: 'Thabo Mokoena', hops: 0, note: 'PHONE TAP · 09:12'),
+  Entry(
+    id: 'l1',
+    amount: -20,
+    who: 'Naledi Khumalo',
+    hops: 1,
+    via: 'Thabo',
+    note: '09:41',
+  ),
+  Entry(
+    id: 'l2',
+    amount: 12.5,
+    who: 'Thabo Mokoena',
+    hops: 0,
+    note: 'PHONE TAP · 09:12',
+  ),
   Entry(
     id: 'l3',
     amount: -45,
@@ -307,11 +418,17 @@ const Summary summary = Summary(
   count: 41,
   took: '1.4 s',
   points: [
-    SummaryPoint(k: 'WHEN', text: 'Braai moved to Saturday 14:00 at Lerato’s place.'),
+    SummaryPoint(
+      k: 'WHEN',
+      text: 'Braai moved to Saturday 14:00 at Lerato’s place.',
+    ),
     SummaryPoint(
       k: 'BRING',
       text: 'Thabo has wood. You claimed meat. Nobody has claimed drinks.',
     ),
-    SummaryPoint(k: 'OPEN', text: 'Naledi asked twice if you’re coming. Still unanswered.'),
+    SummaryPoint(
+      k: 'OPEN',
+      text: 'Naledi asked twice if you’re coming. Still unanswered.',
+    ),
   ],
 );

@@ -1,12 +1,52 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/features/ai/describe_scene.dart';
+import 'package:echo/features/ai/ocr_reader.dart';
 import 'package:echo/features/ai/read_text.dart';
 import 'package:echo/features/ai/summarize.dart';
+import 'package:echo/features/ai/types.dart';
 import 'package:echo/features/vision/obstacle_detector.dart';
 import 'package:echo/store/mock.dart' as mock;
 
 void main() {
+  group('MockOcrReader', () {
+    test(
+      'composes each canned detection set into speech, including nothing legible',
+      () async {
+        final reader = MockOcrReader();
+
+        final first = await reader.read('frame-1') as ReadOk;
+        expect(first.result.text, 'EXIT');
+        expect(first.result.boxes, isNotEmpty);
+
+        final second = await reader.read('frame-2') as ReadOk;
+        expect(second.result.text, 'Platform 3 Cape Town');
+
+        final third = await reader.read('frame-3') as ReadOk;
+        expect(third.result.text, '', reason: 'ran fine, found nothing');
+      },
+    );
+
+    test(
+      'a custom script is honoured and composed the same way as the default',
+      () async {
+        final reader = MockOcrReader(
+          script: [
+            [
+              const TextBox(
+                bbox: Bbox(x1: 0, y1: 0, x2: 10, y2: 10),
+                text: 'HI',
+                score: 0.9,
+              ),
+            ],
+          ],
+        );
+        final outcome = await reader.read('frame') as ReadOk;
+        expect(outcome.result.text, 'HI');
+      },
+    );
+  });
+
   group('MockTextReader', () {
     test(
       'cycles through its script, including the "nothing legible" case',

@@ -13,12 +13,32 @@ Envelope _envelope({
   int ttl = defaultTtl,
   List<String> path = const [],
   int at = 1000,
-}) => Envelope(id: id, from: from, to: to, kind: kind, body: body, ttl: ttl, path: path, at: at);
+  String? gid,
+  EnvelopePart? part,
+}) => Envelope(
+  id: id,
+  from: from,
+  to: to,
+  kind: kind,
+  body: body,
+  ttl: ttl,
+  path: path,
+  at: at,
+  gid: gid,
+  part: part,
+);
 
 void main() {
   group('newEnvelope', () {
     test('defaults ttl to DEFAULT_TTL and path to empty', () {
-      final e = newEnvelope(id: 'e1', from: 'a', to: 'b', kind: EnvelopeKind.msg, body: 'hi', at: 1);
+      final e = newEnvelope(
+        id: 'e1',
+        from: 'a',
+        to: 'b',
+        kind: EnvelopeKind.msg,
+        body: 'hi',
+        at: 1,
+      );
       expect(e.ttl, defaultTtl);
       expect(e.path, isEmpty);
     });
@@ -119,6 +139,110 @@ void main() {
     });
   });
 
+  group('EnvelopeKind.fromWire', () {
+    test('round-trips every kind through wire/fromWire', () {
+      for (final kind in EnvelopeKind.values) {
+        expect(EnvelopeKind.fromWire(kind.wire), kind);
+      }
+    });
+
+    test('falls back to msg for an unrecognized wire value', () {
+      expect(EnvelopeKind.fromWire('bogus'), EnvelopeKind.msg);
+    });
+  });
+
+  group('splitBody', () {
+    test('returns a single part when the body fits under the size', () {
+      expect(splitBody('short', size: 10), ['short']);
+    });
+
+    test('splits a long body into size-bounded parts, preserving order', () {
+      final parts = splitBody('abcdefghij', size: 4);
+      expect(parts, ['abcd', 'efgh', 'ij']);
+      expect(parts.join(), 'abcdefghij');
+    });
+  });
+
+  group('Reassembler', () {
+    test('passes a whole (non-split) envelope straight through', () {
+      final r = Reassembler();
+      final e = _envelope(body: 'hi');
+      expect(r.add(e), 'hi');
+      expect(r.pending, 0);
+    });
+
+    test('returns null until every part has arrived, then the joined body', () {
+      final r = Reassembler();
+      const gid = 'g1';
+      final p0 = _envelope(
+        id: 'i1',
+        gid: gid,
+        part: const EnvelopePart(i: 0, n: 2),
+        body: 'AB',
+      );
+      final p1 = _envelope(
+        id: 'i1',
+        gid: gid,
+        part: const EnvelopePart(i: 1, n: 2),
+        body: 'CD',
+      );
+
+      expect(r.add(p0), isNull);
+      expect(r.pending, 1);
+      expect(r.add(p1), 'ABCD');
+      expect(r.pending, 0);
+    });
+
+    test('parts arriving out of order still reassemble in position order', () {
+      final r = Reassembler();
+      const gid = 'g2';
+      final p1 = _envelope(
+        gid: gid,
+        part: const EnvelopePart(i: 1, n: 3),
+        body: 'B',
+      );
+      final p0 = _envelope(
+        gid: gid,
+        part: const EnvelopePart(i: 0, n: 3),
+        body: 'A',
+      );
+      final p2 = _envelope(
+        gid: gid,
+        part: const EnvelopePart(i: 2, n: 3),
+        body: 'C',
+      );
+
+      expect(r.add(p1), isNull);
+      expect(r.add(p0), isNull);
+      expect(r.add(p2), 'ABC');
+    });
+
+    test('evicts the oldest incomplete group once the limit is exceeded', () {
+      final r = Reassembler(1);
+      r.add(
+        _envelope(gid: 'old', part: const EnvelopePart(i: 0, n: 2), body: 'x'),
+      );
+      expect(r.pending, 1);
+
+      r.add(
+        _envelope(gid: 'new', part: const EnvelopePart(i: 0, n: 2), body: 'y'),
+      );
+      expect(r.pending, 1, reason: 'old group evicted to make room for new');
+
+      // The evicted group's remaining part can never complete it anymore.
+      expect(
+        r.add(
+          _envelope(
+            gid: 'old',
+            part: const EnvelopePart(i: 1, n: 2),
+            body: 'z',
+          ),
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('isGroup', () {
     test('true for a g: prefixed id', () {
       expect(isGroup('g:braai'), isTrue);
@@ -131,7 +255,11 @@ void main() {
 
   group('encode / decode', () {
     test('round-trips an envelope', () {
-      final e = _envelope(path: const ['x', 'y'], kind: EnvelopeKind.coin, body: '12.5');
+      final e = _envelope(
+        path: const ['x', 'y'],
+        kind: EnvelopeKind.coin,
+        body: '12.5',
+      );
       final decoded = decode(encode(e));
       expect(decoded, isNotNull);
       expect(decoded!.id, e.id);
@@ -153,7 +281,38 @@ void main() {
     });
 
     test('returns null when a field has the wrong type', () {
-      expect(decode('{"id":1,"from":"a","to":"b","body":"x","ttl":3,"path":[]}'), isNull);
+      expect(
+        decode('{"id":1,"from":"a","to":"b","body":"x","ttl":3,"path":[]}'),
+        isNull,
+      );
+    });
+
+    test(
+      'round-trips a revert envelope carrying the original message id as body',
+      () {
+        final e = _envelope(kind: EnvelopeKind.revert, body: 'c1');
+        final decoded = decode(encode(e));
+        expect(decoded!.kind, EnvelopeKind.revert);
+        expect(decoded.body, 'c1');
+      },
+    );
+
+    test('round-trips gid/part for a split image envelope', () {
+      final e = _envelope(
+        kind: EnvelopeKind.image,
+        gid: 'g1',
+        part: const EnvelopePart(i: 0, n: 2),
+      );
+      final decoded = decode(encode(e));
+      expect(decoded!.gid, 'g1');
+      expect(decoded.part?.i, 0);
+      expect(decoded.part?.n, 2);
+    });
+
+    test('a whole message decodes with gid/part left null', () {
+      final decoded = decode(encode(_envelope()));
+      expect(decoded!.gid, isNull);
+      expect(decoded.part, isNull);
     });
 
     test('returns null when path contains non-string entries', () {

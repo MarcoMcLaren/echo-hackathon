@@ -1,8 +1,11 @@
 // Unit tests for lib/store/mesh_store.dart: the send() state machine,
 // _upsertMessage's create-vs-append branches, _handlePeer's thread mutation,
-// and the stats counters.
+// the stats counters, unread/markRead, the coin cancel window, revertLastCoin,
+// and notification triggers.
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:echo/features/messaging/notifier.dart';
 import 'package:echo/features/messaging/types.dart';
 import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/mock.dart' as mock;
@@ -11,7 +14,10 @@ import 'package:echo/utils/relay.dart';
 /// Hand-rolled [MeshTransport] double: start()/broadcast() results are fixed
 /// per test, and onPeer/onEnvelope are fired manually to drive MeshStore.
 class FakeTransport implements MeshTransport {
-  FakeTransport({this.startResult = const TransportStartResult.ok(), this.fanout = 0});
+  FakeTransport({
+    this.startResult = const TransportStartResult.ok(),
+    this.fanout = 0,
+  });
 
   final TransportStartResult startResult;
   final int fanout;
@@ -41,45 +47,60 @@ class FakeTransport implements MeshTransport {
 
 void main() {
   group('send', () {
-    test('with no transport wired up, queues the message with null hops', () async {
-      final store = MeshStore(deviceId: 'me');
-      await store.send('thabo', 'hi');
+    test(
+      'with no transport wired up, queues the message with null hops',
+      () async {
+        final store = MeshStore(deviceId: 'me');
+        await store.send('thabo', 'hi');
 
-      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-      final msg = thread.messages.last;
-      expect(msg.state, mock.MsgState.queued);
-      expect(msg.hops, isNull);
-    });
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        final msg = thread.messages.last;
+        expect(msg.state, mock.MsgState.queued);
+        expect(msg.hops, isNull);
+      },
+    );
 
-    test('to a connected peer marks the message delivered with 0 hops', () async {
-      final transport = FakeTransport(fanout: 2);
-      final store = MeshStore(transport: transport, deviceId: 'me');
-      await store.start();
-      transport.onPeer?.call(
-        const PeerInfo(peerId: 'p-thabo', deviceId: 'thabo', display: 'Thabo Mokoena'),
-        PeerLinkState.connected,
-      );
+    test(
+      'to a connected peer marks the message delivered with 0 hops',
+      () async {
+        final transport = FakeTransport(fanout: 2);
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.connected,
+        );
 
-      await store.send('thabo', 'hi');
+        await store.send('thabo', 'hi');
 
-      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-      final msg = thread.messages.last;
-      expect(msg.state, mock.MsgState.delivered);
-      expect(msg.hops, 0);
-    });
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        final msg = thread.messages.last;
+        expect(msg.state, mock.MsgState.delivered);
+        expect(msg.hops, 0);
+      },
+    );
 
-    test('fanning out without a connected peer marks the message sent with 1 hop', () async {
-      final transport = FakeTransport(fanout: 1);
-      final store = MeshStore(transport: transport, deviceId: 'me');
-      await store.start();
+    test(
+      'fanning out without a connected peer marks the message sent with 1 hop',
+      () async {
+        final transport = FakeTransport(fanout: 1);
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
 
-      await store.send('someone-unknown', 'hi');
+        await store.send('someone-unknown', 'hi');
 
-      final thread = store.threads.firstWhere((t) => t.id == 'someone-unknown');
-      final msg = thread.messages.last;
-      expect(msg.state, mock.MsgState.sent);
-      expect(msg.hops, 1);
-    });
+        final thread = store.threads.firstWhere(
+          (t) => t.id == 'someone-unknown',
+        );
+        final msg = thread.messages.last;
+        expect(msg.state, mock.MsgState.sent);
+        expect(msg.hops, 1);
+      },
+    );
 
     test('increments stats.sent', () async {
       final store = MeshStore(deviceId: 'me');
@@ -111,16 +132,22 @@ void main() {
       expect(thread.preview, 'hey');
     });
 
-    test('appends to an existing thread without dropping prior history', () async {
-      final store = MeshStore(deviceId: 'me');
-      final before = store.threads.firstWhere((t) => t.id == 'thabo').messages.length;
+    test(
+      'appends to an existing thread without dropping prior history',
+      () async {
+        final store = MeshStore(deviceId: 'me');
+        final before = store.threads
+            .firstWhere((t) => t.id == 'thabo')
+            .messages
+            .length;
 
-      await store.send('thabo', 'hey again');
+        await store.send('thabo', 'hey again');
 
-      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-      expect(thread.messages, hasLength(before + 1));
-      expect(thread.messages.last.text, 'hey again');
-    });
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        expect(thread.messages, hasLength(before + 1));
+        expect(thread.messages.last.text, 'hey again');
+      },
+    );
   });
 
   group('_handlePeer', () {
@@ -131,35 +158,52 @@ void main() {
       expect(store.threads.any((t) => t.id == 'newperson'), isFalse);
 
       transport.onPeer?.call(
-        const PeerInfo(peerId: 'p-new', deviceId: 'newperson', display: 'New Person'),
+        const PeerInfo(
+          peerId: 'p-new',
+          deviceId: 'newperson',
+          display: 'New Person',
+        ),
         PeerLinkState.connected,
       );
 
       final thread = store.threads.firstWhere((t) => t.id == 'newperson');
       expect(thread.title, 'New Person');
       expect(thread.hops, 0);
-      expect(store.peers['newperson']?.connected, isTrue);
+      expect(store.peers.containsKey('newperson'), isTrue);
     });
 
-    test('flips an existing thread hops to null when the peer is lost', () async {
-      final transport = FakeTransport();
-      final store = MeshStore(transport: transport, deviceId: 'me');
-      await store.start();
-      transport.onPeer?.call(
-        const PeerInfo(peerId: 'p-thabo', deviceId: 'thabo', display: 'Thabo Mokoena'),
-        PeerLinkState.connected,
-      );
-      expect(store.peers['thabo']?.connected, isTrue);
+    test(
+      'removes a lost peer entirely rather than marking it disconnected',
+      () async {
+        final transport = FakeTransport();
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.connected,
+        );
+        expect(store.peers.containsKey('thabo'), isTrue);
 
-      transport.onPeer?.call(
-        const PeerInfo(peerId: 'p-thabo', deviceId: 'thabo', display: 'Thabo Mokoena'),
-        PeerLinkState.lost,
-      );
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.lost,
+        );
 
-      expect(store.peers['thabo']?.connected, isFalse);
-      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-      expect(thread.hops, isNull);
-    });
+        // Ghost-peer fix: a lost peer is gone from the map, not lingering with
+        // some disconnected flag — a node the peer count would disagree about.
+        expect(store.peers.containsKey('thabo'), isFalse);
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        expect(thread.hops, isNull);
+      },
+    );
   });
 
   group('_handleEnvelope (via transport.onEnvelope)', () {
@@ -202,25 +246,309 @@ void main() {
       expect(transport.broadcasted.first.path, contains('me'));
     });
 
-    test('delivering an envelope addressed to me appends to the sender thread', () async {
+    test(
+      'delivering an envelope addressed to me appends to the sender thread',
+      () async {
+        final transport = FakeTransport();
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        final envelope = newEnvelope(
+          id: 'd1',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.msg,
+          body: 'yo',
+          at: 0,
+        );
+
+        transport.onEnvelope?.call(envelope, 'p-thabo');
+
+        expect(store.stats.delivered, 1);
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        expect(thread.messages.last.text, 'yo');
+        expect(thread.messages.last.from, 'thabo');
+      },
+    );
+
+    test(
+      'delivering a revert marks the referenced message reverted, not a new one',
+      () async {
+        final transport = FakeTransport();
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        transport.onEnvelope?.call(
+          newEnvelope(
+            id: 'c1',
+            from: 'thabo',
+            to: 'me',
+            kind: EnvelopeKind.coin,
+            body: '12.5',
+            at: 0,
+          ),
+          'p-thabo',
+        );
+        final before = store.threads
+            .firstWhere((t) => t.id == 'thabo')
+            .messages
+            .length;
+
+        transport.onEnvelope?.call(
+          newEnvelope(
+            id: 'rv1',
+            from: 'thabo',
+            to: 'me',
+            kind: EnvelopeKind.revert,
+            body: 'c1',
+            at: 0,
+          ),
+          'p-thabo',
+        );
+
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        expect(
+          thread.messages,
+          hasLength(before),
+          reason: 'a revert updates, never appends',
+        );
+        expect(
+          thread.messages.firstWhere((m) => m.id == 'c1').reverted,
+          isTrue,
+        );
+        expect(store.stats.delivered, 2);
+      },
+    );
+  });
+
+  group('unread / markRead', () {
+    test('a delivered message increments the thread unread count', () async {
       final transport = FakeTransport();
       final store = MeshStore(transport: transport, deviceId: 'me');
       await store.start();
-      final envelope = newEnvelope(
-        id: 'd1',
-        from: 'thabo',
-        to: 'me',
-        kind: EnvelopeKind.msg,
-        body: 'yo',
-        at: 0,
+      final before = store.threads.firstWhere((t) => t.id == 'thabo').unread;
+
+      transport.onEnvelope?.call(
+        newEnvelope(
+          id: 'u1',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 0,
+        ),
+        'p-thabo',
       );
 
-      transport.onEnvelope?.call(envelope, 'p-thabo');
-
-      expect(store.stats.delivered, 1);
-      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-      expect(thread.messages.last.text, 'yo');
-      expect(thread.messages.last.from, 'thabo');
+      expect(
+        store.threads.firstWhere((t) => t.id == 'thabo').unread,
+        before + 1,
+      );
     });
+
+    test('markRead resets a thread unread count to zero', () async {
+      final store = MeshStore(deviceId: 'me');
+      expect(
+        store.threads.firstWhere((t) => t.id == 'braai').unread,
+        greaterThan(0),
+      );
+
+      store.markRead('braai');
+
+      expect(store.threads.firstWhere((t) => t.id == 'braai').unread, 0);
+    });
+  });
+
+  group('notifications', () {
+    test('start() prepares the notifier', () async {
+      final notifier = MockMeshNotifier();
+      final store = MeshStore(
+        transport: FakeTransport(),
+        notifier: notifier,
+        deviceId: 'me',
+      );
+      await store.start();
+      expect(notifier.prepared, isTrue);
+    });
+
+    test('a delivered msg or coin notifies; a revert does not', () async {
+      final notifier = MockMeshNotifier();
+      final transport = FakeTransport();
+      final store = MeshStore(
+        transport: transport,
+        notifier: notifier,
+        deviceId: 'me',
+      );
+      await store.start();
+
+      transport.onEnvelope?.call(
+        newEnvelope(
+          id: 'n1',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 0,
+        ),
+        'p-thabo',
+      );
+      expect(notifier.sent, hasLength(1));
+      expect(notifier.sent.single.body, 'hi');
+
+      transport.onEnvelope?.call(
+        newEnvelope(
+          id: 'n2',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.revert,
+          body: 'n1',
+          at: 0,
+        ),
+        'p-thabo',
+      );
+      expect(
+        notifier.sent,
+        hasLength(1),
+        reason: 'a revert is bookkeeping, not an arrival',
+      );
+    });
+  });
+
+  group('coin cancel window', () {
+    test('queueCoin shows a pending placeholder immediately', () {
+      final store = MeshStore(deviceId: 'me');
+      store.queueCoin('thabo', 5);
+
+      expect(store.pending, isNotNull);
+      expect(store.pending!.amount, 5);
+      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+      expect(thread.messages.last.pending, isTrue);
+      expect(thread.messages.last.coin, 5);
+
+      store.cancelPending(); // avoid leaking a live Timer past the test
+    });
+
+    test('cancelPending removes the placeholder and clears pending', () {
+      final store = MeshStore(deviceId: 'me');
+      final before = store.threads
+          .firstWhere((t) => t.id == 'thabo')
+          .messages
+          .length;
+      store.queueCoin('thabo', 5);
+
+      store.cancelPending();
+
+      expect(store.pending, isNull);
+      expect(
+        store.threads.firstWhere((t) => t.id == 'thabo').messages,
+        hasLength(before),
+      );
+    });
+
+    test('queueCoin replaces a still-pending coin — one at a time', () {
+      final store = MeshStore(deviceId: 'me');
+      store.queueCoin('thabo', 5);
+      final firstId = store.pending!.msgId;
+
+      store.queueCoin('thabo', 10);
+
+      expect(store.pending!.amount, 10);
+      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+      expect(thread.messages.where((m) => m.id == firstId), isEmpty);
+
+      store.cancelPending();
+    });
+
+    test(
+      'once the window elapses, the coin is actually sent and the placeholder clears',
+      () {
+        fakeAsync((async) {
+          final transport = FakeTransport(fanout: 1);
+          final store = MeshStore(transport: transport, deviceId: 'me');
+
+          store.queueCoin('thabo', 5);
+          async.elapse(const Duration(milliseconds: cancelWindowMs));
+
+          expect(store.pending, isNull);
+          expect(transport.broadcasted, hasLength(1));
+          expect(transport.broadcasted.single.kind, EnvelopeKind.coin);
+        });
+      },
+    );
+
+    test('cancelling before the window elapses never sends anything', () {
+      fakeAsync((async) {
+        final transport = FakeTransport(fanout: 1);
+        final store = MeshStore(transport: transport, deviceId: 'me');
+
+        store.queueCoin('thabo', 5);
+        store.cancelPending();
+        async.elapse(const Duration(milliseconds: cancelWindowMs));
+
+        expect(transport.broadcasted, isEmpty);
+      });
+    });
+  });
+
+  group('revertLastCoin', () {
+    test(
+      'marks the most recent coin I sent as reverted and broadcasts a revert',
+      () async {
+        final transport = FakeTransport(fanout: 1);
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        await store.send('thabo', '5', kind: EnvelopeKind.coin);
+        final sentId = store.threads
+            .firstWhere((t) => t.id == 'thabo')
+            .messages
+            .last
+            .id;
+
+        final did = await store.revertLastCoin('thabo');
+
+        expect(did, isTrue);
+        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+        expect(
+          thread.messages.firstWhere((m) => m.id == sentId).reverted,
+          isTrue,
+        );
+        expect(transport.broadcasted.last.kind, EnvelopeKind.revert);
+        expect(transport.broadcasted.last.body, sentId);
+      },
+    );
+
+    test('returns false when there is no coin of mine to revert', () async {
+      final store = MeshStore(deviceId: 'me');
+      // The seeded thabo thread has a coin from thabo, not from me.
+      expect(await store.revertLastCoin('thabo'), isFalse);
+    });
+
+    test('returns false for an unknown thread', () async {
+      final store = MeshStore(deviceId: 'me');
+      expect(await store.revertLastCoin('nope'), isFalse);
+    });
+  });
+
+  group('stop', () {
+    test(
+      'drops peers and sets hops to null on threads that were connected',
+      () async {
+        final transport = FakeTransport();
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.connected,
+        );
+        expect(store.threads.firstWhere((t) => t.id == 'thabo').hops, 0);
+
+        await store.stop();
+
+        expect(store.peers, isEmpty);
+        expect(store.threads.firstWhere((t) => t.id == 'thabo').hops, isNull);
+      },
+    );
   });
 }

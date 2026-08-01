@@ -31,10 +31,13 @@ class ReachScreen extends StatelessWidget {
     final themeStore = context.watch<ThemeStore>();
     final mesh = context.watch<MeshStore>();
 
-    final live = mesh.peers.values.where((p) => p.connected).length;
+    // peers only ever holds currently-reachable phones (see MeshPeer in
+    // mesh_store.dart), so every entry here counts as live.
+    final live = mesh.peers.length;
 
     final statusLine = switch (mesh.status) {
-      transport.MeshStatus.live => 'MESH LIVE · $live PEER${live == 1 ? '' : 'S'} · TAP TO STOP',
+      transport.MeshStatus.live =>
+        'MESH LIVE · $live PEER${live == 1 ? '' : 'S'} · TAP TO STOP',
       transport.MeshStatus.starting => 'STARTING MESH',
       transport.MeshStatus.error => (mesh.error ?? 'MESH FAILED').toUpperCase(),
       transport.MeshStatus.off => 'MESH OFF · TAP TO START',
@@ -42,12 +45,16 @@ class ReachScreen extends StatelessWidget {
 
     // Real peers when the mesh is up; the seeded demo when it isn't, so a
     // single phone still shows what the screen is for.
-    final nodes = (mesh.status == transport.MeshStatus.live && mesh.peers.isNotEmpty)
+    final nodes =
+        (mesh.status == transport.MeshStatus.live && mesh.peers.isNotEmpty)
         ? [
             for (final entry in mesh.peers.entries)
-              MapNode(id: entry.key, name: entry.value.display, hops: entry.value.connected ? 0 : null),
+              MapNode(id: entry.key, name: entry.value.display, hops: 0),
           ]
-        : [for (final contact in mock.contacts) MapNode(id: contact.id, name: contact.name, hops: contact.hops)];
+        : [
+            for (final contact in mock.contacts)
+              MapNode(id: contact.id, name: contact.name, hops: contact.hops),
+          ];
 
     final VoidCallback? onPress = switch (mesh.status) {
       transport.MeshStatus.live => mesh.stop,
@@ -57,7 +64,11 @@ class ReachScreen extends StatelessWidget {
 
     return Column(
       children: [
-        MeshStatus(right: statusLine, state: _chromeState(mesh.status), onPress: onPress),
+        MeshStatus(
+          right: statusLine,
+          state: _chromeState(mesh.status),
+          onPress: onPress,
+        ),
         EchoAppBar(
           title: 'Reach',
           sub: mesh.status == transport.MeshStatus.live
@@ -97,7 +108,12 @@ class ReachScreen extends StatelessWidget {
 }
 
 class _ConvRow extends StatelessWidget {
-  const _ConvRow({required this.thread, required this.isLast, required this.colors, required this.onTap});
+  const _ConvRow({
+    required this.thread,
+    required this.isLast,
+    required this.colors,
+    required this.onTap,
+  });
 
   final mock.Thread thread;
   final bool isLast;
@@ -109,7 +125,12 @@ class _ConvRow extends StatelessWidget {
     final t = thread;
     return Semantics(
       button: true,
-      label: '${t.title}. ${t.hops == null ? 'No route' : t.hops == 0 ? 'Direct' : 'Via ${t.via}'}',
+      label:
+          '${t.title}. ${t.hops == null
+              ? 'No route'
+              : t.hops == 0
+              ? 'Direct'
+              : 'Via ${t.via}'}',
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
@@ -117,7 +138,11 @@ class _ConvRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: colors.hair2)),
+            border: Border(
+              bottom: isLast
+                  ? BorderSide.none
+                  : BorderSide(color: colors.hair2),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -142,7 +167,11 @@ class _ConvRow extends StatelessWidget {
                 children: [
                   Mono(t.at, size: 9),
                   const SizedBox(height: 4),
-                  HopChip(hops: t.hops, via: t.via, label: t.group ? '${t.members!.length} in mesh' : null),
+                  HopChip(
+                    hops: t.hops,
+                    via: t.via,
+                    label: t.group ? '${t.members!.length} in mesh' : null,
+                  ),
                 ],
               ),
             ],
