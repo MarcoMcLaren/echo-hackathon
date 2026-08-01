@@ -1,0 +1,1849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TWO BUILDS, ONE SIGNAL — Currency App / Framework Benchmark</title>
+<style>
+/* ============================================================
+   TWO BUILDS, ONE SIGNAL
+   Brainstorming keepsake — self-contained, no external assets
+   ============================================================ */
+
+:root{
+  --bg:#05070a;
+  --bg2:#080b10;
+  --panel:#0c1118;
+  --panel2:#101724;
+  --line:#1b2533;
+  --line2:#26344a;
+  --ink:#e8eef6;
+  --ink2:#aebbcb;
+  --mut:#6f7f92;
+  --sig:#34e5c4;      /* signal teal */
+  --sig-dim:#1d8d7c;
+  --rn:#61dafb;       /* React Native */
+  --fl:#ffb457;       /* Flutter */
+  --bad:#ff6f7d;
+  --good:#7ff0a8;
+  --hot:#ff9d3d;
+  --violet:#b48cff;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --maxw: 1180px;
+}
+
+*{box-sizing:border-box}
+html,body{overflow-x:hidden; max-width:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* ambient field */
+.field{position:fixed; inset:0; pointer-events:none; z-index:0;}
+.field::before{
+  content:""; position:absolute; inset:0;
+  background:
+    radial-gradient(760px 460px at 12% -6%, rgba(52,229,196,.12), transparent 60%),
+    radial-gradient(680px 520px at 92% 4%, rgba(97,218,251,.09), transparent 62%),
+    radial-gradient(900px 700px at 60% 104%, rgba(255,180,87,.07), transparent 60%);
+}
+.field::after{
+  content:""; position:absolute; inset:0; opacity:.30;
+  background-image:
+    linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 85%);
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 0%, #000 20%, transparent 85%);
+}
+
+.wrap{position:relative; z-index:1; max-width:var(--maxw); margin:0 auto; padding:0 20px}
+section{position:relative; z-index:1}
+
+/* typographic primitives */
+.kicker{
+  font-family:var(--mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase;
+  color:var(--sig); margin:0 0 10px;
+}
+.kicker.alt{color:var(--mut)}
+h1,h2,h3,h4{margin:0; line-height:1.05; letter-spacing:-.02em; font-weight:800}
+p{margin:0 0 1em}
+.mono{font-family:var(--mono)}
+.dim{color:var(--ink2)}
+.mut{color:var(--mut)}
+hr.rule{border:0; height:1px; background:linear-gradient(90deg,var(--line),transparent); margin:0}
+
+/* ============ MASTHEAD ============ */
+.mast{padding:56px 0 34px; border-bottom:1px solid var(--line); overflow:hidden}
+.mast-top{
+  display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center;
+  font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--mut);
+}
+.pip{display:inline-flex; align-items:center; gap:8px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--sig); box-shadow:0 0 0 0 rgba(52,229,196,.55); animation:ping 2.6s ease-out infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(52,229,196,.5)}70%{box-shadow:0 0 0 10px rgba(52,229,196,0)}100%{box-shadow:0 0 0 0 rgba(52,229,196,0)}}
+
+h1.title{
+  font-size:clamp(38px, 9.2vw, 104px);
+  line-height:.92; letter-spacing:-.045em; font-weight:850;
+  margin:26px 0 8px;
+}
+h1.title .l1{display:block; color:var(--ink)}
+h1.title .l2{display:block;
+  background:linear-gradient(96deg, var(--rn) 0%, var(--sig) 46%, var(--fl) 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.subtitle{max-width:62ch; font-size:clamp(15px,2.1vw,19px); color:var(--ink2); margin-top:14px}
+
+/* waveform */
+.wave{width:100%; height:58px; display:block; margin:22px 0 4px; opacity:.85}
+
+.meta-grid{
+  display:grid; gap:1px; background:var(--line); border:1px solid var(--line);
+  grid-template-columns:repeat(4,1fr); margin-top:26px; border-radius:10px; overflow:hidden;
+}
+.meta-cell{background:var(--bg2); padding:14px 16px}
+.meta-cell .k{font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--mut)}
+.meta-cell .v{font-size:14px; margin-top:6px; color:var(--ink); line-height:1.35}
+@media(max-width:860px){.meta-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){.meta-grid{grid-template-columns:1fr}}
+
+.constraint{
+  margin-top:22px; border:1px solid rgba(255,180,87,.32);
+  background:linear-gradient(90deg, rgba(255,180,87,.10), rgba(255,180,87,.02));
+  border-radius:10px; padding:16px 18px; display:flex; gap:14px; align-items:flex-start;
+}
+.constraint .tag{
+  font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+  color:#0a0d12; background:var(--fl); padding:4px 8px; border-radius:4px; white-space:nowrap; font-weight:700;
+}
+.constraint .txt{font-size:15px; color:#ffd8a6}
+
+/* ============ NAV ============ */
+.nav{position:sticky; top:0; z-index:40; background:rgba(5,7,10,.86); backdrop-filter:blur(10px); border-bottom:1px solid var(--line)}
+.nav-inner{max-width:var(--maxw); margin:0 auto; padding:0 20px}
+.nav-scroll{display:flex; gap:6px; overflow-x:auto; padding:10px 0; scrollbar-width:thin}
+.nav-scroll::-webkit-scrollbar{height:5px}
+.nav-scroll::-webkit-scrollbar-thumb{background:var(--line2); border-radius:3px}
+.nav a{
+  flex:0 0 auto; font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--mut); text-decoration:none; padding:6px 10px; border:1px solid transparent; border-radius:6px; white-space:nowrap;
+}
+.nav a:hover{color:var(--ink); border-color:var(--line2)}
+.nav a.on{color:var(--sig); border-color:rgba(52,229,196,.4); background:rgba(52,229,196,.07)}
+
+/* ============ SECTION FRAME ============ */
+.sec{padding:78px 0 10px}
+.sec-head{display:flex; gap:20px; align-items:flex-start; margin-bottom:34px; flex-wrap:wrap}
+.sec-num{
+  font-family:var(--mono); font-size:clamp(30px,6vw,58px); font-weight:700; line-height:.8;
+  color:transparent; -webkit-text-stroke:1px var(--line2); letter-spacing:-.04em;
+}
+.sec-titles{flex:1 1 320px; min-width:0}
+h2.sec-title{font-size:clamp(24px,4.4vw,40px); letter-spacing:-.03em}
+.sec-sub{color:var(--mut); font-size:14px; margin-top:8px; max-width:70ch}
+.count{
+  font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+  border:1px solid var(--line2); color:var(--ink2); padding:5px 9px; border-radius:999px; white-space:nowrap;
+}
+
+/* ============ 01 YES AND — the chain ============ */
+.chain{position:relative; padding-left:8px}
+.link{
+  position:relative; display:flex; gap:16px; padding:0 0 14px;
+  margin-left:calc(var(--i) * clamp(0px, 0.9vw, 15px));
+}
+.link .stem{position:relative; flex:0 0 30px; display:flex; flex-direction:column; align-items:center}
+.link .node{
+  width:13px;height:13px;border-radius:50%; margin-top:16px;
+  background:var(--bg); border:2px solid var(--sig-dim); box-shadow:0 0 12px rgba(52,229,196,.25); flex:0 0 auto;
+}
+.link:last-child .node{border-color:var(--sig); background:var(--sig); box-shadow:0 0 18px rgba(52,229,196,.6)}
+.link .thread{flex:1; width:2px; background:linear-gradient(180deg, var(--sig-dim), rgba(52,229,196,.12)); margin-top:4px}
+.link:last-child .thread{display:none}
+.link .box{
+  flex:1 1 auto; min-width:0; background:var(--panel); border:1px solid var(--line);
+  border-left:2px solid rgba(52,229,196,.35);
+  border-radius:0 10px 10px 0; padding:13px 16px 14px;
+}
+.link .box:hover{border-color:var(--line2); border-left-color:var(--sig)}
+.link .n{font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--sig-dim)}
+.link .n b{color:var(--sig); font-weight:600}
+.link .t{font-size:15px; margin-top:5px; color:var(--ink)}
+.link .t em{font-style:normal; color:var(--sig)}
+.link .t .rn{color:var(--rn)} .link .t .fl{color:var(--fl)}
+@media(max-width:640px){ .link{margin-left:0} .link .stem{flex:0 0 22px} }
+
+/* ============ 02 BRAIN WRITING — parallel sheets ============ */
+.sheets{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+@media(max-width:980px){.sheets{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.sheets{grid-template-columns:1fr}}
+.sheet{
+  background:linear-gradient(180deg, var(--panel2), var(--panel));
+  border:1px solid var(--line); border-radius:12px; padding:16px 14px 18px; position:relative;
+  box-shadow:0 18px 40px -30px #000;
+}
+.sheet::after{ /* folded corner */
+  content:""; position:absolute; top:0; right:0; width:22px; height:22px;
+  background:linear-gradient(225deg, var(--bg) 50%, transparent 50%);
+  border-left:1px solid var(--line); border-bottom:1px solid var(--line);
+}
+.sheet .sid{font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--hue)}
+.sheet h3{font-size:17px; margin:6px 0 4px}
+.sheet .sdesc{font-size:12px; color:var(--mut); border-bottom:1px dashed var(--line2); padding-bottom:12px; margin-bottom:4px}
+.round{display:flex; gap:10px; padding:11px 0; border-bottom:1px dotted var(--line)}
+.round:last-child{border-bottom:0; padding-bottom:0}
+.round .r{
+  flex:0 0 auto; font-family:var(--mono); font-size:9px; font-weight:700; letter-spacing:.06em;
+  width:22px; height:22px; border-radius:5px; display:grid; place-items:center;
+  color:var(--hue); border:1px solid color-mix(in srgb, var(--hue) 38%, transparent);
+  background:color-mix(in srgb, var(--hue) 10%, transparent);
+}
+.round .rt{font-size:13.5px; color:var(--ink2); line-height:1.5}
+.round .rt strong{color:var(--ink); font-weight:600}
+.passline{
+  display:flex; align-items:center; gap:12px; margin:0 0 16px; color:var(--mut);
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+}
+.passline .bar{flex:1; height:1px; background:repeating-linear-gradient(90deg,var(--line2) 0 8px, transparent 8px 16px)}
+
+/* ============ VIZ frame ============ */
+.viz{
+  margin:26px 0 0; border:1px solid var(--line); border-radius:14px; background:var(--bg2);
+  padding:20px 18px 14px; position:relative; overflow:hidden;
+}
+.viz h3{font-size:19px; margin-bottom:6px}
+.viz .vsub{font-size:13px; color:var(--mut); max-width:76ch; margin-bottom:14px}
+.scrollx{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch}
+.scrollx .inner{min-width:600px}
+.scrollx::-webkit-scrollbar{height:6px}
+.scrollx::-webkit-scrollbar-thumb{background:var(--line2); border-radius:3px}
+.legend{display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:12px; font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut)}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle}
+
+/* ============ 03 ROLE PLAYING ============ */
+.roles{display:grid; grid-template-columns:repeat(auto-fill,minmax(268px,1fr)); gap:14px}
+.role{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px 16px;
+  position:relative; overflow:hidden;
+}
+.role::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--hue)}
+.role-hd{display:flex; gap:11px; align-items:center; margin-bottom:12px}
+.mono-badge{
+  flex:0 0 auto; width:38px;height:38px;border-radius:9px; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:700; font-size:13px; letter-spacing:.02em;
+  color:var(--hue); border:1px solid color-mix(in srgb, var(--hue) 42%, transparent);
+  background:color-mix(in srgb, var(--hue) 12%, transparent);
+}
+.role-hd .rname{font-size:14.5px; font-weight:700; letter-spacing:-.01em; line-height:1.2}
+.role-hd .rmeta{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--mut); margin-top:3px}
+.quote{position:relative; padding:9px 0 9px 14px; border-left:1px solid var(--line2); font-size:13.5px; color:var(--ink2); line-height:1.5}
+.quote + .quote{margin-top:2px}
+.quote::before{content:""; position:absolute; left:-3px; top:15px; width:5px;height:5px; border-radius:50%; background:var(--hue); opacity:.8}
+.quote strong{color:var(--ink); font-weight:600}
+
+/* ============ 04 FIRST PRINCIPLES ============ */
+.movement-label{
+  display:flex; align-items:center; gap:14px; margin:0 0 20px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.26em; text-transform:uppercase; color:var(--mut);
+}
+.movement-label .idx{color:var(--sig)}
+.movement-label .bar{flex:1; height:1px; background:linear-gradient(90deg,var(--line2),transparent)}
+
+.bedrock{display:grid; grid-template-columns:repeat(2,1fr); gap:14px}
+@media(max-width:760px){.bedrock{grid-template-columns:1fr}}
+.slab{
+  border:1px solid var(--line); background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.014) 0 2px, transparent 2px 7px), var(--bg2);
+  border-radius:10px; padding:18px 18px 20px;
+}
+.slab .sn{font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--mut); text-transform:uppercase}
+.slab .st{font-size:16px; margin-top:9px; color:var(--ink); line-height:1.45}
+.slab .st b{color:var(--sig); font-weight:700}
+
+.striparrow{display:grid; place-items:center; padding:34px 0 26px; color:var(--mut)}
+.striparrow .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.3em; text-transform:uppercase; margin-top:10px}
+
+.rebuild{display:flex; flex-direction:column; gap:10px}
+.rblock{
+  display:flex; gap:14px; align-items:stretch;
+  background:linear-gradient(90deg, rgba(52,229,196,.055), transparent 60%);
+  border:1px solid var(--line); border-radius:10px; padding:14px 16px;
+}
+.rblock .lay{
+  font-family:var(--mono); font-size:10px; letter-spacing:.14em; color:var(--sig);
+  flex:0 0 46px; border-right:1px solid var(--line); padding-right:12px; padding-top:2px;
+}
+.rblock .rtxt{font-size:14.5px; color:var(--ink2); min-width:0}
+.rblock .rtxt b{color:var(--ink); font-weight:650}
+.rblock.key{border-color:rgba(52,229,196,.42); background:linear-gradient(90deg, rgba(52,229,196,.12), rgba(52,229,196,.02) 70%)}
+.rblock.key .rtxt{color:var(--ink)}
+@media(max-width:520px){.rblock{flex-direction:column; gap:8px} .rblock .lay{border-right:0; border-bottom:1px solid var(--line); padding:0 0 8px; flex:none}}
+
+/* ============ DEVICE INVENTORY ============ */
+.inv{display:grid; grid-template-columns:1fr 240px 1fr; gap:18px; align-items:center}
+@media(max-width:900px){.inv{grid-template-columns:1fr; }.inv .phonecol{order:-1; justify-self:center}}
+.invcol{display:flex; flex-direction:column; gap:9px}
+.cap{
+  display:flex; gap:10px; align-items:baseline; border:1px solid var(--line); border-radius:8px;
+  padding:9px 12px; background:var(--panel);
+}
+.cap .cn{font-family:var(--mono); font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--hue); flex:0 0 auto}
+.cap .cd{font-size:12.5px; color:var(--mut); line-height:1.4}
+.grpname{font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--mut); margin-top:8px}
+
+/* ============ 05 REVERSE ============ */
+.flips{display:flex; flex-direction:column; gap:12px}
+.flip{
+  display:grid; grid-template-columns:1fr 44px 1fr; gap:0; align-items:stretch;
+  border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel);
+}
+.flip .side{padding:14px 16px; min-width:0}
+.flip .fail{background:linear-gradient(90deg, rgba(255,111,125,.10), rgba(255,111,125,.02)); border-right:1px solid var(--line)}
+.flip .inv{background:linear-gradient(270deg, rgba(127,240,168,.10), rgba(127,240,168,.02)); border-left:1px solid var(--line)}
+.flip .lab{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; margin-bottom:6px}
+.flip .fail .lab{color:var(--bad)} .flip .inv .lab{color:var(--good)}
+.flip .tx{font-size:14px; color:var(--ink2); line-height:1.5}
+.flip .inv .tx{color:var(--ink)}
+.flip .pivot{display:grid; place-items:center; background:var(--bg2); border-left:1px solid var(--line); border-right:1px solid var(--line)}
+@media(max-width:760px){
+  .flip{grid-template-columns:1fr}
+  .flip .fail{border-right:0; border-bottom:1px solid var(--line)}
+  .flip .inv{border-left:0}
+  .flip .pivot{display:none}
+}
+
+/* ============ 06 FIVE WHYS ============ */
+.whys{position:relative}
+.why{
+  position:relative; margin-left:calc(var(--d) * clamp(0px, 2.2vw, 34px));
+  border-left:2px solid color-mix(in srgb, var(--hot) calc(18% + var(--d) * 16%), transparent);
+  padding:0 0 20px 20px;
+}
+.why:last-of-type{border-left-color:transparent}
+.why .wq{
+  font-family:var(--mono); font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+  color:color-mix(in srgb, var(--hot) calc(40% + var(--d)*14%), var(--mut));
+}
+.why .wt{font-size:clamp(15px, 2.1vw, 19px); margin-top:6px; color:var(--ink2); max-width:74ch}
+.why .wt b{color:var(--ink)}
+.why::before{
+  content:""; position:absolute; left:-7px; top:2px; width:12px;height:12px; border-radius:50%;
+  background:var(--bg); border:2px solid color-mix(in srgb, var(--hot) calc(30% + var(--d)*16%), var(--line2));
+}
+@media(max-width:640px){.why{margin-left:0}}
+
+.root{
+  margin-top:6px; border:1px solid rgba(255,157,61,.45); border-radius:14px; overflow:hidden;
+  background:
+    radial-gradient(120% 200% at 0% 0%, rgba(255,157,61,.18), transparent 55%),
+    linear-gradient(180deg, rgba(255,157,61,.06), rgba(255,111,125,.05));
+}
+.root .rhd{
+  display:flex; gap:12px; align-items:center; padding:12px 20px; border-bottom:1px solid rgba(255,157,61,.28);
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.3em; text-transform:uppercase; color:var(--hot);
+}
+.root .rbody{padding:22px 20px 26px}
+.root .rbody p{font-size:clamp(15px,2.2vw,18px); color:#ffe0c2; max-width:78ch}
+.root .punch{
+  font-size:clamp(24px,5.4vw,50px); font-weight:850; letter-spacing:-.035em; line-height:1.02; margin-top:16px;
+  color:var(--ink);
+}
+.root .punch em{font-style:normal; color:var(--hot)}
+.therefores{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:16px}
+@media(max-width:860px){.therefores{grid-template-columns:1fr}}
+.therefore{border:1px solid var(--line); border-radius:10px; padding:14px 15px; background:var(--panel)}
+.therefore .tk{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--hot)}
+.therefore .tt{font-size:13.5px; color:var(--ink2); margin-top:7px; line-height:1.5}
+
+/* ============ 07 QUESTIONS ============ */
+.qmeter{display:flex; flex-wrap:wrap; gap:10px 22px; align-items:baseline; margin-bottom:22px}
+.qmeter .big{font-family:var(--mono); font-size:34px; font-weight:700; color:var(--violet); letter-spacing:-.03em}
+.qmeter .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut)}
+.qs{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px}
+.q{
+  position:relative; border:1px solid var(--line); border-radius:10px; padding:16px 16px 14px;
+  background:var(--panel); overflow:hidden;
+}
+.q .mark{
+  position:absolute; right:8px; top:-14px; font-family:var(--mono); font-size:78px; font-weight:800;
+  color:rgba(180,140,255,.075); line-height:1; pointer-events:none;
+}
+.q .qn{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; color:var(--violet); opacity:.75}
+.q .qt{font-size:14px; color:var(--ink); margin-top:8px; line-height:1.48; position:relative; z-index:1}
+.q .ans{
+  margin-top:14px; height:16px;
+  border-bottom:1px dashed rgba(180,140,255,.30);
+}
+.q .ans-lbl{font-family:var(--mono); font-size:8.5px; letter-spacing:.24em; text-transform:uppercase; color:rgba(180,140,255,.5); margin-top:6px}
+
+/* ============ SPLIT MOTIF ============ */
+.split{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--bg2)}
+.split-hd{display:grid; grid-template-columns:1fr 1fr; }
+.split-hd div{padding:14px 18px; font-family:var(--mono); font-size:12px; letter-spacing:.2em; text-transform:uppercase; font-weight:700}
+.split-hd .a{color:var(--rn); background:rgba(97,218,251,.07); border-bottom:1px solid var(--line)}
+.split-hd .b{color:var(--fl); background:rgba(255,180,87,.07); border-bottom:1px solid var(--line); border-left:1px solid var(--line); text-align:right}
+.srow{display:grid; grid-template-columns:1fr 1fr; border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow .c{padding:13px 18px; font-size:13.5px; color:var(--ink2); min-width:0}
+.srow .c.r{border-left:1px solid var(--line); text-align:right}
+.srow .topic{
+  grid-column:1/-1; padding:9px 18px; background:rgba(255,255,255,.018);
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut);
+  border-bottom:1px dotted var(--line);
+}
+@media(max-width:700px){
+  .split-hd .b, .srow .c.r{text-align:left; border-left:0}
+  .srow{grid-template-columns:1fr}
+  .srow .c.r{border-top:1px dotted var(--line)}
+}
+
+/* ============ SYNTHESIS ============ */
+.synth{
+  margin-top:70px; padding:70px 0 20px; border-top:1px solid var(--line2); position:relative;
+}
+.synth::before{
+  content:""; position:absolute; left:50%; top:-1px; transform:translateX(-50%);
+  width:min(560px,90%); height:2px;
+  background:linear-gradient(90deg, transparent, var(--sig), transparent);
+  box-shadow:0 0 24px rgba(52,229,196,.7);
+}
+.reframe{
+  border:1px solid rgba(52,229,196,.35); border-radius:16px; padding:clamp(22px,4vw,44px);
+  background:
+    radial-gradient(130% 160% at 0% 0%, rgba(52,229,196,.14), transparent 55%),
+    radial-gradient(120% 160% at 100% 100%, rgba(255,180,87,.10), transparent 55%),
+    var(--bg2);
+  position:relative; overflow:hidden;
+}
+.reframe .rk{font-family:var(--mono); font-size:10.5px; letter-spacing:.3em; text-transform:uppercase; color:var(--sig)}
+.reframe .neg{
+  font-size:clamp(14px,2.2vw,18px); color:var(--mut); margin-top:18px; text-decoration:line-through;
+  text-decoration-color:rgba(255,111,125,.6); text-decoration-thickness:2px;
+}
+.reframe .pos{
+  font-size:clamp(27px,6.6vw,64px); font-weight:850; letter-spacing:-.04em; line-height:1.02; margin-top:14px;
+}
+.reframe .pos .hl{
+  background:linear-gradient(96deg,var(--sig),var(--rn) 55%, var(--fl));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.reframe .tail{margin-top:20px; font-size:clamp(14px,2vw,17px); color:var(--ink2); max-width:70ch}
+
+.synthgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:18px}
+@media(max-width:820px){.synthgrid{grid-template-columns:1fr}}
+.scard{
+  border:1px solid var(--line); border-radius:12px; padding:18px 18px 20px; background:var(--panel); position:relative;
+}
+.scard .sn{
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--sig); text-transform:uppercase;
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+}
+.scard .from{color:var(--mut); font-size:9.5px; letter-spacing:.16em}
+.scard h4{font-size:17px; margin-top:10px; letter-spacing:-.02em; line-height:1.2}
+.scard p{font-size:13.8px; color:var(--ink2); margin:9px 0 0; line-height:1.55}
+.scard.wide{grid-column:1/-1; border-color:rgba(52,229,196,.32); background:linear-gradient(180deg, rgba(52,229,196,.06), var(--panel))}
+.merge{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.chip{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  border:1px solid var(--line2); color:var(--ink2); padding:4px 8px; border-radius:5px;
+}
+.chip.sig{border-color:rgba(52,229,196,.4); color:var(--sig)}
+
+.direction{
+  margin-top:26px; border:1px solid var(--line2); border-radius:14px; overflow:hidden; background:var(--bg2);
+}
+.direction .dhd{
+  padding:16px 20px; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:baseline;
+}
+.direction .dhd h3{font-size:20px}
+.direction .dhd .dk{font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--sig)}
+.dsteps{display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:var(--line)}
+@media(max-width:940px){.dsteps{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.dsteps{grid-template-columns:1fr}}
+.dstep{background:var(--bg2); padding:18px 16px 20px}
+.dstep .dn{font-family:var(--mono); font-size:22px; color:transparent; -webkit-text-stroke:1px var(--sig-dim); font-weight:700}
+.dstep .dt{font-size:14px; font-weight:700; margin-top:10px; letter-spacing:-.01em}
+.dstep .dd{font-size:12.5px; color:var(--mut); margin-top:6px; line-height:1.5}
+
+/* ============ RESOLUTION: SEGREGATION ============ */
+.seg{padding-top:72px}
+.seg-constraint{
+  border:1px solid rgba(255,111,125,.38);
+  background:linear-gradient(90deg, rgba(255,111,125,.12), rgba(255,111,125,.02));
+  border-radius:10px; padding:16px 18px; display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;
+  margin-bottom:26px;
+}
+.seg-constraint .tag{
+  font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase;
+  color:#12070a; background:var(--bad); padding:4px 8px; border-radius:4px; white-space:nowrap; font-weight:700;
+}
+.seg-constraint .txt{flex:1 1 340px; font-size:15px; color:#ffd0d6}
+.seg-constraint .txt b{color:#fff}
+
+/* collision */
+.collide{
+  display:grid; grid-template-columns:1fr 72px 1fr; align-items:stretch;
+  border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--bg2);
+}
+.collide .cpanel{padding:20px 20px 22px; min-width:0}
+.collide .cA{background:linear-gradient(90deg, rgba(255,111,125,.10), transparent 80%)}
+.collide .cB{background:linear-gradient(270deg, rgba(52,229,196,.10), transparent 80%); text-align:right}
+.collide .clab{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; margin-bottom:8px}
+.collide .cA .clab{color:var(--bad)}
+.collide .cB .clab{color:var(--sig)}
+.collide .ctitle{font-size:clamp(16px,2.4vw,21px); font-weight:750; letter-spacing:-.02em; line-height:1.2}
+.collide .cbody{font-size:13.5px; color:var(--ink2); margin-top:9px; line-height:1.5}
+.collide .fracture{position:relative; display:grid; place-items:center; background:#070a0e}
+.collide .fracture svg{position:absolute; inset:0; width:100%; height:100%}
+.collide .xbadge{
+  position:relative; z-index:2; width:34px;height:34px;border-radius:50%;
+  display:grid; place-items:center; background:#0b0d12; border:1px solid rgba(255,111,125,.55);
+  font-family:var(--mono); font-size:13px; color:var(--bad); box-shadow:0 0 22px rgba(255,111,125,.28);
+}
+.collide-cap{
+  text-align:center; font-family:var(--mono); font-size:10px; letter-spacing:.26em; text-transform:uppercase;
+  color:var(--bad); margin-top:12px;
+}
+@media(max-width:760px){
+  .collide{grid-template-columns:1fr}
+  .collide .cB{text-align:left}
+  .collide .fracture{height:56px}
+  .collide .fracture svg{transform:rotate(90deg)}
+}
+
+/* resolution banner */
+.seg-resolve{
+  margin-top:26px; border:1px solid rgba(52,229,196,.38); border-radius:16px; padding:clamp(22px,4vw,40px);
+  background:
+    radial-gradient(130% 170% at 100% 0%, rgba(52,229,196,.14), transparent 58%),
+    radial-gradient(120% 160% at 0% 100%, rgba(97,218,251,.08), transparent 58%),
+    var(--bg2);
+}
+.seg-resolve .rk{font-family:var(--mono); font-size:10.5px; letter-spacing:.3em; text-transform:uppercase; color:var(--sig)}
+.seg-resolve .big{
+  font-size:clamp(25px,5.6vw,54px); font-weight:850; letter-spacing:-.04em; line-height:1.03; margin-top:14px;
+}
+.seg-resolve .big .a{color:var(--ink)}
+.seg-resolve .big .b{
+  background:linear-gradient(96deg,var(--sig),var(--rn) 70%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.seg-resolve .tail{margin-top:18px; font-size:clamp(14px,2vw,17px); color:var(--ink2); max-width:74ch}
+.seg-resolve .tail b{color:var(--ink)}
+
+/* boundary ledger */
+.seg-bound{
+  position:relative; margin-top:18px; display:grid; grid-template-columns:1fr 1fr;
+  border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel);
+}
+.seg-bound .bcol{padding:18px 20px 22px; min-width:0}
+.seg-bound .bcol.right{border-left:2px dashed var(--line2); background:linear-gradient(180deg, rgba(52,229,196,.05), transparent 60%)}
+.seg-bound .bcol.left{background:linear-gradient(180deg, rgba(97,218,251,.05), transparent 60%)}
+.seg-bound .bk{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut)}
+.seg-bound h4{font-size:16px; margin-top:8px; letter-spacing:-.02em}
+.seg-bound .bl{list-style:none; margin:14px 0 0; padding:0}
+.seg-bound .bl li{
+  font-family:var(--mono); font-size:12px; color:var(--ink2); padding:7px 0 7px 20px; position:relative;
+  border-bottom:1px dotted var(--line);
+}
+.seg-bound .bl li:last-child{border-bottom:0}
+.seg-bound .bl li::before{position:absolute; left:0; top:7px; font-size:11px}
+.seg-bound .left .bl li::before{content:"××"; color:var(--rn); letter-spacing:-1px}
+.seg-bound .right .bl li::before{content:"→"; color:var(--sig)}
+.seg-bound .vlabel{
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(180deg);
+  writing-mode:vertical-rl; font-family:var(--mono); font-size:9px; letter-spacing:.28em; text-transform:uppercase;
+  color:var(--mut); background:var(--bg); border:1px solid var(--line2); border-radius:999px; padding:14px 5px;
+  white-space:nowrap; z-index:2;
+}
+@media(max-width:820px){
+  .seg-bound{grid-template-columns:1fr}
+  .seg-bound .bcol.right{border-left:0; border-top:2px dashed var(--line2)}
+  .seg-bound .vlabel{display:none}
+}
+.seg-bound-note{
+  font-family:var(--mono); font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:var(--mut);
+  text-align:center; margin-top:12px;
+}
+
+/* payoffs */
+.payoffs{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:18px}
+@media(max-width:820px){.payoffs{grid-template-columns:1fr}}
+.payoff{border:1px solid var(--line); border-radius:12px; padding:18px 18px 20px; background:var(--panel)}
+.payoff .pk{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--hue)}
+.payoff h4{font-size:17px; margin-top:10px; letter-spacing:-.02em; line-height:1.2}
+.payoff p{font-size:13.8px; color:var(--ink2); margin:9px 0 0; line-height:1.55}
+.payoff code{font-family:var(--mono); font-size:12.5px; color:var(--sig)}
+
+.hero-demo{
+  margin-top:14px; border:1px solid rgba(97,218,251,.34); border-radius:16px; overflow:hidden;
+  background:
+    radial-gradient(120% 180% at 0% 0%, rgba(97,218,251,.12), transparent 55%),
+    radial-gradient(120% 180% at 100% 100%, rgba(255,180,87,.12), transparent 55%),
+    var(--bg2);
+}
+.hero-demo .hd{padding:clamp(20px,3.4vw,32px) clamp(18px,3vw,30px) 6px}
+.hero-demo .hk{
+  font-family:var(--mono); font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--rn);
+  display:flex; gap:12px; flex-wrap:wrap; align-items:center;
+}
+.hero-demo .hk .star{color:var(--fl)}
+.hero-demo .htitle{
+  font-size:clamp(26px,6vw,56px); font-weight:850; letter-spacing:-.04em; line-height:1.02; margin-top:14px;
+}
+.hero-demo .htitle .rn{color:var(--rn)}
+.hero-demo .htitle .fl{color:var(--fl)}
+.hero-demo .hsub{margin-top:16px; font-size:clamp(14px,2vw,17px); color:var(--ink2); max-width:72ch}
+.hero-demo .hsub b{color:var(--ink)}
+.hero-demo .hviz{padding:6px 12px 18px}
+
+/* forced consequence */
+.consequence{
+  margin-top:18px; border:1px solid rgba(255,157,61,.42); border-radius:12px; overflow:hidden; background:var(--bg2);
+}
+.consequence .chd{
+  display:flex; gap:12px; align-items:center; padding:12px 18px; border-bottom:1px solid rgba(255,157,61,.26);
+  font-family:var(--mono); font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--hot);
+}
+.consequence .cbody{padding:18px 18px 20px; display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media(max-width:760px){.consequence .cbody{grid-template-columns:1fr}}
+.consequence .cbox .ck{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--mut)}
+.consequence .cbox p{font-size:14px; color:var(--ink2); margin-top:8px; line-height:1.55}
+.consequence .cbox p b{color:var(--ink)}
+
+/* footer */
+footer{margin-top:70px; border-top:1px solid var(--line); padding:26px 0 60px; color:var(--mut); font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase}
+footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap}
+
+/* reveal (JS-gated so content is always visible without JS) */
+.js .rv{opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s cubic-bezier(.2,.7,.3,1)}
+.js .rv.in{opacity:1; transform:none}
+@media(prefers-reduced-motion:reduce){
+  .js .rv{opacity:1 !important; transform:none !important; transition:none}
+  .dot{animation:none}
+  .pulse{animation:none !important}
+}
+.pulse{animation:pulse 3.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="field" aria-hidden="true"></div>
+
+<!-- ============================ MASTHEAD ============================ -->
+<header class="mast">
+  <div class="wrap">
+    <div class="mast-top">
+      <span class="pip"><span class="dot"></span> Session complete</span>
+      <span>BMad · Brainstorming</span>
+      <span>2026&#8209;08&#8209;01</span>
+      <span>142 log entries</span>
+      <span>7 techniques</span>
+    </div>
+
+    <h1 class="title">
+      <span class="l1">TWO BUILDS,</span>
+      <span class="l2">ONE SIGNAL</span>
+    </h1>
+
+    <p class="subtitle">
+      A peer-to-peer offline currency, built twice — once in React Native, once in Flutter —
+      and squeezed through every radio, sensor and secure chip a phone has, to find out
+      where the two frameworks actually diverge.
+    </p>
+
+    <svg class="wave" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="wg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#61dafb" stop-opacity=".15"/>
+          <stop offset="30%" stop-color="#34e5c4" stop-opacity=".95"/>
+          <stop offset="70%" stop-color="#34e5c4" stop-opacity=".95"/>
+          <stop offset="100%" stop-color="#ffb457" stop-opacity=".2"/>
+        </linearGradient>
+      </defs>
+      <path fill="none" stroke="url(#wg)" stroke-width="1.6"
+        d="M0,30 L120,30 L134,10 L148,50 L162,18 L176,42 L190,30 L300,30
+           L312,6 L324,54 L336,14 L348,46 L360,30 L470,30
+           L484,22 L498,38 L512,12 L526,48 L540,30 L660,30
+           L672,4 L684,56 L696,20 L708,40 L720,30 L840,30
+           L852,16 L864,44 L876,24 L888,36 L900,30 L1030,30
+           L1042,10 L1054,50 L1066,26 L1078,34 L1090,30 L1200,30"/>
+      <circle r="3" fill="#34e5c4">
+        <animateMotion dur="7s" repeatCount="indefinite"
+          path="M0,30 L1200,30"/>
+      </circle>
+    </svg>
+
+    <div class="meta-grid">
+      <div class="meta-cell">
+        <div class="k">Topic</div>
+        <div class="v">Currency app built twice — React Native and Flutter — to compare the frameworks</div>
+      </div>
+      <div class="meta-cell">
+        <div class="k">Goal</div>
+        <div class="v">Compare RN vs Flutter head-to-head by shipping equivalent apps: store currency, transfer it via as many mobile device capabilities as possible</div>
+      </div>
+      <div class="meta-cell">
+        <div class="k">Mode</div>
+        <div class="v">Autonomous — <span class="mut">"ideate for me"</span>; seven-technique batch run end to end</div>
+      </div>
+      <div class="meta-cell">
+        <div class="k">Status / Updated</div>
+        <div class="v">Complete · 2026-08-01 09:12</div>
+      </div>
+    </div>
+
+    <div class="constraint">
+      <span class="tag">Hard constraint</span>
+      <span class="txt">Utilise as many mobile device features, sensors and radios as possible —
+      breadth of native surface <em>is</em> the whole point of the comparison.</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ NAV ============================ -->
+<nav class="nav" aria-label="Techniques">
+  <div class="nav-inner">
+    <div class="nav-scroll">
+      <a href="#t1">01 Yes And</a>
+      <a href="#t2">02 Brain Writing</a>
+      <a href="#map">Channel Map</a>
+      <a href="#t3">03 Role Playing</a>
+      <a href="#t4">04 First Principles</a>
+      <a href="#inv">Device Inventory</a>
+      <a href="#t5">05 Reverse</a>
+      <a href="#t6">06 Five Whys</a>
+      <a href="#t7">07 Question Storm</a>
+      <a href="#split">The Split</a>
+      <a href="#synthesis">Synthesis</a>
+      <a href="#segregation">Segregation</a>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- ============================ 01 YES AND ============================ -->
+<section class="sec" id="t1">
+  <div class="sec-head rv">
+    <div class="sec-num">01</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Yes, And — the chain</h2>
+      <p class="sec-sub">One idea, nineteen accepted escalations. No branch was refused, so the chain is the artifact:
+      it starts at a single NFC tap and ends, without ever changing subject, at two people pressing their thumbs on two phones at once.</p>
+    </div>
+    <span class="count">19 links · unbroken</span>
+  </div>
+
+  <div class="chain">
+    <div class="link rv" style="--i:0"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>01</b> · SEED</div>
+      <div class="t"><strong>NFC tap-to-pay between two phones</strong> via Host Card Emulation — currency jumps device to device, <em>no network, no accounts</em>.</div></div></div>
+
+    <div class="link rv" style="--i:1"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>02</b></div>
+      <div class="t">If only one phone has NFC, write the transfer onto a <strong>physical NFC sticker</strong> — a cash drop you leave on a table.</div></div></div>
+
+    <div class="link rv" style="--i:2"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>03</b></div>
+      <div class="t">The sticker becomes a <em>bearer note</em> — whoever taps it next claims it, so physical objects become wallets.</div></div></div>
+
+    <div class="link rv" style="--i:3"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>04</b></div>
+      <div class="t">To stop double-claiming, the note carries a <strong>one-time key</strong> the claiming phone burns by rewriting the tag.</div></div></div>
+
+    <div class="link rv" style="--i:4"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>05</b></div>
+      <div class="t">If the tag write fails mid-transfer, the sender holds the amount in a visible <strong>in-flight escrow</strong> — a two-phase commit you can watch.</div></div></div>
+
+    <div class="link rv" style="--i:5"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>06</b> · FIRST FORK IN THE COMPARISON</div>
+      <div class="t">That escrow shimmer is built twice — <span class="rn">Reanimated</span> vs <span class="fl">Flutter AnimationController</span> — a direct rendering comparison.</div></div></div>
+
+    <div class="link rv" style="--i:6"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>07</b></div>
+      <div class="t">With no NFC at all, fall back to an <strong>animated QR</strong> — a rotating series of frames streaming the payload optically at ~10fps.</div></div></div>
+
+    <div class="link rv" style="--i:7"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>08</b></div>
+      <div class="t">Receiver decodes the stream live — <span class="rn">RN Vision Camera frame processors</span> vs <span class="fl">Flutter camera + MLKit</span> on the same fountain code.</div></div></div>
+
+    <div class="link rv" style="--i:8"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>09</b></div>
+      <div class="t"><strong>Fountain coding</strong> means the transfer completes when enough frames land — no handshake, works phone-to-screen over a video call.</div></div></div>
+
+    <div class="link rv" style="--i:9"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>10</b></div>
+      <div class="t">So you can pay someone by <em>screen-sharing</em> — currency over Zoom with no server in the middle.</div></div></div>
+
+    <div class="link rv" style="--i:10"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>11</b></div>
+      <div class="t">In the dark, or with the camera busy, the same payload goes out as an <strong>ultrasonic chirp</strong> the mic decodes.</div></div></div>
+
+    <div class="link rv" style="--i:11"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>12</b></div>
+      <div class="t">Ultrasonic broadcast lets one payer <em>pay a whole room at once</em> — a round of drinks from a single chirp.</div></div></div>
+
+    <div class="link rv" style="--i:12"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>13</b></div>
+      <div class="t">Mics compare <strong>arrival-time differences</strong> to establish who is really in the room, so bystanders out of earshot cannot claim.</div></div></div>
+
+    <div class="link rv" style="--i:13"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>14</b></div>
+      <div class="t">For hard proximity proof, <strong>UWB ranging</strong> pins the counterparty to ~10cm — you must physically <em>be here</em> as a settlement rule.</div></div></div>
+
+    <div class="link rv" style="--i:14"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>15</b></div>
+      <div class="t">On phones without UWB, a <strong>bump</strong> — both accelerometers spiking within 50ms — is the poor-man's proximity proof.</div></div></div>
+
+    <div class="link rv" style="--i:15"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>16</b></div>
+      <div class="t">The <em>bump waveform itself</em> becomes the shared secret seeding the session key.</div></div></div>
+
+    <div class="link rv" style="--i:16"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>17</b></div>
+      <div class="t">That key never leaves the secure enclave — <span class="rn">StrongBox</span> vs <span class="fl">Secure Enclave</span> — extending the comparison to keystore bridging.</div></div></div>
+
+    <div class="link rv" style="--i:17"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>18</b></div>
+      <div class="t">Unlocking the wallet requires <strong>biometrics</strong>, so face/fingerprint is a transfer gate, not just a login.</div></div></div>
+
+    <div class="link rv" style="--i:18"><div class="stem"><span class="node"></span><span class="thread"></span></div><div class="box">
+      <div class="n">LINK <b>19</b> · TERMINUS</div>
+      <div class="t">Large amounts need <strong>two biometrics from two phones</strong> — a co-signed transfer where two people press their thumbs at once.</div></div></div>
+  </div>
+</section>
+
+<!-- ============================ 02 BRAIN WRITING ============================ -->
+<section class="sec" id="t2">
+  <div class="sec-head rv">
+    <div class="sec-num">02</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Brain Writing, Round Robin</h2>
+      <p class="sec-sub">Four sheets on the table, five rounds each. Every round takes the previous line and pushes it one notch harder.
+      Read down a column for the escalation; read across a row for the round.</p>
+    </div>
+    <span class="count">4 sheets × 5 rounds = 20</span>
+  </div>
+
+  <div class="passline rv"><span>Round 1</span><span class="bar"></span><span>pass right</span><span class="bar"></span><span>Round 5</span></div>
+
+  <div class="sheets">
+    <!-- SHEET A -->
+    <div class="sheet rv" style="--hue:#61dafb">
+      <div class="sid">Sheet A</div>
+      <h3>Storage</h3>
+      <div class="sdesc">Where the money sits when nobody is moving it</div>
+      <div class="round"><span class="r">r1</span><span class="rt">Balance lives in an <strong>append-only local ledger</strong> (SQLite / Isar / WatermelonDB) — balance is a fold, never a mutable number.</span></div>
+      <div class="round"><span class="r">r2</span><span class="rt">The ledger is <strong>hash-chained</strong>, so tampering with row N invalidates every row after it — tamper evidence with no server.</span></div>
+      <div class="round"><span class="r">r3</span><span class="rt">The chain head is <strong>signed by the hardware keystore</strong> on every write, so even root cannot forge history without the enclave.</span></div>
+      <div class="round"><span class="r">r4</span><span class="rt">Cold storage: sweep a balance into an offline vault whose key is <strong>Shamir-split</strong> across phone, watch and an NFC card.</span></div>
+      <div class="round"><span class="r">r5</span><span class="rt">The watch alone authorizes small spends; large ones need phone <em>plus</em> watch present — <strong>a spending limit enforced by physics</strong>.</span></div>
+    </div>
+
+    <!-- SHEET B -->
+    <div class="sheet rv" style="--hue:#7ff0a8">
+      <div class="sid">Sheet B</div>
+      <h3>Minting</h3>
+      <div class="sdesc">Where new units come from</div>
+      <div class="round"><span class="r">r1</span><span class="rt">Earn currency by walking — <strong>the pedometer becomes a mint</strong>.</span></div>
+      <div class="round"><span class="r">r2</span><span class="rt">Minting rate scales with <strong>barometer altitude change</strong>, so climbing stairs is worth more than a flat walk.</span></div>
+      <div class="round"><span class="r">r3</span><span class="rt"><strong>Geofenced faucets</strong> — currency accrues only inside certain places, turning GPS into a distribution mechanism.</span></div>
+      <div class="round"><span class="r">r4</span><span class="rt">Ambient light and mic noise seed the mint <strong>entropy pool</strong> — the physical world as RNG.</span></div>
+      <div class="round"><span class="r">r5</span><span class="rt">Wearable <strong>heart-rate gates proof-of-liveness</strong>, so a bot farm cannot mint.</span></div>
+    </div>
+
+    <!-- SHEET C -->
+    <div class="sheet rv" style="--hue:#34e5c4">
+      <div class="sid">Sheet C</div>
+      <h3>Zero-connectivity transfer</h3>
+      <div class="sdesc">Moving value with no tower and no cloud</div>
+      <div class="round"><span class="r">r1</span><span class="rt"><strong>BLE advertisement payloads</strong> carry micro-transfers in the advert packet itself — no connection, just broadcast.</span></div>
+      <div class="round"><span class="r">r2</span><span class="rt"><strong>BLE mesh relay</strong> — phones forward signed transfers for strangers with TTL and dedupe, so currency hops across a festival.</span></div>
+      <div class="round"><span class="r">r3</span><span class="rt"><strong>SMS fallback</strong> encodes a transfer as a base64 payload in a text message — works on 2G with no data.</span></div>
+      <div class="round"><span class="r">r4</span><span class="rt"><strong>Satellite messaging</strong> (iPhone 14+ / Pixel) carries an emergency transfer out of a dead zone.</span></div>
+      <div class="round"><span class="r">r5</span><span class="rt">The <strong>flashlight strobes the payload</strong> as visible light communication — pay across a room through a window.</span></div>
+    </div>
+
+    <!-- SHEET D -->
+    <div class="sheet rv" style="--hue:#ffb457">
+      <div class="sid">Sheet D</div>
+      <h3>Comparison harness</h3>
+      <div class="sdesc">The instrument that makes the benchmark honest</div>
+      <div class="round"><span class="r">r1</span><span class="rt">Ship an in-app <strong>Framework Telemetry screen</strong> — cold start, frame drops, memory, APK size, measured live on device.</span></div>
+      <div class="round"><span class="r">r2</span><span class="rt">Both builds emit the <strong>same telemetry schema</strong> to a local file, so RN and Flutter numbers diff from the same phone.</span></div>
+      <div class="round"><span class="r">r3</span><span class="rt">A <strong>torture ledger screen</strong> renders 100k transactions and measures scroll jank — FlashList vs ListView.builder.</span></div>
+      <div class="round"><span class="r">r4</span><span class="rt">Every native capability implemented twice and scored on <strong>lines-of-glue-code</strong> — a quantitative how-hard-was-the-bridge metric.</span></div>
+      <div class="round"><span class="r">r5</span><span class="rt">Same Figma for both, then <strong>pixel-diff the two builds' screenshots</strong> as a fidelity score.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ CHANNEL MAP ============================ -->
+<section class="sec" id="map">
+  <div class="sec-head rv">
+    <div class="sec-num">↔</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">The channel map</h2>
+      <p class="sec-sub">Proposed during First Principles and applied backwards over everything Yes-And and Sheet C produced:
+      rank every transfer method on two axes — <strong>bytes per second</strong> and <strong>strength of proximity proof</strong> —
+      and the sprawl resolves into two different jobs. High throughput moves the note. High proximity proof establishes the trust.</p>
+    </div>
+    <span class="count">11 byte channels</span>
+  </div>
+
+  <div class="viz rv">
+    <h3>Payment channels vs pairing channels</h3>
+    <p class="vsub">Positions are relative, not measured — the map's job is to show that no single channel is both the fattest pipe and the strongest proof of "you are actually here".</p>
+    <div class="scrollx">
+      <div class="inner">
+      <svg viewBox="0 0 900 540" width="100%" role="img" aria-label="Scatter map of transfer channels by throughput and strength of proximity proof">
+        <defs>
+          <linearGradient id="quadA" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0%" stop-color="#34e5c4" stop-opacity=".10"/>
+            <stop offset="100%" stop-color="#34e5c4" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="quadB" x1="1" y1="1" x2="0" y2="0">
+            <stop offset="0%" stop-color="#ffb457" stop-opacity=".10"/>
+            <stop offset="100%" stop-color="#ffb457" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- plot area 90,40 -> 860,450 -->
+        <rect x="90" y="40" width="770" height="410" fill="#080b10" stroke="#1b2533"/>
+        <rect x="90" y="40" width="385" height="205" fill="url(#quadA)"/>
+        <rect x="475" y="245" width="385" height="205" fill="url(#quadB)"/>
+
+        <!-- grid -->
+        <g stroke="#141c28">
+          <line x1="90" y1="142.5" x2="860" y2="142.5"/>
+          <line x1="90" y1="245" x2="860" y2="245"/>
+          <line x1="90" y1="347.5" x2="860" y2="347.5"/>
+          <line x1="282.5" y1="40" x2="282.5" y2="450"/>
+          <line x1="475" y1="40" x2="475" y2="450"/>
+          <line x1="667.5" y1="40" x2="667.5" y2="450"/>
+        </g>
+
+        <!-- axes -->
+        <g stroke="#39485c" stroke-width="1.3">
+          <line x1="90" y1="450" x2="860" y2="450"/>
+          <line x1="90" y1="40" x2="90" y2="450"/>
+        </g>
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#6f7f92" letter-spacing="1.6">
+          <text x="90" y="478">LOW</text>
+          <text x="860" y="478" text-anchor="end">HIGH</text>
+          <text x="475" y="500" text-anchor="middle" fill="#aebbcb">BYTES / SEC  →</text>
+          <text transform="translate(30,450) rotate(-90)" x="0" y="0">WEAK</text>
+          <text transform="translate(30,40) rotate(-90)" x="0" y="0" text-anchor="end">ABSOLUTE</text>
+          <text transform="translate(52,245) rotate(-90)" x="0" y="0" text-anchor="middle" fill="#aebbcb">STRENGTH OF PROXIMITY PROOF  ↑</text>
+        </g>
+
+        <!-- quadrant labels -->
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" letter-spacing="2.4">
+          <text x="104" y="62" fill="#34e5c4" opacity=".8">PAIRING · KEY EXCHANGE</text>
+          <text x="846" y="62" fill="#61dafb" opacity=".8" text-anchor="end">TAP TO PAY</text>
+          <text x="846" y="438" fill="#ffb457" opacity=".8" text-anchor="end">REACH WITHOUT PRESENCE</text>
+        </g>
+
+        <!-- points: cx = 90 + f*770, cy = 450 - g*410 -->
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5" fill="#e8eef6">
+          <!-- NFC HCE tap -->
+          <g><circle cx="567" cy="81" r="8" fill="#61dafb" fill-opacity=".25" stroke="#61dafb" stroke-width="1.6"/>
+             <text x="583" y="85">NFC tap (HCE)</text></g>
+          <!-- UWB -->
+          <g><circle cx="321" cy="69" r="8" fill="#34e5c4" fill-opacity=".25" stroke="#34e5c4" stroke-width="1.6"/>
+             <text x="337" y="73">UWB ranging ~10cm</text></g>
+          <!-- Bump -->
+          <g><circle cx="136" cy="97" r="8" fill="#34e5c4" fill-opacity=".25" stroke="#34e5c4" stroke-width="1.6"/>
+             <text x="152" y="101">Bump (accelerometers, 50ms)</text></g>
+          <!-- NFC sticker -->
+          <g><circle cx="513" cy="196" r="8" fill="#61dafb" fill-opacity=".25" stroke="#61dafb" stroke-width="1.6"/>
+             <text x="529" y="200">NFC sticker (bearer note)</text></g>
+          <!-- Ultrasonic -->
+          <g><circle cx="259" cy="179" r="8" fill="#34e5c4" fill-opacity=".25" stroke="#34e5c4" stroke-width="1.6"/>
+             <text x="275" y="183">Ultrasonic chirp + time-of-arrival</text></g>
+          <!-- Flashlight VLC -->
+          <g><circle cx="198" cy="225" r="8" fill="#b48cff" fill-opacity=".25" stroke="#b48cff" stroke-width="1.6"/>
+             <text x="214" y="229">Flashlight VLC (line of sight)</text></g>
+          <!-- Animated QR -->
+          <g><circle cx="706" cy="311" r="8" fill="#61dafb" fill-opacity=".25" stroke="#61dafb" stroke-width="1.6"/>
+             <text x="722" y="315" text-anchor="end" dx="-24">Animated QR / fountain</text></g>
+          <!-- BLE advert -->
+          <g><circle cx="321" cy="270" r="8" fill="#ffb457" fill-opacity=".25" stroke="#ffb457" stroke-width="1.6"/>
+             <text x="337" y="274">BLE advert micro-transfer</text></g>
+          <!-- BLE mesh -->
+          <g><circle cx="413" cy="376" r="8" fill="#ffb457" fill-opacity=".25" stroke="#ffb457" stroke-width="1.6"/>
+             <text x="429" y="380">BLE mesh relay (TTL + dedupe)</text></g>
+          <!-- SMS -->
+          <g><circle cx="167" cy="425" r="8" fill="#ffb457" fill-opacity=".25" stroke="#ffb457" stroke-width="1.6"/>
+             <text x="183" y="429">SMS base64 (2G)</text></g>
+          <!-- Satellite -->
+          <g><circle cx="121" cy="440" r="8" fill="#ff6f7d" fill-opacity=".25" stroke="#ff6f7d" stroke-width="1.6"/>
+             <text x="137" y="415">Satellite messaging</text></g>
+        </g>
+
+        <!-- 200 byte floor note -->
+        <g>
+          <line x1="90" y1="452" x2="860" y2="452" stroke="transparent"/>
+          <rect x="600" y="404" width="252" height="36" rx="6" fill="#0c1118" stroke="#26344a"/>
+          <text x="612" y="420" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="#6f7f92" letter-spacing="1.4">MINIMUM VIABLE CHANNEL</text>
+          <text x="612" y="434" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#34e5c4">~200 bytes, one-way</text>
+        </g>
+      </svg>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#61dafb"></i>Optical / contact</span>
+      <span><i style="background:#34e5c4"></i>Proximity proof</span>
+      <span><i style="background:#ffb457"></i>Broadcast / relay</span>
+      <span><i style="background:#b48cff"></i>Exotic, no mature plugin</span>
+      <span><i style="background:#ff6f7d"></i>Last resort</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 03 ROLE PLAYING ============================ -->
+<section class="sec" id="t3">
+  <div class="sec-head rv">
+    <div class="sec-num">03</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Role Playing — twelve voices</h2>
+      <p class="sec-sub">The same product, interrogated from twelve seats. The adversarial seats produced the most design:
+      the fraudster alone forced offline double-spend detection, jointly-derived bump secrets and nonced chirps.</p>
+    </div>
+    <span class="count">12 roles · 21 lines</span>
+  </div>
+
+  <div class="roles">
+    <div class="role rv" style="--hue:#34e5c4">
+      <div class="role-hd"><div class="mono-badge">BU</div><div><div class="rname">Blind user</div><div class="rmeta">Accessibility · non-visual</div></div></div>
+      <div class="quote">Transfers must complete with <strong>zero visual feedback</strong> — haptic patterns encode the amount, the screen reader announces the counterparty.</div>
+      <div class="quote"><strong>Bump-to-pay is the most accessible transfer method there is</strong> — no aiming a camera, no hunting for a QR.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#ff6f7d">
+      <div class="role-hd"><div class="mono-badge">SA</div><div><div class="rname">Security auditor</div><div class="rmeta">Threat model · attestation</div></div></div>
+      <div class="quote">Every transfer needs <strong>replay protection from a monotonic counter anchored in the enclave</strong>, not the app clock.</div>
+      <div class="quote"><strong>FLAG_SECURE</strong> / screenshot-and-record blocking on the vault screen — a native flag that differs sharply between the two frameworks.</div>
+      <div class="quote"><strong>Device attestation</strong> (Play Integrity / App Attest) so a rooted phone cannot mint.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#b48cff">
+      <div class="role-hd"><div class="mono-badge">RG</div><div><div class="rname">Regulator</div><div class="rmeta">Compliance · framing</div></div></div>
+      <div class="quote">A hard <strong>this-is-not-real-money boundary</strong> — play-currency framing keeps the project clear of e-money licensing.</div>
+      <div class="quote">An exportable, human-readable <strong>audit trail</strong> — share-sheet export of a signed CSV.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#ffb457">
+      <div class="role-hd"><div class="mono-badge">FV</div><div><div class="rname">Festival vendor</div><div class="rmeta">Field use · all day</div></div></div>
+      <div class="quote"><strong>Receive-only kiosk mode</strong> — screen pinning / Guided Access locks the phone to one screen taking taps all day.</div>
+      <div class="quote">Transfers must survive a dying battery — a <strong>low-power mode where NFC HCE still works below 5%</strong>.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#ff6f7d">
+      <div class="role-hd"><div class="mono-badge">AR</div><div><div class="rname">App store reviewer</div><div class="rmeta">Distribution gate</div></div></div>
+      <div class="quote">Will reject anything resembling unlicensed payments — so <strong>the demo currency must be visually unmistakable as fake</strong>.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#61dafb">
+      <div class="role-hd"><div class="mono-badge">RN</div><div><div class="rname">React Native dev</div><div class="rmeta">Build A</div></div></div>
+      <div class="quote">Every native capability behind a <strong>Nitro/Turbo module with codegen'd TS types</strong>, so the JS side is fully typed.</div>
+      <div class="quote">Camera decode happens in a <strong>frame-processor plugin</strong> so pixels never cross the bridge.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#ffb457">
+      <div class="role-hd"><div class="mono-badge">FL</div><div><div class="rname">Flutter dev</div><div class="rmeta">Build B</div></div></div>
+      <div class="quote"><strong>Pigeon-generated platform channels plus FFI on the hot path</strong>, and Impeller expected to win the animation test.</div>
+      <div class="quote">One widget tree driving <strong>both the phone UI and the Wear OS watch face</strong>.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#ff6f7d">
+      <div class="role-hd"><div class="mono-badge">FR</div><div><div class="rname">Fraudster</div><div class="rmeta">Adversary · most productive seat</div></div></div>
+      <div class="quote">Would <strong>clone the wallet DB and spend twice from two phones</strong> — forcing an offline double-spend detection design.</div>
+      <div class="quote">Would <strong>spoof accelerometer data to fake a bump</strong> — so the bump secret must be jointly derived, never self-reported.</div>
+      <div class="quote">Would <strong>replay a recorded ultrasonic chirp</strong> — so chirps must carry a nonce and a short expiry.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#7ff0a8">
+      <div class="role-hd"><div class="mono-badge">AW</div><div><div class="rname">Aid worker</div><div class="rmeta">Infrastructure-free</div></div></div>
+      <div class="quote">Must work with <strong>no charger, no tower, no cloud</strong> — one APK and a battery is the whole dependency list.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#61dafb">
+      <div class="role-hd"><div class="mono-badge">QA</div><div><div class="rname">QA lead</div><div class="rmeta">CI · determinism</div></div></div>
+      <div class="quote">A <strong>deterministic fake-radio mode</strong> so CI can exercise transfers without two physical phones.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#b48cff">
+      <div class="role-hd"><div class="mono-badge">CH</div><div><div class="rname">Child user</div><div class="rmeta">Delight · tangibility</div></div></div>
+      <div class="quote">Wants to <em>see</em> the money — <strong>an AR pile of coins on the table you scoop up with your hand</strong>.</div>
+    </div>
+
+    <div class="role rv" style="--hue:#34e5c4">
+      <div class="role-hd"><div class="mono-badge">HJ</div><div><div class="rname">Hackathon judge</div><div class="rmeta">The verdict</div></div></div>
+      <div class="quote">Wants the comparison to end in <strong>one readable verdict, not forty metrics</strong>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 04 FIRST PRINCIPLES ============================ -->
+<section class="sec" id="t4">
+  <div class="sec-head rv">
+    <div class="sec-num">04</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">First Principles</h2>
+      <p class="sec-sub">Two movements. First strip the thing to what cannot be argued with. Then rebuild from those four facts only —
+      and watch a completely different data model come out the other end.</p>
+    </div>
+    <span class="count">4 bedrock · 10 rebuild</span>
+  </div>
+
+  <div class="movement-label rv"><span class="idx">Movement I</span><span>Strip down</span><span class="bar"></span></div>
+
+  <div class="bedrock">
+    <div class="slab rv"><div class="sn">Bedrock 01 · what a currency is</div><div class="st">A currency is only three things — <b>a unit</b>, <b>a record of who holds what</b>, and <b>rules for moving units</b>.</div></div>
+    <div class="slab rv"><div class="sn">Bedrock 02 · what a transfer is</div><div class="st">Reduce A, increase B, <b>exactly once</b>, with both parties convinced. Without a server, <b>exactly-once is the only genuinely hard part</b>.</div></div>
+    <div class="slab rv"><div class="sn">Bedrock 03 · what a phone is</div><div class="st">A bag of <b>radios, sensors, a screen, a secure chip and a battery</b>. Nothing more.</div></div>
+    <div class="slab rv"><div class="sn">Bedrock 04 · what makes a comparison real</div><div class="st">A framework comparison is only meaningful if <b>both builds do identical work</b>.</div></div>
+  </div>
+
+  <div class="striparrow rv">
+    <svg width="34" height="60" viewBox="0 0 34 60" aria-hidden="true">
+      <line x1="17" y1="0" x2="17" y2="44" stroke="#26344a" stroke-width="2" stroke-dasharray="4 5"/>
+      <path d="M17 56 L9 40 L25 40 Z" fill="#34e5c4"/>
+    </svg>
+    <div class="lbl">Rebuild from here</div>
+  </div>
+
+  <div class="movement-label rv"><span class="idx">Movement II</span><span>Rebuild</span><span class="bar"></span></div>
+
+  <div class="rebuild">
+    <div class="rblock key rv"><div class="lay">L1</div><div class="rtxt">The atom is <b>not a balance — it is a signed note</b>: a bearer token with a value and a chain of endorsements. Transfer = append your signature and hand it over. <b>No global ledger.</b></div></div>
+    <div class="rblock rv"><div class="lay">L2</div><div class="rtxt">Double-spend is <b>not prevented, it is detected</b> — two conflicting endorsements on one note provably identify the forger by their own signature.</div></div>
+    <div class="rblock rv"><div class="lay">L3</div><div class="rtxt">Detection needs the branches to eventually meet, so devices <b>gossip note histories over every radio they have</b> — the mesh is not a feature, it <b>IS</b> the fraud detector.</div></div>
+    <div class="rblock rv"><div class="lay">L4</div><div class="rtxt">"How much do I have" becomes <b>"which notes am I holding"</b> — the wallet UI is a set of objects, not a number, which is far richer to render and animate.</div></div>
+    <div class="rblock rv"><div class="lay">L5</div><div class="rtxt">Notes split and merge, so the UI needs a <b>tactile split gesture</b> — drag a note in half.</div></div>
+    <div class="rblock key rv"><div class="lay">L6</div><div class="rtxt">A note is just bytes, so <b>ANY channel that moves bytes is a transfer method</b> — the device capability list becomes an exhaustive enumeration of byte channels.</div></div>
+    <div class="rblock rv"><div class="lay">L7</div><div class="rtxt">The minimum viable channel is roughly <b>200 bytes one-way</b> — which is exactly why QR, chirp, SMS and BLE advert all qualify, and tells you which exotic channels are worth building.</div></div>
+    <div class="rblock key rv"><div class="lay">L8</div><div class="rtxt">Trust bootstraps from a physical meeting, so <b>every pairing method is really a key exchange plus a proximity proof</b> — capabilities differ only in how convincingly they prove proximity.</div></div>
+    <div class="rblock rv"><div class="lay">L9</div><div class="rtxt">Rank every transfer method on two axes — <b>bytes/sec and strength-of-proximity-proof</b> — producing a map of which channels are for payment and which are for pairing.</div></div>
+    <div class="rblock key rv"><div class="lay">L10</div><div class="rtxt">The comparison bedrock is <b>how much native code you had to write and how well the result ran</b> — the honest metric is <b>glue-LOC × runtime-perf, per capability</b>.</div></div>
+  </div>
+</section>
+
+<!-- ============================ DEVICE INVENTORY ============================ -->
+<section class="sec" id="inv">
+  <div class="sec-head rv">
+    <div class="sec-num">▣</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Everything a phone can do, claimed</h2>
+      <p class="sec-sub">The user's hard constraint, cashed out. Bedrock 03 said a phone is a bag of radios, sensors, a screen,
+      a secure chip and a battery — this session tried to give every item in that bag a job in the currency.</p>
+    </div>
+    <span class="count">Breadth is the point</span>
+  </div>
+
+  <div class="viz rv">
+    <div class="inv">
+      <div class="invcol">
+        <div class="grpname">Radios</div>
+        <div class="cap" style="--hue:#61dafb"><span class="cn">NFC / HCE</span><span class="cd">tap-to-pay, sticker bearer notes, works below 5% battery</span></div>
+        <div class="cap" style="--hue:#34e5c4"><span class="cn">UWB</span><span class="cd">~10cm ranging as a settlement rule</span></div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">BLE</span><span class="cd">advert-packet micro-transfers, mesh relay with TTL + dedupe</span></div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">Cellular 2G</span><span class="cd">base64 transfer inside an SMS</span></div>
+        <div class="cap" style="--hue:#ff6f7d"><span class="cn">Satellite</span><span class="cd">emergency transfer out of a dead zone</span></div>
+
+        <div class="grpname">Optical</div>
+        <div class="cap" style="--hue:#61dafb"><span class="cn">Screen</span><span class="cd">animated QR at ~10fps, fountain-coded</span></div>
+        <div class="cap" style="--hue:#61dafb"><span class="cn">Camera</span><span class="cd">live frame decode; AR pile of coins on the table</span></div>
+        <div class="cap" style="--hue:#b48cff"><span class="cn">Flashlight</span><span class="cd">strobed visible light communication through a window</span></div>
+      </div>
+
+      <div class="phonecol">
+        <svg width="220" height="380" viewBox="0 0 220 380" role="img" aria-label="Phone silhouette with signal arcs">
+          <defs>
+            <linearGradient id="pg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#101724"/><stop offset="100%" stop-color="#070a0f"/>
+            </linearGradient>
+            <radialGradient id="core">
+              <stop offset="0%" stop-color="#34e5c4" stop-opacity=".9"/>
+              <stop offset="100%" stop-color="#34e5c4" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <!-- arcs -->
+          <g fill="none" stroke="#34e5c4" stroke-width="1.2" opacity=".5">
+            <path class="pulse" d="M40 60 A 92 92 0 0 1 180 60" stroke-dasharray="3 6"/>
+            <path class="pulse" style="animation-delay:.6s" d="M22 76 A 118 118 0 0 1 198 76" stroke-dasharray="3 8" opacity=".6"/>
+            <path class="pulse" style="animation-delay:1.2s" d="M6 94 A 146 146 0 0 1 214 94" stroke-dasharray="2 10" opacity=".4"/>
+          </g>
+          <!-- body -->
+          <rect x="55" y="70" width="110" height="230" rx="16" fill="url(#pg)" stroke="#39485c" stroke-width="1.4"/>
+          <rect x="63" y="82" width="94" height="200" rx="9" fill="#060a10" stroke="#1b2533"/>
+          <rect x="95" y="74" width="30" height="4" rx="2" fill="#26344a"/>
+          <!-- notes as objects -->
+          <g>
+            <rect x="74" y="100" width="72" height="26" rx="5" fill="#0d1a1c" stroke="#34e5c4" stroke-opacity=".75"/>
+            <rect x="78" y="132" width="64" height="24" rx="5" fill="#0d1a1c" stroke="#34e5c4" stroke-opacity=".45"/>
+            <rect x="82" y="162" width="56" height="22" rx="5" fill="#0d1a1c" stroke="#34e5c4" stroke-opacity=".3"/>
+            <text x="110" y="118" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#34e5c4" letter-spacing="1.5">NOTE</text>
+          </g>
+          <!-- secure chip -->
+          <circle cx="110" cy="232" r="30" fill="url(#core)" opacity=".5"/>
+          <rect x="92" y="214" width="36" height="36" rx="7" fill="#0b1017" stroke="#ffb457" stroke-width="1.3"/>
+          <g stroke="#ffb457" stroke-width="1.1" opacity=".8">
+            <line x1="86" y1="222" x2="92" y2="222"/><line x1="86" y1="232" x2="92" y2="232"/><line x1="86" y1="242" x2="92" y2="242"/>
+            <line x1="128" y1="222" x2="134" y2="222"/><line x1="128" y1="232" x2="134" y2="232"/><line x1="128" y1="242" x2="134" y2="242"/>
+          </g>
+          <text x="110" y="236" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="8" fill="#ffb457" letter-spacing="1">KEY</text>
+          <text x="110" y="278" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="8.5" fill="#6f7f92" letter-spacing="2">SECURE CHIP</text>
+          <!-- bump indicator -->
+          <g opacity=".8">
+            <path d="M168 190 l14 -10 M168 200 l18 0 M168 210 l14 10" stroke="#61dafb" stroke-width="1.3" fill="none"/>
+            <path d="M52 190 l-14 -10 M52 200 l-18 0 M52 210 l-14 10" stroke="#61dafb" stroke-width="1.3" fill="none"/>
+          </g>
+          <text x="110" y="330" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="2.4">A BAG OF RADIOS</text>
+          <text x="110" y="346" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="2.4">AND A BATTERY</text>
+        </svg>
+      </div>
+
+      <div class="invcol">
+        <div class="grpname">Acoustic</div>
+        <div class="cap" style="--hue:#34e5c4"><span class="cn">Speaker</span><span class="cd">ultrasonic chirp, one payer to a whole room</span></div>
+        <div class="cap" style="--hue:#34e5c4"><span class="cn">Microphone</span><span class="cd">chirp decode + arrival-time differences as room proof; noise as entropy</span></div>
+
+        <div class="grpname">Motion &amp; environment</div>
+        <div class="cap" style="--hue:#7ff0a8"><span class="cn">Accelerometer</span><span class="cd">bump proximity proof; waveform seeds the session key</span></div>
+        <div class="cap" style="--hue:#7ff0a8"><span class="cn">Pedometer</span><span class="cd">walking mints currency</span></div>
+        <div class="cap" style="--hue:#7ff0a8"><span class="cn">Barometer</span><span class="cd">altitude change scales the mint rate</span></div>
+        <div class="cap" style="--hue:#7ff0a8"><span class="cn">GPS</span><span class="cd">geofenced faucets as distribution</span></div>
+        <div class="cap" style="--hue:#7ff0a8"><span class="cn">Ambient light</span><span class="cd">seeds the mint entropy pool</span></div>
+
+        <div class="grpname">Identity &amp; secure hardware</div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">Biometrics</span><span class="cd">transfer gate, not a login; two thumbs co-sign large amounts</span></div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">Keystore</span><span class="cd">StrongBox / Secure Enclave signs every chain head; monotonic replay counter</span></div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">Attestation</span><span class="cd">Play Integrity / App Attest blocks rooted minting</span></div>
+        <div class="cap" style="--hue:#ffb457"><span class="cn">FLAG_SECURE</span><span class="cd">screenshot + recording blocked on the vault screen</span></div>
+
+        <div class="grpname">Power &amp; companions</div>
+        <div class="cap" style="--hue:#ff6f7d"><span class="cn">Battery / thermal</span><span class="cd">logged per benchmark sample; low-power transfer mode</span></div>
+        <div class="cap" style="--hue:#b48cff"><span class="cn">Watch</span><span class="cd">Shamir key share; small spends alone, large ones need phone present</span></div>
+        <div class="cap" style="--hue:#b48cff"><span class="cn">Heart rate</span><span class="cd">proof-of-liveness gate against bot farms</span></div>
+        <div class="cap" style="--hue:#b48cff"><span class="cn">NFC card</span><span class="cd">third Shamir share for cold storage</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 05 REVERSE ============================ -->
+<section class="sec" id="t5">
+  <div class="sec-head rv">
+    <div class="sec-num">05</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Reverse Brainstorming</h2>
+      <p class="sec-sub">Every way this could fail, then each failure turned over. The inversions are more concrete than anything
+      generated forwards — several of them became the methodology.</p>
+    </div>
+    <span class="count">14 failures · 14 inversions</span>
+  </div>
+
+  <div class="flips">
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">40 transfer methods, none reliable.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx"><strong>Three hero channels that must be bulletproof</strong>; the rest are demo-grade novelties, clearly labelled.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">The two apps drift in scope, making the comparison meaningless.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx"><strong>One shared spec plus one shared E2E suite</strong> (Maestro / Appium) both builds must pass identically.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">All the time goes into writing native modules twice; nothing gets compared.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Write the native code <strong>ONCE per platform in Kotlin/Swift and only the bridge twice</strong> — isolating exactly the variable under test.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">The demo needs two phones, and one dies or lacks NFC.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Every method ships a <strong>single-phone loopback demo mode</strong>.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Benchmarks are noise from thermal throttling.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Run both builds <strong>back-to-back interleaved on the same device</strong>, logging battery and thermal state per sample.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Flutter looks better because the designer knows Material.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Build to a deliberately custom, <strong>non-Material non-Cupertino design</strong> so neither framework gets home-field advantage.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Cannot tell if a perf difference is the framework or our code.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Include a <strong>null-app baseline in both</strong> — an empty scroll list — to calibrate.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">The currency has no reason to exist, so the demo is boring.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Give it a scenario — <strong>festival with no signal, aid camp, school</strong> — so every capability has a story.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Someone calls it a security toy.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Say so first and loudly — make the <strong>threat model a first-class screen inside the app</strong>.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">An offline double-spend goes undetected on stage.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Ship a <strong>fraud-demo button</strong> that deliberately double-spends and shows detection firing.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">iOS blocks half the capabilities (NFC HCE, background BLE, raw wifi).</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Make the <strong>platform capability GAP a headline finding</strong> rather than a blocker.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Batteries die mid-demo.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">A <strong>demo mode that disables every scanning radio except the one on stage</strong>.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">App sizes are incomparable because one bundles ML models.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">Report <strong>stripped and full APK size, per ABI</strong>.</div></div>
+    </div>
+
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Fail</div><div class="tx">Hot reload masks real startup cost.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Invert</div><div class="tx">All timings from <strong>release builds, cold, after a reboot</strong>.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 06 FIVE WHYS ============================ -->
+<section class="sec" id="t6">
+  <div class="sec-head rv">
+    <div class="sec-num">06</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Five Whys</h2>
+      <p class="sec-sub">Chained on one question: <span class="mono dim">why build the same currency app twice?</span>
+      Five steps down, the project turns out not to be about currencies at all.</p>
+    </div>
+    <span class="count">Descent · 5 levels</span>
+  </div>
+
+  <div class="whys">
+    <div class="why rv" style="--d:0"><div class="wq">Why 1</div><div class="wt">Why build it <b>twice</b>? &nbsp;→&nbsp; To compare React Native and Flutter fairly.</div></div>
+    <div class="why rv" style="--d:1"><div class="wq">Why 2</div><div class="wt">Why a <b>currency app</b> specifically? &nbsp;→&nbsp; Because it forces breadth: radios, sensors, secure hardware, background work and heavy list rendering in one product.</div></div>
+    <div class="why rv" style="--d:2"><div class="wq">Why 3</div><div class="wt">Why does <b>breadth</b> matter? &nbsp;→&nbsp; Because both frameworks are equally fine at simple apps; they only diverge <b>at the native boundary and under load</b>.</div></div>
+    <div class="why rv" style="--d:3"><div class="wq">Why 4</div><div class="wt">Why care <b>where they diverge</b>? &nbsp;→&nbsp; Because the real decision is not which is prettier, it is <b>which stays tractable when we need something the ecosystem has not wrapped yet</b>.</div></div>
+    <div class="why rv" style="--d:4"><div class="wq">Why 5 · bottom</div><div class="wt">Why does <b>tractability</b> decide it? &nbsp;→&nbsp; Because the cost of a mobile framework is paid entirely in the <b>long tail</b>.</div></div>
+  </div>
+
+  <div class="root rv">
+    <div class="rhd"><span>◆</span><span>Root cause</span></div>
+    <div class="rbody">
+      <p>The cost of a mobile framework is paid entirely in the long tail — the capability with no plugin,
+      the background job that must survive Doze, the one 120fps screen.</p>
+      <div class="punch">We are really evaluating <em>ESCAPE HATCHES</em>, not frameworks.</div>
+    </div>
+  </div>
+
+  <div class="therefores">
+    <div class="therefore rv"><div class="tk">Therefore 01</div><div class="tt">Deliberately <strong>weight the app toward capabilities with NO mature plugin in either ecosystem</strong> — UWB, MST, ultrasonic, satellite, flashlight VLC — because that is where the answer lives.</div></div>
+    <div class="therefore rv"><div class="tk">Therefore 02</div><div class="tt">Measure <strong>time-to-first-working-bridge</strong> for a capability neither dev has done before, with a stopwatch, honestly.</div></div>
+    <div class="therefore rv"><div class="tk">Therefore 03</div><div class="tt">The deliverable is <strong>not a winner, it is a decision table</strong> — if your product needs X, pick Y.</div></div>
+  </div>
+</section>
+
+<!-- ============================ 07 QUESTION STORMING ============================ -->
+<section class="sec" id="t7">
+  <div class="sec-head rv">
+    <div class="sec-num">07</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Question Storming</h2>
+      <p class="sec-sub">Questions only. Nothing here was answered, and that is deliberate — these are the open decisions
+      the build will have to close, kept visible rather than resolved prematurely.</p>
+    </div>
+    <span class="count">Answers: none</span>
+  </div>
+
+  <div class="qmeter rv">
+    <span class="big">20</span><span class="lbl">questions raised</span>
+    <span class="big" style="color:var(--mut)">00</span><span class="lbl">answers given</span>
+  </div>
+
+  <div class="qs">
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q01 · nature</div><div class="qt">What is the currency FOR — a game token, a community credit, a payment stand-in, or deliberately abstract?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q02 · supply</div><div class="qt">Must it be conserved with fixed supply, or can it be minted freely?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q03 · supply</div><div class="qt">Who is allowed to mint, and what stops everyone minting?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q04 · settlement</div><div class="qt">If two phones never meet again, does the transfer still count?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q05 · settlement</div><div class="qt">How long can a note stay unreconciled before the app distrusts it?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q06 · loss</div><div class="qt">What happens when a phone is lost — is the currency gone forever, and is that acceptable or even desirable?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q07 · loss</div><div class="qt">Should recovery exist at all, and does adding it destroy the offline story?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q08 · finality</div><div class="qt">Is a transfer final at handshake, or at first gossip confirmation?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q09 · model</div><div class="qt">What is the smallest unit, and does divisibility break the bearer-note model?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q10 · model</div><div class="qt">Do we need identity at all, or just keys?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q11 · model</div><div class="qt">Should a transfer be able to fail AFTER the receiver's phone said "received"?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q12 · bias</div><div class="qt">Which framework are we secretly hoping wins, and how do we control for that bias?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q13 · bias</div><div class="qt">Should the same person write both builds, or two specialists — which choice makes the comparison more honest?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q14 · validity</div><div class="qt">How much of the difference we measure is actually the platform (Android vs iOS) rather than the framework?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q15 · validity</div><div class="qt">If a capability has a great plugin in one ecosystem and none in the other, is that a framework property or an accident of timing?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q16 · validity</div><div class="qt">What would make us abandon this comparison as unanswerable?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q17 · scope</div><div class="qt">Would a third build in pure native Kotlin make the comparison meaningful, or just triple the work?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q18 · scope</div><div class="qt">What is the ONE screen we could build that would settle the argument on its own?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q19 · demo</div><div class="qt">How do we demo an offline mesh in a room saturated with hackathon wifi?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+    <div class="q rv"><span class="mark">?</span><div class="qn">Q20 · outcome</div><div class="qt">What is the story we tell if both frameworks turn out to be equally good?</div><div class="ans"></div><div class="ans-lbl">unanswered</div></div>
+  </div>
+</section>
+
+<!-- ============================ THE SPLIT ============================ -->
+<section class="sec" id="split">
+  <div class="sec-head rv">
+    <div class="sec-num">‖</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">The split — every idea, twice</h2>
+      <p class="sec-sub">The two-column motif that kept recurring across four different techniques. Each row is the same job,
+      implemented on both sides of the benchmark.</p>
+    </div>
+    <span class="count">Same work, two stacks</span>
+  </div>
+
+  <div class="split rv">
+    <div class="split-hd"><div class="a">React Native · Build A</div><div class="b">Build B · Flutter</div></div>
+
+    <div class="srow"><div class="topic">Escrow shimmer animation · from Yes-And link 06</div>
+      <div class="c">Reanimated</div><div class="c r">AnimationController</div></div>
+
+    <div class="srow"><div class="topic">Live decode of the animated-QR fountain stream · link 08</div>
+      <div class="c">Vision Camera frame processors — pixels never cross the bridge</div><div class="c r">camera + MLKit</div></div>
+
+    <div class="srow"><div class="topic">Native capability bridging · Role Playing</div>
+      <div class="c">Nitro / Turbo modules with codegen'd TS types</div><div class="c r">Pigeon platform channels + FFI on the hot path</div></div>
+
+    <div class="srow"><div class="topic">100k-transaction torture ledger · Sheet D r3</div>
+      <div class="c">FlashList</div><div class="c r">ListView.builder</div></div>
+
+    <div class="srow"><div class="topic">Rendering engine expectation</div>
+      <div class="c">Fabric</div><div class="c r">Impeller — expected to win the animation test</div></div>
+
+    <div class="srow"><div class="topic">Secure key storage bridge · link 17</div>
+      <div class="c">StrongBox</div><div class="c r">Secure Enclave</div></div>
+
+    <div class="srow"><div class="topic">Companion surface · Flutter dev</div>
+      <div class="c">—</div><div class="c r">One widget tree driving phone UI <em>and</em> the Wear OS watch face</div></div>
+
+    <div class="srow"><div class="topic">Scoring · Sheet D r4 &amp; r5</div>
+      <div class="c">Lines-of-glue-code per capability</div><div class="c r">Pixel-diff against the same Figma as a fidelity score</div></div>
+  </div>
+</section>
+
+<!-- ============================ SYNTHESIS ============================ -->
+<section class="synth" id="synthesis">
+  <p class="kicker rv" style="text-align:center">Synthesis · six insights and a direction</p>
+
+  <div class="reframe rv">
+    <div class="rk">The single reframe that reorganizes everything</div>
+    <div class="neg">A currency app that happens to compare frameworks</div>
+    <div class="pos">This is a <span class="hl">framework benchmark</span><br>wearing a currency app<br>as a costume.</div>
+    <p class="tail">Every design choice should be judged by what it reveals about React Native vs Flutter — not by what it does for the currency.</p>
+  </div>
+
+  <div class="synthgrid">
+    <div class="scard rv">
+      <div class="sn"><span>Synthesis 02</span><span class="from">First Principles × Yes-And</span></div>
+      <h4>The bearer note dissolves the transfer-method sprawl</h4>
+      <p>If a note is ~200 bytes, every device capability is just another byte channel. Nineteen escalating transfer ideas
+      collapse into <strong>a single uniform abstraction with N drivers behind it</strong>.</p>
+      <div class="merge"><span class="chip">Yes-And</span><span class="chip">First Principles</span><span class="chip sig">one interface, N drivers</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>Synthesis 03</span><span class="from">Three ideas, one hat</span></div>
+      <h4>Bump, UWB and ultrasonic are the same thing</h4>
+      <p>The bump-derived key, UWB ranging and ultrasonic time-of-arrival are all <strong>proximity proofs</strong>.
+      Unify them behind one interface and the app gains a security model instead of a pile of gimmicks.</p>
+      <div class="merge"><span class="chip">Bump</span><span class="chip">UWB</span><span class="chip">Ultrasonic TOA</span><span class="chip sig">= ProximityProof</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>Synthesis 04</span><span class="from">First Principles × Role Playing</span></div>
+      <h4>The mesh and the fraudster are one mechanism</h4>
+      <p>The gossip mesh and the offline double-spend adversary are the same thing seen from both sides:
+      <strong>the relay network exists to make forgery eventually visible</strong>, not to move money faster.</p>
+      <div class="merge"><span class="chip">Gossip mesh</span><span class="chip">Double-spend</span><span class="chip sig">detection, not prevention</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>Synthesis 06</span><span class="from">Highest-upside wildcard</span></div>
+      <h4>Notes as objects, not a balance number</h4>
+      <p>It makes the UI a physical, animatable, splittable thing — <strong>precisely the workload that separates Impeller from Fabric</strong>.
+      The data model and the benchmark reinforce each other.</p>
+      <div class="merge"><span class="chip">Split gesture</span><span class="chip">Object set UI</span><span class="chip sig">Impeller vs Fabric</span></div>
+    </div>
+
+    <div class="scard wide rv">
+      <div class="sn"><span>Synthesis 05 · the sharpest methodology available</span><span class="from">Five Whys root cause × Reverse Brainstorming</span></div>
+      <h4>Write the native code ONCE per platform. Bridge it TWICE. Stopwatch the bridge.</h4>
+      <p>The root cause said we are evaluating escape hatches; the reverse-brainstorm said the time sink is writing native modules twice.
+      Together they give <strong>the only honest measurement in the whole plan</strong> — it isolates the actual variable under test, and everything else is decoration.</p>
+      <div class="merge"><span class="chip">Kotlin/Swift once</span><span class="chip">Bridge twice</span><span class="chip">Time-to-first-working-bridge</span><span class="chip sig">glue-LOC × runtime-perf</span></div>
+    </div>
+  </div>
+
+  <div class="direction rv">
+    <div class="dhd">
+      <div><div class="dk">Direction</div><h3>Recommended shape</h3></div>
+      <div class="mut mono" style="font-size:11px; letter-spacing:.16em; text-transform:uppercase">Not a winner — a decision table</div>
+    </div>
+    <div class="dsteps">
+      <div class="dstep"><div class="dn">01</div><div class="dt">One shared spec</div><div class="dd">Both builds implement the same product, so scope cannot drift.</div></div>
+      <div class="dstep"><div class="dn">02</div><div class="dt">One shared E2E suite</div><div class="dd">Both builds must pass it identically.</div></div>
+      <div class="dstep"><div class="dn">03</div><div class="dt">Three hero channels</div><div class="dd">NFC, animated-QR and BLE mesh bulletproof — plus clearly labelled novelty channels.</div></div>
+      <div class="dstep"><div class="dn">04</div><div class="dt">Live telemetry screen</div><div class="dd">In-app, on device: cold start, frame drops, memory, APK size.</div></div>
+      <div class="dstep"><div class="dn">05</div><div class="dt">A decision table</div><div class="dd">If your product needs X, pick Y. Not a verdict on which framework is better.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESOLUTION: SEGREGATION ============================ -->
+<section class="sec seg" id="segregation">
+  <div class="sec-head rv">
+    <div class="sec-num">⧉</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">The resolution — segregate implementations, share contracts</h2>
+      <p class="sec-sub">Added after the synthesis: a hard constraint from the user that collided head-on with the session's
+      sharpest methodology finding, and the boundary that was adopted to satisfy both.</p>
+    </div>
+    <span class="count">Adopted · decision</span>
+  </div>
+
+  <div class="seg-constraint rv">
+    <span class="tag">Hard constraint</span>
+    <span class="txt">The Flutter project and the React Native project must be <b>COMPLETELY SEGREGATED</b> —
+    no shared code, no shared build, no shared dependency tree.</span>
+  </div>
+
+  <!-- COLLISION -->
+  <div class="collide rv">
+    <div class="cpanel cA">
+      <div class="clab">The new constraint</div>
+      <div class="ctitle">Zero coupling. Nothing shared.</div>
+      <div class="cbody">Two projects that never touch: separate source, separate build, separate dependency tree.
+      Anything shared is a leak in the comparison.</div>
+    </div>
+    <div class="fracture" aria-hidden="true">
+      <svg viewBox="0 0 24 200" preserveAspectRatio="none">
+        <path d="M12 0 L4 26 L19 54 L5 84 L18 112 L6 142 L17 170 L11 200"
+              fill="none" stroke="#ff6f7d" stroke-opacity=".55" stroke-width="1.4"/>
+        <path d="M12 0 L4 26 L19 54 L5 84 L18 112 L6 142 L17 170 L11 200"
+              fill="none" stroke="#ff6f7d" stroke-opacity=".14" stroke-width="6"/>
+      </svg>
+      <div class="xbadge">✕</div>
+    </div>
+    <div class="cpanel cB">
+      <div class="clab">Synthesis 05 · sharpest methodology</div>
+      <div class="ctitle">Write the native code ONCE. Bridge it twice.</div>
+      <div class="cbody">The only honest measurement in the whole plan — it isolates the actual variable under test.
+      And it is, on its face, a shared implementation.</div>
+    </div>
+  </div>
+  <div class="collide-cap rv">Both cannot be true as stated</div>
+
+  <!-- RESOLUTION -->
+  <div class="seg-resolve rv">
+    <div class="rk">Adopted resolution</div>
+    <div class="big"><span class="a">Segregate implementations.</span><br><span class="b">Share contracts.</span></div>
+    <p class="tail">The Kotlin/Swift native code is duplicated into each project as <b>byte-identical copies, verified by checksum in CI</b> —
+    never a shared Gradle module, never a shared pod. Same isolation of the variable, <b>zero coupling</b>.
+    Only documents cross the boundary.</p>
+  </div>
+
+  <!-- BOUNDARY LEDGER -->
+  <div class="seg-bound rv">
+    <span class="vlabel">The boundary</span>
+    <div class="bcol left">
+      <div class="bk">Duplicated per project</div>
+      <h4>Copied, never shared</h4>
+      <ul class="bl">
+        <li>source (Kotlin/Swift — byte-identical, checksummed)</li>
+        <li>build config</li>
+        <li>dependency tree</li>
+        <li>CI pipeline</li>
+        <li>app id</li>
+        <li>signing</li>
+      </ul>
+    </div>
+    <div class="bcol right">
+      <div class="bk">Crosses only as documents</div>
+      <h4>Shared as contract, not as code</h4>
+      <ul class="bl">
+        <li>wire-format spec</li>
+        <li>shared E2E suite (Maestro / Appium, run against both)</li>
+        <li>telemetry schema</li>
+        <li>Figma</li>
+        <li>threat model</li>
+      </ul>
+    </div>
+  </div>
+  <div class="seg-bound-note rv">No build system spans this line</div>
+
+  <!-- REPO SHAPE -->
+  <div class="viz rv">
+    <h3>Repo shape</h3>
+    <p class="vsub">Two fully independent projects — separate repos, or sibling top-level directories with no parent build —
+    plus a third location holding only documents and the shared test suite.</p>
+    <div class="scrollx">
+      <div class="inner">
+      <svg viewBox="0 0 900 440" width="100%" role="img" aria-label="Repository shape: currency-rn and currency-flutter as independent projects with a documents-only spec directory">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="#34e5c4"/>
+          </marker>
+        </defs>
+
+        <!-- spec/ -->
+        <rect x="292" y="12" width="316" height="132" rx="11" fill="#0b1117" stroke="#34e5c4" stroke-opacity=".55"/>
+        <text x="312" y="38" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#34e5c4">spec/</text>
+        <text x="588" y="38" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="1.8">DOCUMENTS ONLY · NO BUILD</text>
+        <line x1="312" y1="48" x2="588" y2="48" stroke="#1b2533"/>
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5" fill="#aebbcb">
+          <text x="312" y="68">wire-format spec</text>
+          <text x="312" y="86">shared E2E suite (Maestro / Appium)</text>
+          <text x="312" y="104">telemetry schema</text>
+          <text x="312" y="122">Figma · threat model</text>
+        </g>
+
+        <!-- connectors -->
+        <path d="M300 110 C 220 130, 200 150, 200 192" fill="none" stroke="#34e5c4" stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="5 5" marker-end="url(#ah)"/>
+        <path d="M600 110 C 680 130, 700 150, 700 192" fill="none" stroke="#34e5c4" stroke-opacity=".6" stroke-width="1.4" stroke-dasharray="5 5" marker-end="url(#ah)"/>
+        <text x="150" y="168" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#34e5c4" letter-spacing="1.6" opacity=".9">READ, NOT LINKED</text>
+        <text x="750" y="168" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#34e5c4" letter-spacing="1.6" opacity=".9">READ, NOT LINKED</text>
+
+        <!-- barrier -->
+        <line x1="450" y1="150" x2="450" y2="428" stroke="#ff6f7d" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray="7 7"/>
+        <rect x="384" y="270" width="132" height="24" rx="6" fill="#0b0d12" stroke="#ff6f7d" stroke-opacity=".5"/>
+        <text x="450" y="286" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="8.5" fill="#ff6f7d" letter-spacing="1.6">NO SHARED BUILD</text>
+
+        <!-- currency-rn -->
+        <rect x="30" y="194" width="356" height="234" rx="11" fill="#0b1117" stroke="#61dafb" stroke-opacity=".55"/>
+        <text x="50" y="222" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#61dafb">currency-rn/</text>
+        <line x1="50" y1="232" x2="366" y2="232" stroke="#1b2533"/>
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5" fill="#aebbcb">
+          <text x="50" y="256">native/ <tspan fill="#6f7f92">— Kotlin/Swift, byte-identical</tspan></text>
+          <text x="50" y="274" fill="#34e5c4">        ✓ checksum-verified in CI</text>
+          <text x="50" y="298">bridge/ <tspan fill="#6f7f92">— THE VARIABLE UNDER TEST</tspan></text>
+          <text x="50" y="322">own build config · own deps</text>
+          <text x="50" y="344">own CI pipeline</text>
+          <text x="50" y="366">own applicationId · own signing</text>
+        </g>
+        <rect x="50" y="384" width="164" height="24" rx="6" fill="#0d1a22" stroke="#61dafb" stroke-opacity=".4"/>
+        <text x="132" y="400" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#61dafb" letter-spacing="1.4">INSTALLS ALONGSIDE</text>
+
+        <!-- currency-flutter -->
+        <rect x="514" y="194" width="356" height="234" rx="11" fill="#0b1117" stroke="#ffb457" stroke-opacity=".55"/>
+        <text x="850" y="222" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#ffb457">currency-flutter/</text>
+        <line x1="534" y1="232" x2="850" y2="232" stroke="#1b2533"/>
+        <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11.5" fill="#aebbcb" text-anchor="end">
+          <text x="850" y="256"><tspan fill="#6f7f92">byte-identical, Kotlin/Swift — </tspan>native/</text>
+          <text x="850" y="274" fill="#34e5c4">✓ checksum-verified in CI</text>
+          <text x="850" y="298"><tspan fill="#6f7f92">THE VARIABLE UNDER TEST — </tspan>bridge/</text>
+          <text x="850" y="322">own deps · own build config</text>
+          <text x="850" y="344">own CI pipeline</text>
+          <text x="850" y="366">own bundleId · own signing</text>
+        </g>
+        <rect x="686" y="384" width="164" height="24" rx="6" fill="#221a0d" stroke="#ffb457" stroke-opacity=".4"/>
+        <text x="768" y="400" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#ffb457" letter-spacing="1.4">INSTALLS ALONGSIDE</text>
+      </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAYOFFS -->
+  <div class="movement-label rv" style="margin-top:44px"><span class="idx">What segregation buys</span><span>three payoffs</span><span class="bar"></span></div>
+
+  <div class="payoffs">
+    <div class="payoff rv" style="--hue:#7ff0a8">
+      <div class="pk">Payoff · both apps, one phone</div>
+      <h4>Distinct applicationId / bundleId means both builds install simultaneously</h4>
+      <p>Which unlocks exactly what the reverse-brainstorm demanded: <strong>interleaved back-to-back benchmarking on identical
+      hardware and identical thermal state</strong>. The thermal-noise failure mode closes itself.</p>
+    </div>
+
+    <div class="payoff rv" style="--hue:#b48cff">
+      <div class="pk">Payoff · auditable metric</div>
+      <h4>Glue-LOC becomes trivially measurable</h4>
+      <p><code>cloc</code> each repo, subtract the checksum-identical native files, and <strong>what remains IS the bridge cost
+      per framework</strong>. No judgement calls, no arguing about which lines counted.</p>
+    </div>
+  </div>
+
+  <!-- HERO: cross-framework transfer -->
+  <div class="hero-demo rv">
+    <div class="hd">
+      <div class="hk"><span>Payoff · the killer consequence</span><span class="star">◆ headline demo</span></div>
+      <div class="htitle">The <span class="rn">RN app</span> can pay<br>the <span class="fl">Flutter app</span>.</div>
+      <p class="hsub">Two completely segregated builds, no shared line of code between them, moving real value across the gap.
+      It is the best demo in the project — and simultaneously <b>the strictest possible conformance test</b>:
+      it proves both builds implement <b>the same wire format</b>, rather than merely looking alike.</p>
+    </div>
+    <div class="hviz">
+      <div class="scrollx">
+        <div class="inner">
+        <svg viewBox="0 0 900 300" width="100%" role="img" aria-label="A signed note transferring from the React Native app to the Flutter app">
+          <defs>
+            <linearGradient id="xfer" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#61dafb"/>
+              <stop offset="50%" stop-color="#34e5c4"/>
+              <stop offset="100%" stop-color="#ffb457"/>
+            </linearGradient>
+          </defs>
+
+          <!-- RN phone -->
+          <rect x="52" y="52" width="126" height="216" rx="17" fill="#0a0f16" stroke="#61dafb" stroke-opacity=".7" stroke-width="1.5"/>
+          <rect x="61" y="66" width="108" height="188" rx="10" fill="#060a10" stroke="#12202c"/>
+          <text x="115" y="42" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#61dafb" letter-spacing="2.4">REACT NATIVE</text>
+          <text x="115" y="288" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="1.6">com.example.currency.rn</text>
+          <g>
+            <rect x="74" y="88" width="82" height="26" rx="5" fill="#0c1a22" stroke="#61dafb" stroke-opacity=".6"/>
+            <rect x="78" y="120" width="74" height="24" rx="5" fill="#0c1a22" stroke="#61dafb" stroke-opacity=".3"/>
+            <text x="115" y="106" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#61dafb" letter-spacing="1.4">NOTE</text>
+          </g>
+          <text x="115" y="180" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="1.4">SEND</text>
+          <rect x="80" y="190" width="70" height="22" rx="6" fill="#0d1a22" stroke="#61dafb" stroke-opacity=".45"/>
+          <text x="115" y="205" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#61dafb" letter-spacing="1.2">SIGN + PASS</text>
+
+          <!-- Flutter phone -->
+          <rect x="722" y="52" width="126" height="216" rx="17" fill="#0a0f16" stroke="#ffb457" stroke-opacity=".7" stroke-width="1.5"/>
+          <rect x="731" y="66" width="108" height="188" rx="10" fill="#060a10" stroke="#2a2113"/>
+          <text x="785" y="42" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#ffb457" letter-spacing="2.4">FLUTTER</text>
+          <text x="785" y="288" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="1.6">com.example.currency.flutter</text>
+          <g>
+            <rect x="744" y="88" width="82" height="26" rx="5" fill="#1c1509" stroke="#ffb457" stroke-opacity=".65"/>
+            <text x="785" y="106" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#ffb457" letter-spacing="1.4">NOTE</text>
+          </g>
+          <rect x="750" y="190" width="70" height="22" rx="6" fill="#1c1509" stroke="#ffb457" stroke-opacity=".45"/>
+          <text x="785" y="205" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#ffb457" letter-spacing="1.2">VERIFY OK</text>
+
+          <!-- transfer arc -->
+          <path id="arc" d="M186 132 C 340 44, 560 44, 714 132" fill="none" stroke="url(#xfer)" stroke-width="2" stroke-dasharray="7 6"/>
+          <path d="M186 132 C 340 44, 560 44, 714 132" fill="none" stroke="#34e5c4" stroke-opacity=".12" stroke-width="10"/>
+          <circle r="5.5" fill="#34e5c4">
+            <animateMotion dur="3.6s" repeatCount="indefinite" path="M186 132 C 340 44, 560 44, 714 132"/>
+          </circle>
+          <text x="450" y="62" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#e8eef6" letter-spacing="1.6">~200-BYTE SIGNED NOTE</text>
+          <text x="450" y="80" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9.5" fill="#34e5c4" letter-spacing="1.8">ONE WIRE FORMAT · TWO IMPLEMENTATIONS</text>
+
+          <!-- channels -->
+          <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9.5" fill="#6f7f92" letter-spacing="1.6" text-anchor="middle">
+            <text x="450" y="168">NFC   ·   ANIMATED QR   ·   BLE MESH</text>
+          </g>
+
+          <!-- conformance stamp -->
+          <rect x="316" y="192" width="268" height="52" rx="9" fill="#0b1117" stroke="#34e5c4" stroke-opacity=".45"/>
+          <text x="450" y="214" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#34e5c4" letter-spacing="2.4">CONFORMANCE TEST</text>
+          <text x="450" y="232" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10.5" fill="#aebbcb">same format, not merely the same look</text>
+
+          <!-- zero shared code marker -->
+          <text x="450" y="276" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#ff6f7d" letter-spacing="2.2" opacity=".85">ZERO SHARED CODE ACROSS THIS GAP</text>
+        </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORCED CONSEQUENCE -->
+  <div class="consequence rv">
+    <div class="chd"><span>◆</span><span>Forced consequence</span></div>
+    <div class="cbody">
+      <div class="cbox">
+        <div class="ck">The problem</div>
+        <p>Because both apps coexist on one device, they need <b>distinct BLE service UUIDs and distinct NFC AIDs</b> —
+        otherwise they intercept each other's transfers.</p>
+      </div>
+      <div class="cbox">
+        <div class="ck">What the spec must therefore define</div>
+        <p>The wire spec has to carry a <b>framework-agnostic app identity, separate from the transport identifier</b> —
+        so a note knows what it is independently of which radio channel, and which of the two builds, carried it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="frow">
+    <span>BMad brainstorming · autonomous mode</span>
+    <span>7 techniques · 142 entries · 1 adopted decision</span>
+    <span>2026-08-01</span>
+  </div>
+</footer>
+
+</main>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  root.classList.add('js');
+
+  // reveal on scroll
+  var items = document.querySelectorAll('.rv');
+  if (!('IntersectionObserver' in window)) {
+    items.forEach(function(el){ el.classList.add('in'); });
+  } else {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.04 });
+    items.forEach(function(el, i){
+      el.style.transitionDelay = Math.min(i % 8, 7) * 28 + 'ms';
+      io.observe(el);
+    });
+  }
+
+  // scroll spy
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var targets = links.map(function(a){ return document.querySelector(a.getAttribute('href')); }).filter(Boolean);
+  function spy(){
+    var best = null, bestTop = -Infinity;
+    targets.forEach(function(t){
+      var top = t.getBoundingClientRect().top - 120;
+      if (top <= 0 && top > bestTop){ bestTop = top; best = t; }
+    });
+    links.forEach(function(a){
+      a.classList.toggle('on', best && a.getAttribute('href') === '#' + best.id);
+    });
+  }
+  var tick = false;
+  window.addEventListener('scroll', function(){
+    if (tick) return; tick = true;
+    window.requestAnimationFrame(function(){ spy(); tick = false; });
+  }, { passive:true });
+  spy();
+})();
+</script>
+</body>
+</html>
