@@ -48,12 +48,9 @@ dependencies:
   add_2_calendar: ^3.1.1
   google_mlkit_text_recognition: ^0.16.0
   camera: ^0.12.0+2
-<<<<<<< HEAD
   local_auth: ^3.0.2
   flutter_secure_storage: ^10.3.1
-=======
   mobile_scanner: ^7.1.4
->>>>>>> ceafe205170cc6941fac7b06296f76d6d445b13c
 
 dev_dependencies:
   flutter_test:

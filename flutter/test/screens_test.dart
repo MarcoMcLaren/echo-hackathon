@@ -37,13 +37,9 @@ import 'support/demo_data.dart';
 
 import 'support/fakes.dart';
 
-<<<<<<< HEAD
 import 'features/vault_fakes.dart';
 
-Widget harness(Widget child, {MeshStore? mesh}) {
-=======
 Widget harness(Widget child, {MeshStore? mesh, QrScanner? qrScanner}) {
->>>>>>> ceafe205170cc6941fac7b06296f76d6d445b13c
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => ThemeStore()),

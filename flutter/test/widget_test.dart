@@ -1,8 +1,8 @@
-<<<<<<< HEAD
-// Smoke test: the app opens behind the lock screen, then boots on the Reach
-// tab. There is no seed data any more (see lib/store/mesh_store.dart), so a
-// fresh boot has no conversations — pairing one, and opening it, is exercised
-// in the pairing-ux screens rather than here.
+// Smoke test: the app opens behind the lock screen, asks a first-run name on
+// the SetupScreen, then boots on the Reach tab. There is no seed data any
+// more (see lib/store/mesh_store.dart), so a fresh boot has no conversations
+// — pairing one, and opening it, is exercised in the pairing-ux screens
+// rather than here.
 //
 // main.dart wires the real BiometricAppLock (local_auth) and
 // SecureStorageVault (flutter_secure_storage) adapters, and LockScreen probes
@@ -10,25 +10,17 @@
 // under `flutter test` without a mock handler, so this stubs both to answer
 // immediately — simulating a phone with a fingerprint enrolled but the lock
 // not yet turned on, matching this test's "offer" phase / "Not now" path.
-import 'package:flutter/services.dart';
-=======
-// Smoke test: the app opens behind the lock screen, asks a first-run name on
-// the SetupScreen, then boots on the Reach tab. There is no seed data any
-// more (see lib/store/mesh_store.dart), so a fresh boot has no conversations
-// — pairing one, and opening it, is exercised in the pairing-ux screens
-// rather than here.
 import 'package:flutter/material.dart';
->>>>>>> ceafe205170cc6941fac7b06296f76d6d445b13c
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
 
-<<<<<<< HEAD
 const _localAuthChannel = MethodChannel('plugins.flutter.io/local_auth');
 const _secureStorageChannel = MethodChannel(
   'plugins.it_nomads.com/flutter_secure_storage',
 );
-=======
+
 /// Past the lock and past first-run setup, landing on the Reach tab.
 Future<void> _bootToReach(WidgetTester tester) async {
   await tester.pumpWidget(const EchoApp());
@@ -47,7 +39,6 @@ Future<void> _bootToReach(WidgetTester tester) async {
   await tester.tap(find.text('Start'));
   await tester.pumpAndSettle();
 }
->>>>>>> ceafe205170cc6941fac7b06296f76d6d445b13c
 
 void main() {
   setUp(() {
