@@ -4,8 +4,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTheme, motion, radius, TOUCH_MIN } from '../styles/theme';
 import { Display, Body, Mono } from '../components/Type';
 import { MeshStatus, AppBar, bottomInset } from '../components/Chrome';
-import Avatar from '../components/Avatar';
 import QrCode from '../features/vault/components/QrCode';
+import ResetSheet from '../features/vault/components/ResetSheet';
 import { useMesh } from '../store/mesh';
 
 const CORE = 52;
@@ -15,6 +15,9 @@ const MAX = 150;
 // doors into one pairing flow rather than two features.
 const pairPayload = (deviceId: string, display: string) =>
   `echo://pair?id=${encodeURIComponent(deviceId)}&n=${encodeURIComponent(display)}`;
+
+/** "1 NODES IN RANGE" is the kind of thing people notice on a demo screen. */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 'S'}`;
 
 /** Something short a human can read aloud and compare against the other screen. */
 const fingerprintOf = (deviceId: string) =>
@@ -35,8 +38,12 @@ type Mode = 'tap' | 'show' | 'scan';
 export default function TapScreen() {
   const { c } = useTheme();
   const peers = useMesh((s) => s.peers);
+  const contacts = useMesh((s) => s.contacts);
+  const me = useMesh((s) => s.me);
+  const resetApp = useMesh((s) => s.resetApp);
   const reachable = Object.entries(peers);
   const [mode, setMode] = useState<Mode>('tap');
+  const [confirmReset, setConfirmReset] = useState(false);
   const [still, setStill] = useState(false);
   const [scanned, setScanned] = useState<string | null>(null);
 
@@ -54,7 +61,7 @@ export default function TapScreen() {
 
   return (
     <>
-      <MeshStatus right={mode === 'tap' ? 'NFC READY' : 'CAMERA PAIRING'} />
+      <MeshStatus right={mode === 'tap' ? 'PAIR IN PERSON' : 'CAMERA PAIRING'} />
       <AppBar title="Meet a phone" sub="Adds a contact and swaps keys" />
 
       <View style={s.segs}>
@@ -83,7 +90,7 @@ export default function TapScreen() {
       </View>
 
       {mode === 'tap' ? (
-        <TapMode still={still} />
+        <TapMode still={still} onPick={setMode} />
       ) : mode === 'show' ? (
         <ShowMode />
       ) : (
@@ -91,45 +98,77 @@ export default function TapScreen() {
       )}
 
       <View style={[s.foot, { paddingBottom: bottomInset + 16 }]}>
-        {reachable.length === 0 ? (
-          <View style={[s.paired, { backgroundColor: c.card, borderColor: c.hair2 }]}>
-            <Mono size={8.5}>NOBODY PAIRED YET</Mono>
+        <View style={[s.paired, { backgroundColor: c.card, borderColor: c.hair2 }]}>
+          <View style={{ flex: 1 }}>
+            <Mono size={9} dim={1}>
+              {`YOU ARE ${me.display.toUpperCase()} · ${fingerprintOf(me.deviceId)}`}
+            </Mono>
+            <Mono size={8.5}>
+              {`${plural(Object.keys(contacts).length, 'CONTACT')} · ${plural(reachable.length, 'NODE')} IN RANGE`}
+            </Mono>
           </View>
-        ) : (
-          <View style={[s.paired, { backgroundColor: c.card, borderColor: c.direct }]}>
-            <Avatar initials={reachable[0][1].display.slice(0, 2).toUpperCase()} hops={0} size={30} />
-            <View style={{ flex: 1 }}>
-              <Mono size={9} dim={1}>
-                {`PAIRED WITH ${reachable[0][1].display.toUpperCase()}`}
-              </Mono>
-              <Mono size={8.5}>
-                {reachable.length > 1
-                  ? `AND ${reachable.length - 1} MORE IN RANGE`
-                  : 'KEYS HELD ON EACH PHONE'}
-              </Mono>
-            </View>
-          </View>
-        )}
+          <Pressable
+            onPress={() => setConfirmReset(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Reset this phone"
+            hitSlop={10}
+          >
+            <Mono size={9} color={c.direct}>
+              RESET
+            </Mono>
+          </Pressable>
+        </View>
       </View>
+
+      {confirmReset ? (
+        <ResetSheet onCancel={() => setConfirmReset(false)} onConfirm={resetApp} />
+      ) : null}
     </>
   );
 }
 
-/** NFC: the fastest path when both phones have the hardware. */
-function TapMode({ still }: { still: boolean }) {
+/**
+ * Meeting a phone is a physical act, so this stays the first thing you see —
+ * but the exchange itself goes through the camera, and the screen says so.
+ *
+ * It used to promise "hold them back to back until both buzz", which is Android
+ * Beam: an NDEF push between two phones. Google deprecated that in Android 10
+ * and removed it in Android 14, so on any phone this app targets there is no
+ * such thing to wait for. Claiming otherwise left a screen that said NFC READY
+ * over nothing at all. Still hold the phones together — one shows, one reads.
+ */
+function TapMode({ still, onPick }: { still: boolean; onPick: (m: Mode) => void }) {
+  const { c } = useTheme();
   return (
     <View style={s.zone}>
       <Sonar still={still} />
       <Display size={28} style={s.h}>
-        Hold the phones back to back
+        Hold the phones together
       </Display>
       <Body size={13} dim={2} style={s.p}>
-        Keep them together until both buzz. Keys are generated and stored on each phone — nothing is
-        uploaded.
+        One of you shows a code and the other reads it. Keys are generated and stored on each phone
+        — nothing is uploaded.
       </Body>
-      <Mono size={9}>WAITING FOR THE OTHER PHONE</Mono>
-      <Mono size={9} dim={2}>
-        NO NFC ON ONE OF THEM? USE SHOW CODE
+      <View style={s.pick}>
+        <Pressable
+          onPress={() => onPick('show')}
+          accessibilityRole="button"
+          style={[s.btn, s.half, { backgroundColor: c.ink }]}
+        >
+          <Display size={14} color={c.paper}>
+            Show mine
+          </Display>
+        </Pressable>
+        <Pressable
+          onPress={() => onPick('scan')}
+          accessibilityRole="button"
+          style={[s.btn, s.half, s.ghost, { borderColor: c.hair }]}
+        >
+          <Display size={14}>Read theirs</Display>
+        </Pressable>
+      </View>
+      <Mono size={8.5} dim={2}>
+        WHOEVER READS THE CODE ADDS THE CONTACT
       </Mono>
     </View>
   );
@@ -139,7 +178,6 @@ function TapMode({ still }: { still: boolean }) {
 function ShowMode() {
   const { c } = useTheme();
   const me = useMesh((s) => s.me);
-  const identified = me.deviceId !== 'pending';
 
   return (
     <View style={s.zone}>
@@ -157,9 +195,7 @@ function ShowMode() {
           {fingerprintOf(me.deviceId)}
         </Mono>
       </View>
-      <Mono size={8.5}>
-        {identified ? 'CHECK THIS MATCHES ON THEIR SCREEN' : 'START THE MESH TO CLAIM AN IDENTITY'}
-      </Mono>
+      <Mono size={8.5}>CHECK THIS MATCHES ON THEIR SCREEN</Mono>
     </View>
   );
 }
@@ -167,6 +203,8 @@ function ShowMode() {
 /** The fallback half that reads. */
 function ScanMode({ scanned, onScan }: { scanned: string | null; onScan: (v: string) => void }) {
   const { c } = useTheme();
+  const pair = useMesh((s) => s.pair);
+  const contacts = useMesh((s) => s.contacts);
   const [permission, requestPermission] = useCameraPermissions();
 
   if (!permission) {
@@ -220,8 +258,19 @@ function ScanMode({ scanned, onScan }: { scanned: string | null; onScan: (v: str
             </Mono>
           </View>
         ) : null}
+        {ok && contacts[theirs.id] ? (
+          <Mono size={8.5} color={c.relay}>
+            ALREADY IN YOUR CONTACTS
+          </Mono>
+        ) : null}
+
         <Pressable
-          onPress={() => onScan('')}
+          onPress={() => {
+            // Scanning the code is the whole point: it is what turns a phone
+            // that was merely in range into someone you can talk to.
+            if (ok) pair(theirs.id, theirs.name);
+            onScan('');
+          }}
           accessibilityRole="button"
           style={[s.btn, { backgroundColor: ok ? c.ink : 'transparent', borderWidth: ok ? 0 : 1.5, borderColor: c.hair }]}
         >
@@ -303,8 +352,8 @@ function Sonar({ still }: { still: boolean }) {
         />
       ))}
       <View style={[s.core, { backgroundColor: c.coin }]}>
-        <Display size={15} color="#fff">
-          NFC
+        <Display size={13} color="#fff">
+          MEET
         </Display>
       </View>
     </View>
@@ -329,6 +378,9 @@ const s = StyleSheet.create({
   bl: { bottom: 10, left: 10, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 6 },
   br: { bottom: 10, right: 10, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 6 },
   btn: { borderRadius: 10, paddingVertical: 12, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', minHeight: TOUCH_MIN },
+  pick: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
+  half: { flex: 1, paddingHorizontal: 8 },
+  ghost: { borderWidth: 1.5 },
   foot: { paddingHorizontal: 14 },
   paired: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, borderRadius: 10, borderWidth: 1 },
 });

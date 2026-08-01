@@ -71,7 +71,13 @@ function Ring({ at, r, color }: { at: P; r: number; color: string }) {
   );
 }
 
-export type MapNode = { id: string; name: string; hops: number | null };
+export type MapNode = {
+  id: string;
+  name: string;
+  hops: number | null;
+  /** A phone in range you have never met. It relays; it is not a contact. */
+  stranger?: boolean;
+};
 
 /**
  * Positions are geometry, not decoration: a direct peer sits inside your radio
@@ -117,7 +123,7 @@ export default function ReachMap({ nodes }: { nodes: MapNode[] }) {
           <Ring at={you} r={R2} color={c.hair2} />
 
           {directAt.map((p, i) => (
-            <Line key={`dl${i}`} a={you} b={p} color={c.direct} />
+            <Line key={`dl${i}`} a={you} b={p} color={direct[i].stranger ? c.hair : c.direct} />
           ))}
           {relayedAt.map((p, i) => (
             <Line
@@ -129,7 +135,14 @@ export default function ReachMap({ nodes }: { nodes: MapNode[] }) {
           ))}
 
           {directAt.map((p, i) => (
-            <Station key={`ds${i}`} at={p} color={c.direct} fill={c.paper} />
+            <Station
+              key={`ds${i}`}
+              at={p}
+              // A stranger is drawn hollow and grey: present, carrying traffic,
+              // but not someone you know.
+              color={direct[i].stranger ? c.dim : c.direct}
+              fill={c.paper}
+            />
           ))}
           {relayedAt.map((p, i) => (
             <Station key={`rs${i}`} at={p} color={c.relay} fill={c.paper} />
@@ -146,7 +159,14 @@ export default function ReachMap({ nodes }: { nodes: MapNode[] }) {
 
           <Label at={{ x: you.x, y: you.y + 11 }} text="YOU" />
           {directAt.map((p, i) => (
-            <Label key={`dt${i}`} at={{ x: p.x, y: p.y - 21 }} text={label(direct[i].name)} />
+            <Label
+              key={`dt${i}`}
+              at={{ x: p.x, y: p.y - 21 }}
+              // Strangers are not named. You have not met them, and showing a
+              // device model would imply you had.
+              text={direct[i].stranger ? 'NODE' : label(direct[i].name)}
+              faint={direct[i].stranger}
+            />
           ))}
           {relayedAt.map((p, i) => (
             <Label key={`rt${i}`} at={{ x: p.x, y: p.y - 21 }} text={label(relayed[i].name)} />

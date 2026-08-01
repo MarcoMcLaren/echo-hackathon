@@ -10,6 +10,8 @@ import TapScreen from './screens/TapScreen';
 import SendCoinScreen from './screens/SendCoinScreen';
 import LockScreen from './screens/LockScreen';
 import NewGroupScreen from './screens/NewGroupScreen';
+import SetupScreen from './screens/SetupScreen';
+import { useMesh } from './store/mesh';
 import ReadScreen from './screens/ReadScreen';
 // Side-effect import: this module calls initExecutorch(), which is the only
 // thing that registers the ExecuTorch resource fetcher. Without it every model
@@ -36,6 +38,7 @@ export default function App() {
   // Once past the door it stays open for the life of the launch — re-prompting
   // every time you glance at another app would make the mesh unusable.
   const [unlocked, setUnlocked] = useState(false);
+  const ready = useMesh((s) => s.ready);
   // Switching tabs mid-read unmounts ReadScreen, and executorch's cleanup
   // throws ModelGenerating if inference is still running. Lock the nav instead.
   const [readBusy, setReadBusy] = useState(false);
@@ -54,6 +57,12 @@ export default function App() {
 
   const back = useCallback(() => setRoute(null), []);
 
+  // Claim this phone's identity before anything can ask for it — the pairing
+  // code has to encode a real device id even if the mesh is never started.
+  useEffect(() => {
+    useMesh.getState().init();
+  }, []);
+
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (route) {
@@ -71,6 +80,17 @@ export default function App() {
     return (
       <ThemeContext.Provider value={theme}>
         <LockScreen onUnlocked={() => setUnlocked(true)} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </ThemeContext.Provider>
+    );
+  }
+
+  // Never set up, or just reset: ask for a name before anything else. This is
+  // also what mints the phone's id, so there is no identity to leak beforehand.
+  if (!ready) {
+    return (
+      <ThemeContext.Provider value={theme}>
+        <SetupScreen />
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </ThemeContext.Provider>
     );

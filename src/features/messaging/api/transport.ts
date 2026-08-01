@@ -138,9 +138,11 @@ export class MeshTransport {
       })
     );
 
-    // Pairing already happened out of band (a tap or a scanned code), so an
-    // invitation here is expected rather than a decision to put to the user.
     this.subs.push(
+      // Accept everyone. A phone we have never met is still a node that can
+      // carry traffic, and the mesh is stronger for having it. Whether it can
+      // put a message in front of the user is a separate question, answered by
+      // the contact list.
       onInvitationReceived(({ peerId }) => {
         acceptConnection(peerId).catch((e) => this.events.onError(String(e)));
       })
@@ -218,6 +220,7 @@ export class MeshTransport {
     }
     return delivered;
   }
+
 
   async stop(): Promise<void> {
     this.subs.forEach((u) => u());
