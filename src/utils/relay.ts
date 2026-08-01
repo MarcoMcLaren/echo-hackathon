@@ -13,10 +13,18 @@ export type Envelope = {
   from: string;
   /** Device id of the intended reader, or a thread id for a group. */
   to: string;
-  /** `revert` carries the id of an earlier coin message to undo. */
-  kind: 'msg' | 'coin' | 'revert';
+  /**
+   * `revert` carries the id of an earlier coin message to undo.
+   * `image` carries base64 image data, split across parts.
+   * `event` carries a calendar event as JSON.
+   */
+  kind: 'msg' | 'coin' | 'revert' | 'image' | 'event';
   /** Opaque to relays. Ciphertext once the vault lands. */
   body: string;
+  /** Set on every part of a split payload. Shared by all parts of one message. */
+  gid?: string;
+  /** Which part this is, and how many there are. Absent means a whole message. */
+  part?: { i: number; n: number };
   /** Hops remaining. A relay forwards only while this is above zero. */
   ttl: number;
   /** Device ids this has already passed through, in order. Builds the route strip. */
@@ -104,6 +112,62 @@ export function route(
 
 /** Group messages are delivered to everyone AND relayed onward. */
 export const isGroup = (to: string) => to.startsWith('g:');
+
+/**
+ * Nearby sends a BYTES payload, which Google caps at 32 KiB. Anything larger —
+ * an image, realistically — has to travel as parts and be put back together at
+ * the far end. Relays forward parts individually and never need to understand
+ * them.
+ */
+export const MAX_PAYLOAD = 32 * 1024;
+
+/** Leaves room for the JSON envelope wrapped around each part. */
+export const CHUNK_CHARS = 24_000;
+
+export function splitBody(body: string, size = CHUNK_CHARS): string[] {
+  if (body.length <= size) return [body];
+  const parts: string[] = [];
+  for (let i = 0; i < body.length; i += size) parts.push(body.slice(i, i + size));
+  return parts;
+}
+
+/**
+ * Collects parts until a message is whole. Incomplete groups are dropped once
+ * the cache is full rather than held forever — a sender that walks away
+ * mid-image must not leak memory.
+ */
+export class Reassembler {
+  private groups = new Map<string, { parts: (string | undefined)[]; n: number }>();
+  constructor(private limit = 16) {}
+
+  /** Returns the full body once every part has arrived, otherwise null. */
+  add(e: Envelope): string | null {
+    if (!e.part || !e.gid) return e.body;
+
+    let group = this.groups.get(e.gid);
+    if (!group) {
+      // Filled, not sparse: `.some` skips holes in a sparse array, which would
+      // report a transfer complete on its first part.
+      group = { parts: new Array(e.part.n).fill(undefined), n: e.part.n };
+      this.groups.set(e.gid, group);
+      // Evict the oldest partial group if we're tracking too many.
+      if (this.groups.size > this.limit) {
+        const oldest = this.groups.keys().next().value;
+        if (oldest !== undefined) this.groups.delete(oldest);
+      }
+    }
+
+    group.parts[e.part.i] = e.body;
+    if (group.parts.some((p) => p === undefined)) return null;
+
+    this.groups.delete(e.gid);
+    return group.parts.join('');
+  }
+
+  get pending() {
+    return this.groups.size;
+  }
+}
 
 export const encode = (e: Envelope): string => JSON.stringify(e);
 

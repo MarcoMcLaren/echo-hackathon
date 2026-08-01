@@ -4,7 +4,8 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { MeshTransport, type PeerInfo } from '../features/messaging/api/transport';
 import { deviceIdentity } from '../features/vault/api/identity';
-import { SeenCache, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
+import { prepareNotifications, notifyMessage } from '../features/messaging/api/notify';
+import { SeenCache, Reassembler, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
 import { threads as seedThreads, type Thread, type Msg, type Hops } from './mock';
 
 /** The phone model, so demo handsets are told apart on sight. Replace with a
@@ -50,6 +51,7 @@ type State = {
 export const CANCEL_WINDOW_MS = 5000;
 
 const seen = new SeenCache();
+const inbound = new Reassembler();
 let transport: MeshTransport | null = null;
 let cancelTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -77,6 +79,10 @@ export const useMesh = create<State>((set, get) => ({
     // same phone and doesn't come back as a stranger.
     const me = { deviceId: await deviceIdentity(), display: get().me.display };
     set({ me });
+
+    // Asked for here rather than at launch: the permission makes sense to
+    // someone who has just turned the mesh on, and nowhere else.
+    prepareNotifications();
 
     transport = new MeshTransport(me, {
       onPeer: (peer: PeerInfo, state) => {
@@ -130,10 +136,24 @@ export const useMesh = create<State>((set, get) => ({
           return;
         }
 
-        // Delivered to us.
-        const e = decision.envelope;
+        // Delivered to us. A split payload only becomes a message once every
+        // part has landed; until then there is nothing to show.
+        const partial = decision.envelope;
+        const whole = inbound.add(partial);
+        if (whole === null) return;
+        const e = { ...partial, body: whole };
+
         const hops = hopsTaken(e) as Hops;
         const relay = relayedBy(e);
+
+        if (e.kind === 'msg' || e.kind === 'coin') {
+          notifyMessage({
+            from: get().peers[e.from]?.display ?? e.from,
+            body: e.kind === 'coin' ? `Sent you ${Number(e.body).toFixed(2)} echocoin` : e.body,
+            threadId: e.from,
+            hops,
+          });
+        }
 
         // A take-back references an earlier message rather than adding one.
         // The row stays on screen marked reverted — money that quietly
