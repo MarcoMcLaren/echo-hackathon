@@ -18,6 +18,16 @@ subprojects {
 subprojects {
     project.evaluationDependsOn(":app")
 }
+subprojects {
+    // camera_android_camerax javac fails against camera-core 1.6.1 annotations
+    // ("class file for androidx.concurrent.futures.CallbackToFutureAdapter not
+    // found") — the adapter class must be on that plugin module's own classpath.
+    if (name == "camera_android_camerax") {
+        afterEvaluate {
+            dependencies.add("implementation", "androidx.concurrent:concurrent-futures:1.2.0")
+        }
+    }
+}
 
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
