@@ -159,7 +159,18 @@ export const useMesh = create<State>((set, get) => ({
             ];
           } else if (known) {
             threads = threads.map((t) =>
-              t.id === peer.deviceId ? { ...t, hops: state === 'connected' ? 0 : null } : t
+              t.id === peer.deviceId
+                ? {
+                    ...t,
+                    hops: state === 'connected' ? 0 : null,
+                    // A thread created from a message that predates knowing the
+                    // sender's name is titled with their raw device id. Now that
+                    // they are a peer, give it their actual name.
+                    ...(t.title === t.id
+                      ? { title: peer.display, initials: initialsOf(peer.display) }
+                      : null),
+                  }
+                : t
             );
           }
 
@@ -240,7 +251,7 @@ export const useMesh = create<State>((set, get) => ({
 
         if (e.kind === 'msg' || e.kind === 'coin') {
           notifyMessage({
-            from: get().peers[e.from]?.display ?? e.from,
+            from: e.fromName ?? get().peers[e.from]?.display ?? e.from,
             body: e.kind === 'coin' ? `Sent you ${Number(e.body).toFixed(2)} echocoin` : e.body,
             threadId: e.from,
             hops,
@@ -284,7 +295,9 @@ export const useMesh = create<State>((set, get) => ({
               hops,
               via: relay ? s.peers[relay]?.display ?? relay : undefined,
             },
-            { unread: true }
+            // Name the thread from the envelope, not the peer list — a relayed
+            // sender is not a peer here.
+            { unread: true, title: e.fromName }
           ),
         }));
       },
@@ -316,6 +329,9 @@ export const useMesh = create<State>((set, get) => ({
     const envelope = newEnvelope({
       id: `${me.deviceId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       from: me.deviceId,
+      // Travels with the message so a relayed sender still has a name at the
+      // far end, where they are not a peer and cannot be looked up.
+      fromName: me.display,
       to: threadId,
       kind,
       body,
@@ -437,7 +453,7 @@ function upsertMessage(
   threads: Thread[],
   threadId: string,
   msg: Msg,
-  opts?: { unread?: boolean }
+  opts?: { unread?: boolean; title?: string }
 ): Thread[] {
   const preview =
     msg.text ??
@@ -447,11 +463,12 @@ function upsertMessage(
   const i = threads.findIndex((t) => t.id === threadId);
 
   if (i < 0) {
+    const title = opts?.title ?? threadId;
     return [
       {
         id: threadId,
-        title: threadId,
-        initials: threadId.slice(0, 2).toUpperCase(),
+        title,
+        initials: initialsOf(title),
         preview,
         at: msg.at,
         hops: msg.hops,

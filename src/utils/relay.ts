@@ -11,6 +11,15 @@ export type Envelope = {
   id: string;
   /** Device id of whoever composed it. Never rewritten by a relay. */
   from: string;
+  /**
+   * The sender's display name, carried with the message.
+   *
+   * The recipient cannot look this up: someone reached through a relay is not a
+   * direct peer, so they are absent from the local peer list. Without this a
+   * relayed message shows a raw device id — which is precisely the multi-hop
+   * case the app exists for.
+   */
+  fromName?: string;
   /** Device id of the intended reader, or a thread id for a group. */
   to: string;
   /**
@@ -37,7 +46,12 @@ export type Envelope = {
 export const DEFAULT_TTL = 3;
 
 export const newEnvelope = (
-  args: Pick<Envelope, 'id' | 'from' | 'to' | 'kind' | 'body' | 'at'> & { ttl?: number }
+  args: Pick<Envelope, 'id' | 'from' | 'to' | 'kind' | 'body' | 'at'> & {
+    ttl?: number;
+    fromName?: string;
+    gid?: string;
+    part?: { i: number; n: number };
+  }
 ): Envelope => ({
   ...args,
   ttl: args.ttl ?? DEFAULT_TTL,
