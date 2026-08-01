@@ -35,4 +35,26 @@ void main() {
 
     expect(find.text('Reach'), findsOneWidget);
   });
+
+  testWidgets('switching to the READ tab and back does not crash the shell', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('READ'));
+    await tester.pumpAndSettle();
+    expect(find.text('Read that'), findsWidgets);
+
+    // ReadScreen unmounts here — regression: its dispose() used to call the
+    // parent's setState synchronously, which crashes while the framework is
+    // mid-build tearing down the old tab.
+    await tester.tap(find.text('REACH'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Reach'), findsOneWidget);
+  });
 }

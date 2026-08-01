@@ -55,6 +55,15 @@ class _CatchMeUpSheetState extends State<CatchMeUpSheet> with SingleTickerProvid
   void _start() {
     if (!mounted) return;
     _sub?.cancel();
+    setState(() {
+      _state = const SummaryState(
+        lines: [],
+        isReady: false,
+        isGenerating: false,
+        downloadProgress: 0,
+        done: false,
+      );
+    });
     _sub = context
         .read<ThreadSummarizer>()
         .summarize(widget.thread, widget.unread)

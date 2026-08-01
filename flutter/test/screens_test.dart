@@ -52,6 +52,33 @@ class _NoOpHaptics implements HapticOutput {
   Future<void> pulse(double intensity) async {}
 }
 
+class _FailingOcrReader implements OcrReader {
+  @override
+  Future<ReadOutcome> read(String uri) async => const ReadFailed();
+}
+
+/// Errors once, then succeeds — for exercising CatchMeUpSheet's retry path.
+class _FlakyOnceSummarizer implements ThreadSummarizer {
+  int calls = 0;
+
+  @override
+  Stream<SummaryState> summarize(mock.Thread thread, int unread) async* {
+    calls++;
+    if (calls == 1) {
+      yield const SummaryState(
+        lines: [],
+        isReady: false,
+        isGenerating: false,
+        downloadProgress: 0,
+        done: false,
+        error: 'boom',
+      );
+      return;
+    }
+    yield const SummaryState(lines: [], isReady: false, isGenerating: false, downloadProgress: 0, done: false);
+  }
+}
+
 void main() {
   testWidgets('ReachScreen renders the demo threads and mesh status', (tester) async {
     await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {})));
@@ -81,6 +108,27 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.textContaining('messages while you were out of range'), findsOneWidget);
+  });
+
+  testWidgets('CatchMeUpSheet retry clears the stale error before the new stream emits', (tester) async {
+    final summarizer = _FlakyOnceSummarizer();
+    final thread = mock.threads.firstWhere((t) => t.id == 'braai');
+    await tester.pumpWidget(
+      harness(
+        Provider<ThreadSummarizer>.value(
+          value: summarizer,
+          child: CatchMeUpSheet(thread: thread, unread: thread.unread, onClose: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('The summary did not finish. Every message is still in the thread above.'), findsOneWidget);
+
+    await tester.tap(find.text('Try again'));
+    await tester.pump(); // one frame: before the retried stream's first event lands
+
+    expect(find.text('The summary did not finish. Every message is still in the thread above.'), findsNothing);
   });
 
   testWidgets('WalletScreen renders balance and ledger', (tester) async {
@@ -162,6 +210,23 @@ void main() {
       expect(find.text('LAST READ'), findsOneWidget);
       expect(find.text('EXIT'), findsOneWidget);
       expect(busyStates, [true, false]);
+    });
+
+    testWidgets('a failed read flips the status bar into the error state', (tester) async {
+      await tester.pumpWidget(
+        harness(Provider<OcrReader>.value(value: _FailingOcrReader(), child: const ReadScreen())),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Read that').last);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('ERROR'), findsOneWidget);
+      expect(find.text("Couldn't read that."), findsOneWidget);
+      expect(find.text('READER UNAVAILABLE'), findsOneWidget);
+      // The button stays enabled so tapping again retries.
+      expect(find.text('Read that'), findsWidgets);
     });
   });
 

@@ -42,7 +42,14 @@ class _ReadScreenState extends State<ReadScreen> {
 
   @override
   void dispose() {
-    widget.onBusyChange?.call(false);
+    // Tab switches unmount this screen mid-build (inside AppShell's own
+    // setState), so calling the parent's setState synchronously here would
+    // hit "framework is locked". Deferring to the next frame sidesteps that;
+    // guarding on _busy skips the no-op case, which is nearly always.
+    if (_busy) {
+      final onBusyChange = widget.onBusyChange;
+      WidgetsBinding.instance.addPostFrameCallback((_) => onBusyChange?.call(false));
+    }
     super.dispose();
   }
 
@@ -63,6 +70,7 @@ class _ReadScreenState extends State<ReadScreen> {
       await haptics.pulse(0.15); // shutter confirmation
 
       final outcome = await reader.read('captured-frame');
+      if (!mounted) return;
       switch (outcome) {
         case ReadOk(:final result):
           setState(() {
@@ -104,8 +112,12 @@ class _ReadScreenState extends State<ReadScreen> {
     return Column(
       children: [
         MeshStatus(
-          right: _busy ? 'READING…' : 'ON-DEVICE OCR · OFFLINE',
-          state: MeshState.live,
+          right: _busy
+              ? 'READING…'
+              : _error != null
+              ? 'READER UNAVAILABLE'
+              : 'ON-DEVICE OCR · OFFLINE',
+          state: !_busy && _error != null ? MeshState.error : MeshState.live,
         ),
         const EchoAppBar(title: 'Read that', sub: 'Point at text and tap to hear it'),
         Expanded(
