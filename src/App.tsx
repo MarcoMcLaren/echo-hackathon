@@ -104,7 +104,9 @@ export default function App() {
             />
           ) : tab === 'wallet' ? (
             <WalletScreen
-              onSend={() => setRoute({ name: 'send', id: 'naledi' })}
+              // Money goes to a conversation, so send starts by choosing one.
+              // Reach is that list; there is no separate contact picker.
+              onSend={() => setTab('reach')}
               onTap={() => setTab('tap')}
             />
           ) : tab === 'tap' ? (

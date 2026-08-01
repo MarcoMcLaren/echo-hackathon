@@ -1,7 +1,7 @@
 import { View } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { Display } from './Type';
-import type { Hops } from '../store/mock';
+import type { Hops } from '../store/types';
 
 /** The ring encodes hop distance, so reachability reads before the name does. */
 export default function Avatar({

@@ -6,7 +6,6 @@ import Avatar from '../components/Avatar';
 import { HopChip } from '../components/Chip';
 import ReachMap, { type MapNode } from '../features/messaging/components/ReachMap';
 import { useMesh } from '../store/mesh';
-import { contacts as demoContacts } from '../store/mock';
 
 export default function ReachScreen({
   onOpen,
@@ -29,12 +28,13 @@ export default function ReachScreen({
           ? (error ?? 'MESH FAILED').toUpperCase()
           : 'MESH OFF · TAP TO START';
 
-  // Real peers when the mesh is up; the seeded demo when it isn't, so a single
-  // phone still shows what the screen is for.
-  const nodes: MapNode[] =
-    status === 'live' && Object.keys(peers).length > 0
-      ? Object.entries(peers).map(([id, p]) => ({ id, name: p.display, hops: 0 }))
-      : demoContacts.map((p) => ({ id: p.id, name: p.name, hops: p.hops }));
+  // Only what is actually out there. An empty map means nothing is in range,
+  // which is information — not a screen waiting to be filled with a demo set.
+  const nodes: MapNode[] = Object.entries(peers).map(([id, p]) => ({
+    id,
+    name: p.display,
+    hops: 0,
+  }));
 
   return (
     <>
@@ -48,7 +48,7 @@ export default function ReachScreen({
         sub={
           status === 'live'
             ? `${live} reachable · ${stats.relayed} relayed for others`
-            : 'Mesh off · showing the demo set'
+            : 'Mesh off · nothing is listening'
         }
         right={
           <View style={s.actions}>
@@ -80,6 +80,16 @@ export default function ReachScreen({
         <Mono size={10} style={s.caps}>
           Conversations
         </Mono>
+
+        {threads.length === 0 ? (
+          <View style={[s.empty, { borderColor: c.hair2 }]}>
+            <Body size={13} dim={2}>
+              {status === 'live'
+                ? 'Nothing in range yet. Open Echo on another phone nearby and start its mesh — it will appear here on its own.'
+                : 'Tap the line above to start the mesh. Phones running Echo nearby will appear here, and you can talk to them with no cell and no wifi.'}
+            </Body>
+          </View>
+        ) : null}
 
         <View>
           {threads.map((t, i) => (
@@ -133,5 +143,6 @@ const s = StyleSheet.create({
   unread: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 9, alignItems: 'center' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   plus: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  empty: { borderWidth: 1, borderStyle: 'dashed', borderRadius: 14, padding: 16 },
   caps: { textTransform: 'uppercase' },
 });

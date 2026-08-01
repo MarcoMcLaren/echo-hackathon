@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { View, Animated, Easing, StyleSheet } from 'react-native';
 import { useTheme, motion } from '../styles/theme';
 import { Mono } from './Type';
-import type { Hops } from '../store/mock';
+import type { Hops } from '../store/types';
 
 type Props = {
   hops: Hops;

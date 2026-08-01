@@ -3,7 +3,7 @@ import { useTheme, radius, TOUCH_MIN } from '../../../styles/theme';
 import { Body, Mono, Display, CoinMark } from '../../../components/Type';
 import RouteStrip from '../../../components/RouteStrip';
 import { formatWhen, type MeshEvent } from '../api/events';
-import type { Msg } from '../../../store/mock';
+import type { Msg } from '../../../store/types';
 
 /** Outgoing only. Incoming messages get a route strip instead. */
 const stateLine = (m: Msg) => {

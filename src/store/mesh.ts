@@ -16,7 +16,40 @@ import {
   isGroup,
   newGroupId,
 } from '../utils/relay';
-import { threads as seedThreads, type Thread, type Msg, type Hops } from './mock';
+import type { Thread, Msg, Hops, Entry } from './types';
+
+/**
+ * What every phone starts with. There is no issuer and no ledger server — this
+ * is a demo currency, and pretending otherwise would be dishonest. Everything
+ * after this point is real: the balance is opening minus what you sent plus
+ * what you received.
+ */
+export const OPENING_BALANCE = 100;
+
+/**
+ * The wallet, derived from coin messages rather than stored separately. One
+ * source of truth means the balance can never disagree with the thread it came
+ * from. Reverted transfers stay visible but do not count.
+ */
+export function walletFrom(threads: Thread[]): { balance: number; entries: Entry[] } {
+  const entries: Entry[] = [];
+  for (const t of threads) {
+    for (const m of t.messages) {
+      if (m.coin == null || m.pending) continue;
+      entries.push({
+        id: m.id,
+        amount: m.from === 'me' ? -m.coin : m.coin,
+        who: t.title,
+        hops: m.hops,
+        via: m.via,
+        note: m.state === 'queued' ? `WAITING FOR A ROUTE · ${m.at}` : m.at,
+        reverted: m.reverted,
+      });
+    }
+  }
+  const net = entries.filter((e) => !e.reverted).reduce((sum, e) => sum + e.amount, 0);
+  return { balance: OPENING_BALANCE + net, entries: entries.reverse() };
+}
 
 /** The phone model, so demo handsets are told apart on sight. Replace with a
  *  name the user picks once there's a settings screen. */
@@ -76,7 +109,8 @@ export const useMesh = create<State>((set, get) => ({
   me: { deviceId: 'pending', display: defaultName },
   status: 'off',
   peers: {},
-  threads: seedThreads,
+  // Empty. Conversations appear when a phone connects or a message arrives.
+  threads: [],
   stats: { sent: 0, delivered: 0, relayed: 0, dropped: 0 },
   pending: null,
 
@@ -287,6 +321,9 @@ export const useMesh = create<State>((set, get) => ({
             {
               id: e.id,
               from: e.from,
+              // So a group bubble can name the sender without a lookup that
+              // would fail for anyone reached through a relay.
+              fromName: e.fromName,
               text: e.kind === 'msg' ? e.body : undefined,
               coin: e.kind === 'coin' ? Number(e.body) : undefined,
               image: e.kind === 'image' ? e.body : undefined,
