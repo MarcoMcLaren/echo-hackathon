@@ -58,6 +58,27 @@ The models are **not** in the APK and **not** pre-installed (that's why the APK 
 - **`ModelPreloadScreen`** (the current home screen) pre-downloads them with a progress bar — run it **on wifi before an offline demo**.
 - **Per phone, one-time, needs wifi once.** Sizes: vision (detection + OCR) ≈ **50 MB**; language model (summaries) ≈ **400 MB**. Exact table in [SETUP.md](SETUP.md).
 
+## Agentic workflows (BMAD)
+
+This repo has [BMAD-METHOD](https://github.com/bmad-code-org/BMAD-METHOD) installed
+(`.claude/skills/bmad-*`) for agentic planning/dev/review workflows in Claude Code.
+
+**Backlog lives on the GitHub Project board**, not in a local sprint file:
+[github.com/users/MarcoMcLaren/projects/1/views/1](https://github.com/users/MarcoMcLaren/projects/1/views/1).
+Take the top-priority ticket in the "Ready" column when picking up work.
+
+To grab the next highest-priority ticket off the board and implement it
+end-to-end (plan → code → tests → review, unattended), run:
+
+```
+/bmad-dev-auto <ticket title or link from the board>
+```
+
+e.g. `/bmad-dev-auto Implement dark mode toggle (github.com/.../issues/12)`.
+Want to stop at checkpoints for review instead of running unattended? Use
+`/bmad-quick-dev <ticket title or link>` the same way. Run `/bmad-help` if
+you're unsure which BMAD skill to use.
+
 ## Getting started
 
 Most contributors don't build anything — install the shared APK and hot-reload your own code on your own phone. See **[SETUP.md → Path A](SETUP.md)**. The 1–2 designated builders use **Path B**.

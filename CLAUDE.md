@@ -88,6 +88,16 @@ summaries** — to that GPU for bonus points. Two honest caveats:
 - Only **1–2 people** need the build environment; everyone else installs the
   debug APK and runs `npx expo start --dev-client` to hot-reload JS.
 
+## Team workflow — where the next story comes from
+
+The **backlog and story priority live on the GitHub Project board**, not in a
+local file:
+[github.com/users/MarcoMcLaren/projects/1/views/1](https://github.com/users/MarcoMcLaren/projects/1/views/1).
+That board is the source of truth for what to build next — when picking up
+work (yourself or via a BMAD agent), take the **top-priority ticket** in the
+board's "Ready" column. See [README.md](README.md#agentic-workflows-bmad) for
+the BMAD command that implements it end-to-end.
+
 ## This is a time-boxed hackathon project (Saturday)
 
 Prefer **simple, working, demoable** solutions over production-grade complexity.
