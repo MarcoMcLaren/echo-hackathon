@@ -20,6 +20,7 @@ export default function NewGroupScreen({
 }) {
   const { c } = useTheme();
   const peers = useMesh((s) => s.peers);
+  const contacts = useMesh((s) => s.contacts);
   const status = useMesh((s) => s.status);
   const createGroup = useMesh((s) => s.createGroup);
 
@@ -27,7 +28,13 @@ export default function NewGroupScreen({
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const reachable = Object.entries(peers);
+  // People you have met, not phones that happen to be nearby. A group of
+  // strangers is not a group.
+  const reachable = Object.values(contacts).map((k) => ({
+    id: k.id,
+    name: k.name,
+    inRange: Boolean(peers[k.id]),
+  }));
   const canCreate = name.trim().length > 0 && picked.length > 0 && !busy;
 
   const toggle = (id: string) =>
@@ -55,28 +62,28 @@ export default function NewGroupScreen({
         />
 
         <Mono size={10} style={s.caps}>
-          {reachable.length ? `${reachable.length} reachable now` : 'Nobody reachable'}
+          {reachable.length ? `${reachable.length} contact${reachable.length === 1 ? '' : 's'}` : 'No contacts'}
         </Mono>
 
         {reachable.length === 0 ? (
           <View style={[s.empty, { borderColor: c.hair2 }]}>
             <Body size={13} dim={2}>
               {status === 'live'
-                ? 'No other phones in range yet. A group can only start with people you can reach — turn on Echo on another phone and it will appear here.'
-                : 'Start the mesh from the Reach screen first, then the phones around you will show up here.'}
+                ? 'A group is made from people you have met. Go to Meet and tap phones together, or scan a code, then come back.'
+                : 'Start the mesh from the Reach screen, then meet someone from the Meet tab. Groups are built from contacts, not from whoever happens to be nearby.'}
             </Body>
           </View>
         ) : (
           <View>
-            {reachable.map(([id, p], i) => {
-              const on = picked.includes(id);
+            {reachable.map((p, i) => {
+              const on = picked.includes(p.id);
               return (
                 <Pressable
-                  key={id}
-                  onPress={() => toggle(id)}
+                  key={p.id}
+                  onPress={() => toggle(p.id)}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
-                  accessibilityLabel={p.display}
+                  accessibilityLabel={`${p.name}. ${p.inRange ? 'In range' : 'Out of range'}`}
                   style={({ pressed }) => [
                     s.row,
                     {
@@ -86,10 +93,12 @@ export default function NewGroupScreen({
                     pressed && { backgroundColor: c.hair2 },
                   ]}
                 >
-                  <Avatar initials={p.display.slice(0, 2).toUpperCase()} hops={0} />
+                  <Avatar initials={p.name.slice(0, 2).toUpperCase()} hops={p.inRange ? 0 : null} />
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Display size={14}>{p.display}</Display>
-                    <Mono size={8.5}>IN BLUETOOTH RANGE</Mono>
+                    <Display size={14}>{p.name}</Display>
+                    <Mono size={8.5}>
+                      {p.inRange ? 'IN RANGE' : 'OUT OF RANGE — WILL GET IT LATER'}
+                    </Mono>
                   </View>
                   <View
                     style={[
