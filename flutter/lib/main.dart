@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'components/chrome.dart' show AppTab, BottomNav;
 import 'screens/chat_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/send_coin_screen.dart';
@@ -58,8 +59,6 @@ class _EchoMaterialApp extends StatelessWidget {
     );
   }
 }
-
-enum AppTab { reach, wallet, tap }
 
 enum _RouteName { chat, send }
 
@@ -116,80 +115,8 @@ class _AppShellState extends State<AppShell> {
       child: Scaffold(
         body: SafeArea(child: body),
         bottomNavigationBar: route == null
-            ? _BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t))
+            ? BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t))
             : null,
-      ),
-    );
-  }
-}
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.tab, required this.onTab});
-
-  final AppTab tab;
-  final ValueChanged<AppTab> onTab;
-
-  static const _items = [
-    (tab: AppTab.reach, glyph: '◎', label: 'REACH'),
-    (tab: AppTab.wallet, glyph: '◍', label: 'WALLET'),
-    (tab: AppTab.tap, glyph: '⌁', label: 'MEET'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.watch<ThemeStore>().colors(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: c.card,
-        border: Border(top: BorderSide(color: c.hair2)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            for (final item in _items)
-              Expanded(
-                child: InkWell(
-                  onTap: () => onTab(item.tab),
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minHeight: tokens.touchMin,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(
-                          color: item.tab == tab
-                              ? c.direct
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          item.glyph,
-                          style: TextStyle(
-                            color: item.tab == tab ? c.ink : c.ink3,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            color: item.tab == tab ? c.ink : c.ink3,
-                            fontSize: 8.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }
