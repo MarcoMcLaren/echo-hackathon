@@ -2,6 +2,7 @@
 // Lerato (direct), Sipho (no route).
 //
 // Port of src/store/mock.ts.
+import '../features/messaging/events.dart' show MeshEvent;
 
 /// Hop count to reach someone: 0 (direct), 1 or 2 hops, or no route at all.
 typedef Hops = int?;
@@ -75,6 +76,8 @@ class Msg {
     required this.from,
     this.text,
     this.coin,
+    this.image,
+    this.event,
     required this.at,
     required this.hops,
     this.via,
@@ -89,6 +92,12 @@ class Msg {
   final String from;
   final String? text;
   final double? coin;
+
+  /// A photo, as a data URI. Travels in chunks; see utils/relay.
+  final String? image;
+
+  /// A calendar event someone shared. Saving it is a separate, explicit act.
+  final MeshEvent? event;
   final String at;
   final Hops hops;
   final String? via;
@@ -106,6 +115,8 @@ class Msg {
     from: from,
     text: text,
     coin: coin,
+    image: image,
+    event: event,
     at: at,
     hops: hops,
     via: via,

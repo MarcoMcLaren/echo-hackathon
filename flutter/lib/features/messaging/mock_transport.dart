@@ -35,6 +35,12 @@ class MockTransport implements MeshTransport {
   final Set<String> _connectedPeerIds = {};
   bool _running = false;
 
+  /// Every part actually put "on the air" by [broadcast], in order — a whole
+  /// envelope counts as one part. Lets tests assert on the chunking that a
+  /// real transport is responsible for (see [chunkEnvelope]) without a wire
+  /// to inspect.
+  final List<Envelope> sentParts = [];
+
   @override
   Future<TransportStartResult> start() async {
     if (_running) return const TransportStartResult.ok();
@@ -69,6 +75,10 @@ class MockTransport implements MeshTransport {
   @override
   Future<int> broadcast(Envelope envelope, {String? excludePeer}) async {
     if (!_running) return 0;
+    // Real work a native transport would also do: split an oversized body
+    // into parts before it goes over the air. There is no wire here to send
+    // them on, so this only has to account for them.
+    sentParts.addAll(chunkEnvelope(envelope));
     return _connectedPeerIds.where((id) => id != excludePeer).length;
   }
 }

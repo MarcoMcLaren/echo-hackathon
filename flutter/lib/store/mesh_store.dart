@@ -6,12 +6,15 @@
 // see [MeshTransport] in features/messaging/types.dart for the contract a
 // native implementation must satisfy.
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
+import '../features/messaging/events.dart' show decodeEvent;
 import '../features/messaging/notifier.dart';
 import '../features/messaging/types.dart';
+import '../features/vault/identity.dart';
 import '../utils/relay.dart';
 import 'mock.dart' as mock;
 
@@ -22,6 +25,9 @@ class MeshSelf {
   final String display;
 
   MeshSelf withDisplay(String display) =>
+      MeshSelf(deviceId: deviceId, display: display);
+
+  MeshSelf withDeviceId(String deviceId) =>
       MeshSelf(deviceId: deviceId, display: display);
 }
 
@@ -83,7 +89,8 @@ const int cancelWindowMs = 5000;
 
 const _fallbackDisplayName = 'Echo phone';
 
-/// Per launch. Persisting it needs storage that isn't wired up yet.
+/// A stand-in used only until [MeshStore.start] resolves (and persists) a
+/// real one via [DeviceIdentity] — see the [MeshStore] constructor.
 String _randomDeviceId() => _randomBase36(6);
 
 String _randomBase36(int length) {
@@ -93,12 +100,18 @@ String _randomBase36(int length) {
 }
 
 class MeshStore extends ChangeNotifier {
+  /// [deviceId] pins the id outright (what tests do). Leave it null to have
+  /// [start] resolve a persisted one from [identityStore] instead — mirrors
+  /// upstream's `me.deviceId` starting as a placeholder and being replaced
+  /// once `deviceIdentity()` resolves.
   MeshStore({
     this._transport,
     MeshNotifier? notifier,
     String? deviceId,
     String? display,
+    IdentityStore? identityStore,
   }) : _notifier = notifier ?? MockMeshNotifier(),
+       _identity = deviceId == null ? DeviceIdentity(identityStore) : null,
        me = MeshSelf(
          deviceId: deviceId ?? _randomDeviceId(),
          display: display ?? _fallbackDisplayName,
@@ -108,6 +121,10 @@ class MeshStore extends ChangeNotifier {
   final Reassembler _inbound = Reassembler();
   final MeshTransport? _transport;
   final MeshNotifier _notifier;
+
+  /// Null when [deviceId] was pinned explicitly at construction — nothing to
+  /// resolve, and nothing that should override it.
+  final DeviceIdentity? _identity;
   Timer? _cancelTimer;
 
   MeshSelf me;
@@ -135,11 +152,50 @@ class MeshStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Make a group from peers you can currently reach, and tell them about it.
+  Future<String> createGroup(String name, List<String> memberIds) async {
+    final id = newGroupId();
+    final members = [me.deviceId, ...memberIds];
+
+    threads = [
+      mock.Thread(
+        id: id,
+        title: name,
+        initials: _initialsOf(name),
+        group: true,
+        members: members,
+        preview: '${members.length} people',
+        at: 'now',
+        hops: 0,
+        messages: const [],
+        unread: 0,
+      ),
+      ...threads,
+    ];
+    notifyListeners();
+
+    // Addressed to the group, so it fans out to everyone in range. Phones
+    // not named in it forward the invite without joining.
+    await send(
+      id,
+      jsonEncode({'id': id, 'name': name, 'members': members}),
+      kind: EnvelopeKind.invite,
+    );
+    return id;
+  }
+
   Future<void> start() async {
     if (status == MeshStatus.live || status == MeshStatus.starting) return;
     status = MeshStatus.starting;
     error = null;
     notifyListeners();
+
+    final identity = _identity;
+    if (identity != null) {
+      // Stable across restarts, so the phone you spoke to earlier is still
+      // the same phone and doesn't come back as a stranger.
+      me = me.withDeviceId(await identity.resolve());
+    }
 
     // Asked for here rather than at launch: the permission makes sense to
     // someone who has just turned the mesh on, and nowhere else.
@@ -200,6 +256,9 @@ class MeshStore extends ChangeNotifier {
     final envelope = newEnvelope(
       id: '${me.deviceId}-${DateTime.now().millisecondsSinceEpoch}-${_randomBase36(4)}',
       from: me.deviceId,
+      // Travels with the message so a relayed sender still has a name at the
+      // far end, where they are not a peer and cannot be looked up.
+      fromName: me.display,
       to: threadId,
       kind: kind,
       body: body,
@@ -207,13 +266,15 @@ class MeshStore extends ChangeNotifier {
     );
     _seen.check(envelope.id); // never relay our own message back to ourselves
 
-    final reachable = peers.containsKey(threadId);
+    // A group has no single peer to be "in range of" — it is reachable if
+    // anyone is, and the delivery line says how many actually got it.
+    final reachable = isGroup(threadId) ? peers.isNotEmpty : peers.containsKey(threadId);
     final transport = _transport;
     final fanout = transport != null ? await transport.broadcast(envelope) : 0;
 
-    // A revert is bookkeeping on an existing message, not a new one in the
-    // thread — revertLastCoin has already struck the original through.
-    if (kind == EnvelopeKind.revert) {
+    // Neither a revert nor an invite is a message in the thread. Both are
+    // bookkeeping the UI has already reflected.
+    if (kind == EnvelopeKind.revert || kind == EnvelopeKind.invite) {
       stats = stats.copyWith(sent: stats.sent + 1);
       notifyListeners();
       return;
@@ -228,6 +289,8 @@ class MeshStore extends ChangeNotifier {
         from: 'me',
         text: kind == EnvelopeKind.msg ? body : null,
         coin: kind == EnvelopeKind.coin ? double.tryParse(body) : null,
+        image: kind == EnvelopeKind.image ? body : null,
+        event: kind == EnvelopeKind.event ? decodeEvent(body) : null,
         at: _clock(envelope.at),
         hops: reachable ? 0 : (fanout > 0 ? 1 : null),
         // No peer at all means it waits — never show it as sent.
@@ -370,7 +433,14 @@ class MeshStore extends ChangeNotifier {
       nextThreads = [
         for (final t in threads)
           t.id == peer.deviceId
-              ? _withHops(t, state == PeerLinkState.connected ? 0 : null)
+              ? _withHops(
+                  t,
+                  state == PeerLinkState.connected ? 0 : null,
+                  // A thread created from a message that predates knowing
+                  // the sender's name is titled with their raw device id.
+                  // Now that they are a peer, give it their actual name.
+                  title: t.title == t.id ? peer.display : null,
+                )
               : t,
       ];
     }
@@ -391,63 +461,133 @@ class MeshStore extends ChangeNotifier {
         stats = stats.copyWith(relayed: stats.relayed + 1);
         notifyListeners();
         _transport?.broadcast(envelope, excludePeer: excludePeer);
-      case DeliverDecision(:final envelope):
-        // A split payload only becomes a message once every part has landed;
-        // until then there is nothing to show.
-        final whole = _inbound.add(envelope);
-        if (whole == null) return;
-        final e = envelope.copyWith(body: whole);
-
-        final hops = hopsTaken(e);
-        final relay = relayedBy(e);
-
-        if (e.kind == EnvelopeKind.msg || e.kind == EnvelopeKind.coin) {
-          _notifier.notify(
-            NotifyPayload(
-              from: peers[e.from]?.display ?? e.from,
-              body: e.kind == EnvelopeKind.coin
-                  ? 'Sent you ${(double.tryParse(e.body) ?? 0).toStringAsFixed(2)} echocoin'
-                  : e.body,
-              threadId: e.from,
-              hops: hops,
-            ),
-          );
-        }
-
-        // A take-back references an earlier message rather than adding one.
-        // The row stays on screen marked reverted — money that quietly
-        // disappears is worse than money you can see was returned.
-        if (e.kind == EnvelopeKind.revert) {
-          stats = stats.copyWith(delivered: stats.delivered + 1);
-          threads = [
-            for (final t in threads)
-              t.id == e.from
-                  ? _withMessages(t, [
-                      for (final m in t.messages)
-                        m.id == e.body ? m.withReverted(true) : m,
-                    ])
-                  : t,
-          ];
+      case FanoutDecision(:final envelope, :final excludePeer):
+        // Group traffic: carry it on regardless, then show it only if this
+        // phone is actually in the group.
+        if (envelope.ttl > 0) {
+          stats = stats.copyWith(relayed: stats.relayed + 1);
           notifyListeners();
-          return;
+          _transport?.broadcast(envelope, excludePeer: excludePeer);
         }
+        final member = threads.any((t) => t.id == envelope.to);
+        if (member || envelope.kind == EnvelopeKind.invite) {
+          _deliver(envelope);
+        }
+      case DeliverDecision(:final envelope):
+        _deliver(envelope);
+    }
+  }
 
-        stats = stats.copyWith(delivered: stats.delivered + 1);
-        threads = _upsertMessage(
-          threads,
-          e.from,
-          mock.Msg(
-            id: e.id,
-            from: e.from,
-            text: e.kind == EnvelopeKind.msg ? e.body : null,
-            coin: e.kind == EnvelopeKind.coin ? double.tryParse(e.body) : null,
-            at: _clock(e.at),
-            hops: hops,
-            via: relay != null ? _displayOf(relay) : null,
-          ),
-          unread: true,
-        );
-        notifyListeners();
+  /// Delivered to us — directly, or as a member of the group it's addressed
+  /// to. A split payload only becomes a message once every part has landed;
+  /// until then there is nothing to show.
+  void _deliver(Envelope partial) {
+    final whole = _inbound.add(partial);
+    if (whole == null) return;
+    final e = partial.copyWith(body: whole);
+
+    final hops = hopsTaken(e);
+    final relay = relayedBy(e);
+
+    // An invite creates the group locally — but only for people actually
+    // named in it. Everyone in radio range sees the envelope; that is not
+    // the same as being in the group.
+    if (e.kind == EnvelopeKind.invite) {
+      _handleInvite(e, hops, relay);
+      return;
+    }
+
+    if (e.kind == EnvelopeKind.msg || e.kind == EnvelopeKind.coin) {
+      _notifier.notify(
+        NotifyPayload(
+          from: e.fromName ?? peers[e.from]?.display ?? e.from,
+          body: e.kind == EnvelopeKind.coin
+              ? 'Sent you ${(double.tryParse(e.body) ?? 0).toStringAsFixed(2)} echocoin'
+              : e.body,
+          threadId: e.from,
+          hops: hops,
+        ),
+      );
+    }
+
+    // A take-back references an earlier message rather than adding one.
+    // The row stays on screen marked reverted — money that quietly
+    // disappears is worse than money you can see was returned.
+    if (e.kind == EnvelopeKind.revert) {
+      stats = stats.copyWith(delivered: stats.delivered + 1);
+      threads = [
+        for (final t in threads)
+          t.id == e.from
+              ? _withMessages(t, [
+                  for (final m in t.messages)
+                    m.id == e.body ? m.withReverted(true) : m,
+                ])
+              : t,
+      ];
+      notifyListeners();
+      return;
+    }
+
+    stats = stats.copyWith(delivered: stats.delivered + 1);
+    threads = _upsertMessage(
+      threads,
+      // A group message belongs to the group, not to whoever sent it.
+      isGroup(e.to) ? e.to : e.from,
+      mock.Msg(
+        id: e.id,
+        from: e.from,
+        text: e.kind == EnvelopeKind.msg ? e.body : null,
+        coin: e.kind == EnvelopeKind.coin ? double.tryParse(e.body) : null,
+        image: e.kind == EnvelopeKind.image ? e.body : null,
+        event: e.kind == EnvelopeKind.event ? decodeEvent(e.body) : null,
+        at: _clock(e.at),
+        hops: hops,
+        via: relay != null ? _displayOf(relay) : null,
+      ),
+      unread: true,
+      // Name the thread from the envelope, not the peer list — a relayed
+      // sender is not a peer here.
+      title: e.fromName,
+    );
+    notifyListeners();
+  }
+
+  void _handleInvite(Envelope e, int hops, String? relay) {
+    try {
+      final decoded = jsonDecode(e.body);
+      if (decoded is! Map ||
+          decoded['id'] is! String ||
+          decoded['name'] is! String ||
+          decoded['members'] is! List ||
+          (decoded['members'] as List).any((m) => m is! String)) {
+        return;
+      }
+
+      final id = decoded['id'] as String;
+      final members = List<String>.from(decoded['members'] as List);
+      if (!members.contains(me.deviceId)) return;
+      if (threads.any((t) => t.id == id)) return;
+
+      final name = decoded['name'] as String;
+      threads = [
+        mock.Thread(
+          id: id,
+          title: name,
+          initials: _initialsOf(name),
+          group: true,
+          members: members,
+          preview: '${members.length} people',
+          at: _clock(e.at),
+          hops: hops,
+          via: relay != null ? _displayOf(relay) : null,
+          messages: const [],
+          unread: 0,
+        ),
+        ...threads,
+      ];
+      notifyListeners();
+    } catch (_) {
+      // A malformed invite from another build is not our problem.
     }
   }
 
@@ -460,19 +600,20 @@ class MeshStore extends ChangeNotifier {
     return id;
   }
 
-  mock.Thread _withHops(mock.Thread t, mock.Hops hops) => mock.Thread(
-    id: t.id,
-    title: t.title,
-    initials: t.initials,
-    group: t.group,
-    members: t.members,
-    preview: t.preview,
-    at: t.at,
-    hops: hops,
-    via: t.via,
-    messages: t.messages,
-    unread: t.unread,
-  );
+  mock.Thread _withHops(mock.Thread t, mock.Hops hops, {String? title}) =>
+      mock.Thread(
+        id: t.id,
+        title: title ?? t.title,
+        initials: title != null ? _initialsOf(title) : t.initials,
+        group: t.group,
+        members: t.members,
+        preview: t.preview,
+        at: t.at,
+        hops: hops,
+        via: t.via,
+        messages: t.messages,
+        unread: t.unread,
+      );
 
   mock.Thread _withUnread(mock.Thread t, int unread) => mock.Thread(
     id: t.id,
@@ -529,15 +670,21 @@ List<mock.Thread> _upsertMessage(
   String threadId,
   mock.Msg msg, {
   bool unread = false,
+  String? title,
 }) {
-  final preview = msg.text ?? '${msg.coin?.toStringAsFixed(2)} echocoin';
+  final preview =
+      msg.text ??
+      (msg.image != null ? 'Photo' : null) ??
+      msg.event?.title ??
+      '${msg.coin?.toStringAsFixed(2)} echocoin';
   final i = threads.indexWhere((t) => t.id == threadId);
   if (i < 0) {
+    final resolvedTitle = title ?? threadId;
     return [
       mock.Thread(
         id: threadId,
-        title: threadId,
-        initials: threadId.substring(0, min(2, threadId.length)).toUpperCase(),
+        title: resolvedTitle,
+        initials: _initialsOf(resolvedTitle),
         preview: preview,
         at: msg.at,
         hops: msg.hops,

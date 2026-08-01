@@ -39,6 +39,12 @@ abstract class MeshTransport {
   Future<TransportStartResult> start();
   Future<void> stop();
 
-  /// Returns the number of peers it was actually sent to (fanout).
+  /// Sends to every connected peer except [excludePeer]. Returns the number
+  /// of peers it was actually sent to (fanout).
+  ///
+  /// An envelope with a body too large for one payload must be chunked with
+  /// [chunkEnvelope] before it goes over the wire — that is the implementing
+  /// transport's job, not the caller's; a relay forwards each part on its own
+  /// without needing to know they belong together.
   Future<int> broadcast(Envelope envelope, {String? excludePeer});
 }

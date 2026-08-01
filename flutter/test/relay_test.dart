@@ -1,5 +1,7 @@
 // Unit tests for lib/utils/relay.dart, mirroring the hop/dedupe/TTL behavior
 // documented in src/utils/relay.ts.
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/utils/relay.dart';
@@ -7,6 +9,7 @@ import 'package:echo/utils/relay.dart';
 Envelope _envelope({
   String id = 'e1',
   String from = 'a',
+  String? fromName,
   String to = 'b',
   EnvelopeKind kind = EnvelopeKind.msg,
   String body = 'hi',
@@ -18,6 +21,7 @@ Envelope _envelope({
 }) => Envelope(
   id: id,
   from: from,
+  fromName: fromName,
   to: to,
   kind: kind,
   body: body,
@@ -54,6 +58,31 @@ void main() {
         ttl: 1,
       );
       expect(e.ttl, 1);
+    });
+
+    test('fromName defaults to null and can be set explicitly', () {
+      expect(
+        newEnvelope(
+          id: 'e1',
+          from: 'a',
+          to: 'b',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 1,
+        ).fromName,
+        isNull,
+      );
+
+      final named = newEnvelope(
+        id: 'e1',
+        from: 'a',
+        to: 'b',
+        kind: EnvelopeKind.msg,
+        body: 'hi',
+        at: 1,
+        fromName: 'Thabo Mokoena',
+      );
+      expect(named.fromName, 'Thabo Mokoena');
     });
   });
 
@@ -253,6 +282,52 @@ void main() {
     });
   });
 
+  group('newGroupId', () {
+    test('is recognized by isGroup', () {
+      expect(isGroup(newGroupId()), isTrue);
+    });
+
+    test('is different on every call', () {
+      expect(newGroupId(), isNot(newGroupId()));
+    });
+  });
+
+  group('route: group fanout', () {
+    test(
+      'fans out a group-addressed envelope, burning a hop and appending path',
+      () {
+        final e = _envelope(to: 'g:braai', ttl: 3, path: const ['x']);
+        final decision = route(e, 'me', SeenCache(), fromPeer: 'x');
+        expect(decision, isA<FanoutDecision>());
+        final fanout = decision as FanoutDecision;
+        expect(fanout.envelope.ttl, 2);
+        expect(fanout.envelope.path, ['x', 'me']);
+        expect(fanout.envelope.to, 'g:braai');
+        expect(fanout.excludePeer, 'x');
+      },
+    );
+
+    test('still fans out (unmodified) once ttl is exhausted', () {
+      final e = _envelope(to: 'g:braai', ttl: 0);
+      final decision = route(e, 'me', SeenCache(), fromPeer: 'x');
+      expect(decision, isA<FanoutDecision>());
+      final fanout = decision as FanoutDecision;
+      expect(fanout.envelope.ttl, 0);
+      expect(fanout.envelope.path, isEmpty);
+    });
+
+    test(
+      'a duplicate group envelope still drops before reaching fanout',
+      () {
+        final seen = SeenCache();
+        final e = _envelope(id: 'gdup', to: 'g:braai');
+        route(e, 'me', seen);
+        final decision = route(e, 'me', seen);
+        expect(decision, isA<DropDecision>());
+      },
+    );
+  });
+
   group('encode / decode', () {
     test('round-trips an envelope', () {
       final e = _envelope(
@@ -322,6 +397,89 @@ void main() {
         '{"id":"a","from":"b","to":"c","kind":"msg","body":"hi","ttl":3,"path":[1,2],"at":0}',
       );
       expect(malformed, isNull);
+    });
+
+    test('round-trips fromName', () {
+      final e = _envelope(fromName: 'Naledi Khumalo');
+      final decoded = decode(encode(e));
+      expect(decoded!.fromName, 'Naledi Khumalo');
+    });
+
+    test('omits fromName from the wire when absent', () {
+      final json = jsonDecode(encode(_envelope())) as Map;
+      expect(json.containsKey('fromName'), isFalse);
+    });
+
+    test('decodes with fromName left null when absent from the payload', () {
+      final decoded = decode(
+        '{"id":"a","from":"b","to":"c","kind":"msg","body":"hi","ttl":3,"path":[]}',
+      );
+      expect(decoded!.fromName, isNull);
+    });
+
+    test(
+      'tolerates a wrong-typed fromName rather than rejecting the whole envelope',
+      () {
+        final decoded = decode(
+          '{"id":"a","from":"b","to":"c","kind":"msg","body":"hi","ttl":3,"path":[],"fromName":7}',
+        );
+        expect(decoded, isNotNull);
+        expect(decoded!.fromName, isNull);
+      },
+    );
+
+    test('round-trips an invite envelope', () {
+      final e = _envelope(
+        kind: EnvelopeKind.invite,
+        to: 'g:braai',
+        body: '{"id":"g:braai","name":"Braai Crew","members":["a","b"]}',
+      );
+      final decoded = decode(encode(e));
+      expect(decoded!.kind, EnvelopeKind.invite);
+      expect(decoded.to, 'g:braai');
+    });
+  });
+
+  group('chunkEnvelope', () {
+    test('returns the envelope unchanged when the body fits in one part', () {
+      final e = _envelope(body: 'short');
+      final parts = chunkEnvelope(e, size: 10);
+      expect(parts, [same(e)]);
+    });
+
+    test('splits an oversized body into parts sharing a gid', () {
+      final e = _envelope(id: 'm1', body: 'abcdefghij', fromName: 'Thabo');
+      final parts = chunkEnvelope(e, size: 4);
+
+      expect(parts, hasLength(3));
+      expect(parts.map((p) => p.id), ['m1#0', 'm1#1', 'm1#2']);
+      expect(parts.every((p) => p.gid == 'm1'), isTrue);
+      expect(parts.map((p) => p.part?.i), [0, 1, 2]);
+      expect(parts.every((p) => p.part?.n == 3), isTrue);
+      expect(parts.map((p) => p.body).join(), 'abcdefghij');
+      // Everything but id/gid/part/body carries over unchanged.
+      expect(parts.every((p) => p.from == e.from), isTrue);
+      expect(parts.every((p) => p.fromName == e.fromName), isTrue);
+      expect(parts.every((p) => p.to == e.to), isTrue);
+      expect(parts.every((p) => p.kind == e.kind), isTrue);
+      expect(parts.every((p) => p.ttl == e.ttl), isTrue);
+    });
+
+    test('reuses an existing gid instead of the envelope id', () {
+      final e = _envelope(id: 'm1', gid: 'shared', body: 'abcdefghij');
+      final parts = chunkEnvelope(e, size: 4);
+      expect(parts.every((p) => p.gid == 'shared'), isTrue);
+    });
+
+    test('every chunked part reassembles back to the original body', () {
+      final e = _envelope(id: 'm1', body: 'a-fairly-long-photo-payload');
+      final parts = chunkEnvelope(e, size: 6);
+      final r = Reassembler();
+      String? whole;
+      for (final p in parts) {
+        whole = r.add(p);
+      }
+      expect(whole, e.body);
     });
   });
 }

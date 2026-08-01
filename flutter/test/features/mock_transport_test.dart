@@ -91,5 +91,74 @@ void main() {
 
       expect(peerEvents, 0);
     });
+
+    test(
+      'broadcast records a whole (unchunked) envelope as a single sent part',
+      () async {
+        final transport = MockTransport(peerJoinDelay: Duration.zero);
+        transport.onPeer = (_, _) {};
+        await transport.start();
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        final envelope = newEnvelope(
+          id: 'e1',
+          from: 'me',
+          to: 'thabo',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 0,
+        );
+        await transport.broadcast(envelope);
+
+        expect(transport.sentParts, [same(envelope)]);
+      },
+    );
+
+    test(
+      'broadcast chunks an oversized body before it "goes on the air"',
+      () async {
+        final transport = MockTransport(peerJoinDelay: Duration.zero);
+        transport.onPeer = (_, _) {};
+        await transport.start();
+        await Future.delayed(const Duration(milliseconds: 10));
+
+        final envelope = newEnvelope(
+          id: 'photo1',
+          from: 'me',
+          to: 'thabo',
+          kind: EnvelopeKind.image,
+          body: 'x' * (chunkChars * 2 + 10),
+          at: 0,
+        );
+        await transport.broadcast(envelope);
+
+        expect(transport.sentParts, hasLength(3));
+        expect(transport.sentParts.every((p) => p.gid == 'photo1'), isTrue);
+        expect(
+          transport.sentParts.map((p) => p.id),
+          ['photo1#0', 'photo1#1', 'photo1#2'],
+        );
+      },
+    );
+
+    test('broadcast does not chunk when the body fits in one part', () async {
+      final transport = MockTransport(peerJoinDelay: Duration.zero);
+      transport.onPeer = (_, _) {};
+      await transport.start();
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      final envelope = newEnvelope(
+        id: 'e1',
+        from: 'me',
+        to: 'thabo',
+        kind: EnvelopeKind.msg,
+        body: 'hi',
+        at: 0,
+      );
+      await transport.broadcast(envelope);
+
+      expect(transport.sentParts.single.gid, isNull);
+      expect(transport.sentParts.single.part, isNull);
+    });
   });
 }

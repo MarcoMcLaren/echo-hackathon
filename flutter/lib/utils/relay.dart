@@ -7,18 +7,21 @@
 //
 // Port of src/utils/relay.ts.
 import 'dart:convert';
+import 'dart:math';
 
 /// What actually travels between phones. Kept small; Nearby sends it as text.
 ///
 /// `revert` carries the id of an earlier coin message to undo.
 /// `image` carries base64 image data, split across parts.
 /// `event` carries a calendar event as JSON.
+/// `invite` carries a group's id, name and member list.
 enum EnvelopeKind {
   msg,
   coin,
   revert,
   image,
-  event;
+  event,
+  invite;
 
   String get wire => name;
 
@@ -46,6 +49,14 @@ class Envelope {
 
   /// Device id of whoever composed it. Never rewritten by a relay.
   final String from;
+
+  /// The sender's display name, carried with the message.
+  ///
+  /// The recipient cannot look this up: someone reached through a relay is
+  /// not a direct peer, so they are absent from the local peer list. Without
+  /// this a relayed message shows a raw device id — which is precisely the
+  /// multi-hop case the app exists for.
+  final String? fromName;
 
   /// Device id of the intended reader, or a thread id for a group.
   final String to;
@@ -77,6 +88,7 @@ class Envelope {
     required this.kind,
     required this.body,
     required this.at,
+    this.fromName,
     this.gid,
     this.part,
     this.ttl = defaultTtl,
@@ -86,6 +98,7 @@ class Envelope {
   Envelope copyWith({int? ttl, List<String>? path, String? body}) => Envelope(
     id: id,
     from: from,
+    fromName: fromName,
     to: to,
     kind: kind,
     body: body ?? this.body,
@@ -99,6 +112,7 @@ class Envelope {
   Map<String, dynamic> toJson() => {
     'id': id,
     'from': from,
+    if (fromName != null) 'fromName': fromName,
     'to': to,
     'kind': kind.wire,
     'body': body,
@@ -117,12 +131,14 @@ Envelope newEnvelope({
   required EnvelopeKind kind,
   required String body,
   required int at,
+  String? fromName,
   int? ttl,
   String? gid,
   EnvelopePart? part,
 }) => Envelope(
   id: id,
   from: from,
+  fromName: fromName,
   to: to,
   kind: kind,
   body: body,
@@ -186,6 +202,16 @@ class RelayDecision extends Decision {
   final String? excludePeer;
 }
 
+/// Group traffic: show it if this phone is a member, and pass it on either
+/// way. Whether we are a member is store knowledge, not routing knowledge, so
+/// that call belongs to the caller.
+class FanoutDecision extends Decision {
+  const FanoutDecision(this.envelope, {this.excludePeer});
+
+  final Envelope envelope;
+  final String? excludePeer;
+}
+
 /// The whole hop rule, in one place.
 ///
 /// `me` is this device's id, `fromPeer` the peer that handed it over (null if we
@@ -203,6 +229,18 @@ Decision route(
 
   if (envelope.to == me) return DeliverDecision(envelope);
 
+  // A group has no single recipient, so it is never "for" one phone. Members
+  // read it, everyone carries it, and TTL is what stops it circulating.
+  if (isGroup(envelope.to)) {
+    if (envelope.ttl <= 0) {
+      return FanoutDecision(envelope, excludePeer: fromPeer);
+    }
+    return FanoutDecision(
+      envelope.copyWith(ttl: envelope.ttl - 1, path: [...envelope.path, me]),
+      excludePeer: fromPeer,
+    );
+  }
+
   if (envelope.ttl <= 0) return const DropDecision('expired');
 
   // Carry it on: burn a hop and record that we touched it, so the recipient can
@@ -213,8 +251,19 @@ Decision route(
   );
 }
 
-/// Group messages are delivered to everyone AND relayed onward.
+/// Group addresses are `g:<id>`. There is no server holding the roster, so
+/// the id is just a string every member agrees on.
 bool isGroup(String to) => to.startsWith('g:');
+
+Random? _groupIdRandom;
+
+/// A short random id, prefixed so [isGroup] recognizes it.
+String newGroupId() {
+  final rand = _groupIdRandom ??= Random();
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  final id = List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join();
+  return 'g:$id';
+}
 
 /// Nearby sends a BYTES payload, which Google caps at 32 KiB. Anything larger —
 /// an image, realistically — has to travel as parts and be put back together
@@ -234,6 +283,36 @@ List<String> splitBody(String body, {int size = chunkChars}) {
     );
   }
   return parts;
+}
+
+/// Splits an envelope with an oversized body into wire-ready parts, each a
+/// full envelope with its own id and a shared [Envelope.gid]/[Envelope.part]
+/// pair. A body that fits in one part is returned unchanged, as the sole
+/// element of the list — the common case, and cheap to check for.
+///
+/// Mirrors where upstream does this: inside MeshTransport.broadcast, not the
+/// store. A relay forwards each part on its own; it never needs to know they
+/// belong together, so any transport that sends an [Envelope] should chunk
+/// here first.
+List<Envelope> chunkEnvelope(Envelope envelope, {int size = chunkChars}) {
+  final bodies = splitBody(envelope.body, size: size);
+  if (bodies.length == 1) return [envelope];
+  return [
+    for (var i = 0; i < bodies.length; i++)
+      Envelope(
+        id: '${envelope.id}#$i',
+        from: envelope.from,
+        fromName: envelope.fromName,
+        to: envelope.to,
+        kind: envelope.kind,
+        body: bodies[i],
+        at: envelope.at,
+        gid: envelope.gid ?? envelope.id,
+        part: EnvelopePart(i: i, n: bodies.length),
+        ttl: envelope.ttl,
+        path: envelope.path,
+      ),
+  ];
 }
 
 /// Collects parts until a message is whole. Incomplete groups are dropped once
@@ -300,6 +379,7 @@ Envelope? decode(String text) {
     return Envelope(
       id: e['id'] as String,
       from: e['from'] as String,
+      fromName: e['fromName'] is String ? e['fromName'] as String : null,
       to: e['to'] as String,
       kind: EnvelopeKind.fromWire(e['kind'] as String? ?? 'msg'),
       body: e['body'] as String,
