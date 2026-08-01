@@ -84,12 +84,25 @@ class _ConversationRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
+    final store = AppStoreScope.of(context);
     return Semantics(
       button: true,
       label:
           '${thread.title}. ${thread.hops == null ? 'No route' : thread.hops == 0 ? 'Direct' : 'Via ${thread.via}'}',
       child: InkWell(
         onTap: () => onOpen(thread.id),
+        // Stand-in for a real transport: long-press simulates a message
+        // actually arriving, so the local-notification path has something to
+        // fire from — see AppStore.receiveDemoMessage.
+        onLongPress: () {
+          store.receiveDemoMessage(thread.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Message from ${thread.title} arriving in 4s — background the app to see the notification'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        },
         child: Container(
           constraints: const BoxConstraints(minHeight: touchMinChat),
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -106,7 +119,7 @@ class _ConversationRow extends StatelessWidget {
                   children: [
                     DisplayText(thread.title, size: 14),
                     const SizedBox(height: 1),
-                    BodyText(thread.preview, size: 11.5, dim: Dim.two, maxLines: 1),
+                    BodyText(thread.preview, size: 11.5, dim: thread.unread > 0 ? Dim.one : Dim.two, maxLines: 1),
                   ],
                 ),
               ),
@@ -114,7 +127,16 @@ class _ConversationRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  MonoText(thread.at, size: 9),
+                  if (thread.unread > 0)
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 18),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: c.ink, borderRadius: BorderRadius.circular(9)),
+                      child: MonoText('${thread.unread}', size: 8.5, color: c.paper),
+                    )
+                  else
+                    MonoText(thread.at, size: 9),
                   const SizedBox(height: 4),
                   HopChip(hops: thread.hops, via: thread.via, label: thread.group ? '${thread.members!.length} in mesh' : null),
                 ],

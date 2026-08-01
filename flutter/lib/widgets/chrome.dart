@@ -108,13 +108,18 @@ class EchoAppBar extends StatelessWidget {
   }
 }
 
-enum EchoTab { reach, wallet, tap }
+enum EchoTab { reach, wallet, tap, read }
 
 class BottomNav extends StatelessWidget {
   final EchoTab tab;
   final ValueChanged<EchoTab> onTab;
 
-  const BottomNav({super.key, required this.tab, required this.onTab});
+  /// Set while a screen is doing work that must not be interrupted by
+  /// unmount (e.g. an in-flight OCR capture on the Read tab) — mirrors
+  /// Chrome.tsx's `disabled` prop on BottomNav.
+  final bool disabled;
+
+  const BottomNav({super.key, required this.tab, required this.onTab, this.disabled = false});
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +128,7 @@ class BottomNav extends StatelessWidget {
       (id: EchoTab.reach, glyph: '◎', label: 'REACH'),
       (id: EchoTab.wallet, glyph: '◍', label: 'WALLET'),
       (id: EchoTab.tap, glyph: '⌁', label: 'MEET'),
+      (id: EchoTab.read, glyph: '⌾', label: 'READ'),
     ];
 
     return Container(
@@ -132,32 +138,57 @@ class BottomNav extends StatelessWidget {
         child: Row(
           children: [
             for (final it in items)
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  selected: it.id == tab,
-                  label: it.label,
-                  child: GestureDetector(
-                    onTap: () => onTab(it.id),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: touchMin),
-                      padding: const EdgeInsets.only(top: 8, bottom: 12),
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: it.id == tab ? c.direct : Colors.transparent, width: 2)),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          DisplayText(it.glyph, size: 16, color: it.id == tab ? c.ink : c.ink3),
-                          const SizedBox(height: 1),
-                          MonoText(it.label, size: 8.5, color: it.id == tab ? c.ink : c.ink3),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+              _NavItem(
+                item: it,
+                on: it.id == tab,
+                // The active tab stays pressable so a lock never looks like a freeze.
+                locked: disabled && it.id != tab,
+                onTap: () => onTab(it.id),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final ({EchoTab id, String glyph, String label}) item;
+  final bool on;
+  final bool locked;
+  final VoidCallback onTap;
+
+  const _NavItem({required this.item, required this.on, required this.locked, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = EchoTheme.of(context).c;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: on,
+        enabled: !locked,
+        label: item.label,
+        child: GestureDetector(
+          onTap: locked ? null : onTap,
+          child: Opacity(
+            opacity: locked ? 0.4 : 1,
+            child: Container(
+              constraints: const BoxConstraints(minHeight: touchMin),
+              padding: const EdgeInsets.only(top: 8, bottom: 12),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: on ? c.direct : Colors.transparent, width: 2)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  DisplayText(item.glyph, size: 16, color: on ? c.ink : c.ink3),
+                  const SizedBox(height: 1),
+                  MonoText(item.label, size: 8.5, color: on ? c.ink : c.ink3),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -43,6 +43,35 @@ dependencies:
   # expo-camera for the same purpose).
   mobile_scanner: ^6.0.2
 
+  # Persisted device identity — mirrors identity.ts's use of expo-file-system.
+  path_provider: ^2.1.5
+
+  # Shake gesture (accelerometer) — mirrors useShake.ts's use of expo-sensors.
+  sensors_plus: ^6.1.1
+
+  # Biometric app unlock — mirrors lock.ts's use of react-native-keychain.
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.2.4
+
+  # Local notifications for arriving messages — mirrors notify.ts's use of
+  # expo-notifications.
+  flutter_local_notifications: ^18.0.1
+
+  # "Read that" OCR tab: still-photo capture, on-device text recognition, and
+  # text-to-speech — mirrors ReadScreen.tsx's expo-camera + executorch OCR +
+  # expo-speech/expo-haptics stack.
+  camera: ^0.11.1
+  google_mlkit_text_recognition: ^0.15.0
+  flutter_tts: ^4.2.0
+
+  # Real on-device LLM for the thread summary sheet (MediaPipe LLM Inference) —
+  # mirrors useThreadSummary.ts's use of react-native-executorch's useLLM.
+  # Pinned >=0.12.2: that's the version where the plugin's own compileSdk was
+  # bumped to 36, fixing an AAR-metadata conflict with its background_downloader
+  # dependency. Kept close to the 0.11.x line the port was built against
+  # rather than jumping to the 1.x line, which likely has larger API changes.
+  flutter_gemma: ^0.12.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

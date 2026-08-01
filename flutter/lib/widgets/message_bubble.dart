@@ -40,6 +40,22 @@ class MessageBubble extends StatelessWidget {
 
     // Money is a first-class message, not an attachment.
     if (msg.coin != null) {
+      final tone = msg.reverted ? c.ink3 : c.coin;
+      final label = msg.reverted
+          ? 'TAKEN BACK'
+          : msg.pending
+              ? 'SENDING'
+              : msg.state == 'queued'
+                  ? 'WAITING FOR A ROUTE'
+                  : mine
+                      ? 'SENT'
+                      : 'RECEIVED';
+      final footer = msg.reverted
+          ? 'RETURNED · THE OTHER PHONE IS TOLD WHEN A ROUTE OPENS'
+          : (msg.hops != null && msg.hops! > 0)
+              ? 'SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}'
+              : 'SIGNED ON DEVICE · DIRECT';
+
       return Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: ConstrainedBox(
@@ -54,8 +70,11 @@ class MessageBubble extends StatelessWidget {
                   constraints: const BoxConstraints(minWidth: 200),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    border: Border.all(color: c.coin, width: 1.5),
-                    color: c.coin.withAlpha(0x12),
+                    // RN dashes this border when reverted; Flutter's BoxDecoration
+                    // has no dashed border without a custom painter, so the muted
+                    // tone + strikethrough carry the "taken back" signal instead.
+                    border: Border.all(color: tone, width: 1.5),
+                    color: msg.reverted ? Colors.transparent : c.coin.withAlpha(0x12),
                     borderRadius: BorderRadius.only(
                       topLeft: const Radius.circular(EchoRadius.bubble),
                       topRight: const Radius.circular(EchoRadius.bubble),
@@ -67,32 +86,31 @@ class MessageBubble extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      MonoText(mine ? 'SENT' : 'RECEIVED', size: 9, color: c.coin),
+                      MonoText(label, size: 9, color: tone),
                       const SizedBox(height: 7),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CoinMark(size: 22, color: c.coin),
+                          CoinMark(size: 22, color: tone),
                           const SizedBox(width: 7),
-                          DisplayText(msg.coin!.toStringAsFixed(2), size: 27, color: c.coin),
+                          DisplayText(
+                            msg.coin!.toStringAsFixed(2),
+                            size: 27,
+                            color: tone,
+                            style: msg.reverted ? const TextStyle(decoration: TextDecoration.lineThrough) : null,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 7),
                       Opacity(
                         opacity: 0.8,
-                        child: MonoText(
-                          (msg.hops != null && msg.hops! > 0)
-                              ? 'SIGNED ON DEVICE · RELAYED VIA ${msg.via?.toUpperCase()}'
-                              : 'SIGNED ON DEVICE · DIRECT',
-                          size: 8.5,
-                          color: c.coin,
-                        ),
+                        child: MonoText(footer, size: 8.5, color: tone),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 4),
-                routeOrState(),
+                if (!msg.pending) routeOrState(),
               ],
             ),
           ),

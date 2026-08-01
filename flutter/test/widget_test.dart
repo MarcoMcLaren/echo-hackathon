@@ -14,10 +14,33 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
+  // The test harness has no local_auth/flutter_secure_storage platform
+  // channels, so their calls hang until lock.dart's own 6s guard timeout
+  // fires, then LockScreen fails closed to its "offer, no hardware" phase —
+  // tap through it the same way a phone with no fingerprint/PIN set up would.
+  // Uses bounded pump() rather than pumpAndSettle(): the "checking"/"prompting"
+  // phases loop a pulse animation that never settles on its own, and
+  // AutomatedTestWidgetsFlutterBinding fakes the clock, so pumping past 6s of
+  // virtual time is what actually fires the timeout — not wall-clock waiting.
+  Future<void> pumpUntilSettled(WidgetTester tester) async {
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+  }
+
+  Future<void> skipLockScreen(WidgetTester tester) async {
+    await pumpUntilSettled(tester);
+    final continueButton = find.text('Continue without a lock');
+    if (continueButton.evaluate().isNotEmpty) {
+      await tester.tap(continueButton);
+      await pumpUntilSettled(tester);
+    }
+  }
+
   testWidgets('App opens on Reach and can open a conversation', (WidgetTester tester) async {
     sizeLikeAPhone(tester);
     await tester.pumpWidget(const EchoApp());
-    await tester.pumpAndSettle();
+    await skipLockScreen(tester);
 
     expect(find.text('Reach'), findsOneWidget);
     expect(find.text('Braai Crew'), findsOneWidget);
@@ -32,7 +55,7 @@ void main() {
   testWidgets('Wallet screen shows balance and can open Send', (WidgetTester tester) async {
     sizeLikeAPhone(tester);
     await tester.pumpWidget(const EchoApp());
-    await tester.pumpAndSettle();
+    await skipLockScreen(tester);
 
     await tester.tap(find.text('WALLET'));
     await tester.pumpAndSettle();
@@ -49,7 +72,7 @@ void main() {
   testWidgets('Sending a chat message appends a queued bubble', (WidgetTester tester) async {
     sizeLikeAPhone(tester);
     await tester.pumpWidget(const EchoApp());
-    await tester.pumpAndSettle();
+    await skipLockScreen(tester);
 
     await tester.tap(find.text('Thabo Mokoena'));
     await tester.pumpAndSettle();

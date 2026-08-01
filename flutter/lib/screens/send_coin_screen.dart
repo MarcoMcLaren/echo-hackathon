@@ -1,6 +1,7 @@
 // Ported from src/screens/SendCoinScreen.tsx.
 import 'package:flutter/material.dart';
 import '../models/mock.dart' as mock;
+import '../store/app_store_scope.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
 import '../widgets/avatar.dart';
@@ -13,8 +14,11 @@ const _keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 class SendCoinScreen extends StatefulWidget {
   final String contactId;
   final VoidCallback onBack;
+  /// Land in the conversation, where the cancel window is visible. Returning
+  /// to the tab list would hide the only control that can stop the send.
+  final ValueChanged<String> onQueued;
 
-  const SendCoinScreen({super.key, required this.contactId, required this.onBack});
+  const SendCoinScreen({super.key, required this.contactId, required this.onBack, required this.onQueued});
 
   @override
   State<SendCoinScreen> createState() => _SendCoinScreenState();
@@ -129,13 +133,19 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
                   ],
                 ),
                 const Spacer(),
-                Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(minHeight: touchMin),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(color: c.coin, borderRadius: BorderRadius.circular(10)),
-                  child: DisplayText('Send $amount', size: 15, color: Colors.white),
+                GestureDetector(
+                  onTap: () {
+                    AppStoreScope.of(context).queueCoin(widget.contactId, double.tryParse(amount) ?? 0);
+                    widget.onQueued(widget.contactId);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: touchMin),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(color: c.coin, borderRadius: BorderRadius.circular(10)),
+                    child: DisplayText('Send $amount', size: 15, color: Colors.white),
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Container(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'screens/chat_screen.dart';
+import 'screens/lock_screen.dart';
+import 'screens/read_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/send_coin_screen.dart';
 import 'screens/tap_screen.dart';
@@ -47,6 +49,14 @@ class _RootState extends State<_Root> {
   final _store = AppStore();
   EchoTab _tab = EchoTab.reach;
   _AppRoute? _route;
+  // Once past the door it stays open for the life of the launch —
+  // re-prompting every time you glance at another app would make the mesh
+  // unusable.
+  bool _unlocked = false;
+  // Set while ReadScreen has an OCR capture in flight — unmounting it
+  // mid-capture is not safe, so the bottom nav locks the other tabs until
+  // it clears. Mirrors Chrome.tsx's `disabled` prop on BottomNav.
+  bool _readBusy = false;
 
   void _back() => setState(() => _route = null);
 
@@ -54,13 +64,26 @@ class _RootState extends State<_Root> {
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
 
+    // Nothing behind the lock is rendered until it opens, so a shoulder-surfer
+    // can't read a thread off the screen behind a modal.
+    if (!_unlocked) {
+      return Scaffold(
+        backgroundColor: c.paper,
+        body: LockScreen(onUnlocked: () => setState(() => _unlocked = true)),
+      );
+    }
+
     final Widget screen = switch (_route?.name) {
       'chat' => ChatScreen(
           threadId: _route!.id,
           onBack: _back,
           onSendCoin: (id) => setState(() => _route = _AppRoute('send', id)),
         ),
-      'send' => SendCoinScreen(contactId: _route!.id, onBack: _back),
+      'send' => SendCoinScreen(
+          contactId: _route!.id,
+          onBack: _back,
+          onQueued: (id) => setState(() => _route = _AppRoute('chat', id)),
+        ),
       _ => switch (_tab) {
           EchoTab.reach => ReachScreen(onOpen: (id) => setState(() => _route = _AppRoute('chat', id))),
           EchoTab.wallet => WalletScreen(
@@ -68,6 +91,7 @@ class _RootState extends State<_Root> {
               onTap: () => setState(() => _tab = EchoTab.tap),
             ),
           EchoTab.tap => const TapScreen(),
+          EchoTab.read => ReadScreen(onBusyChange: (busy) => setState(() => _readBusy = busy)),
         },
     };
 
@@ -84,7 +108,7 @@ class _RootState extends State<_Root> {
             child: Column(
               children: [
                 Expanded(child: screen),
-                if (_route == null) BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t)),
+                if (_route == null) BottomNav(tab: _tab, onTab: (t) => setState(() => _tab = t), disabled: _readBusy),
               ],
             ),
           ),

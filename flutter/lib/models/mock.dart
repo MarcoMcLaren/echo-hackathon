@@ -46,6 +46,11 @@ class Msg {
   final int? hops;
   final String? via;
   final String? state; // 'delivered' | 'queued' | 'sent'
+  /// Held locally during the cancel window — not on the air yet.
+  final bool pending;
+  /// Sent, then taken back. The row stays visible; money that vanishes
+  /// silently is worse than money you can see was returned.
+  final bool reverted;
 
   const Msg({
     required this.id,
@@ -56,7 +61,22 @@ class Msg {
     required this.hops,
     this.via,
     this.state,
+    this.pending = false,
+    this.reverted = false,
   });
+
+  Msg copyWith({bool? pending, bool? reverted}) => Msg(
+        id: id,
+        from: from,
+        text: text,
+        coin: coin,
+        at: at,
+        hops: hops,
+        via: via,
+        state: state,
+        pending: pending ?? this.pending,
+        reverted: reverted ?? this.reverted,
+      );
 }
 
 class Thread {
@@ -70,6 +90,8 @@ class Thread {
   int? hops;
   String? via;
   final List<Msg> messages;
+  /// Arrived since you last opened the thread. Drives the summary offer.
+  int unread;
 
   Thread({
     required this.id,
@@ -82,6 +104,7 @@ class Thread {
     required this.hops,
     this.via,
     required this.messages,
+    this.unread = 0,
   });
 }
 
@@ -97,11 +120,21 @@ List<Thread> seedThreads() => [
         preview: 'Naledi: someone bring tongs',
         at: '2m',
         hops: 0,
+        // Enough real backlog that the on-device summary has something to
+        // work with — a summary of four messages proves nothing.
+        unread: 11,
         messages: [
           const Msg(id: 'g1', from: 'lerato', text: 'Moving it to Saturday 14:00, my place', at: '09:12', hops: 0),
           const Msg(id: 'g2', from: 'thabo', text: 'I’ve got the wood. Nobody has claimed meat.', at: '09:20', hops: 0),
           const Msg(id: 'g3', from: 'me', text: 'Meat is on me. Sending Lerato my share now.', at: '09:35', hops: 0, state: 'sent'),
-          const Msg(id: 'g4', from: 'naledi', text: 'Are you actually coming this time?', at: '09:41', hops: 1, via: 'Thabo'),
+          const Msg(id: 'g4', from: 'lerato', text: 'Gate code is 4417, the buzzer is broken', at: '09:38', hops: 0),
+          const Msg(id: 'g5', from: 'naledi', text: 'Are you actually coming this time?', at: '09:41', hops: 1, via: 'Thabo'),
+          const Msg(id: 'g6', from: 'thabo', text: 'Can someone bring a second grid? Mine warped.', at: '09:44', hops: 0),
+          const Msg(id: 'g7', from: 'lerato', text: 'I have a spare grid', at: '09:45', hops: 0),
+          const Msg(id: 'g8', from: 'naledi', text: 'Nobody has said anything about drinks', at: '09:47', hops: 1, via: 'Thabo'),
+          const Msg(id: 'g9', from: 'thabo', text: 'Parking is tight, rather share a lift', at: '09:50', hops: 0),
+          const Msg(id: 'g10', from: 'lerato', text: 'Starting the fire at 13:30 so we eat at 14:00 sharp', at: '09:52', hops: 0),
+          const Msg(id: 'g11', from: 'naledi', text: 'Someone bring tongs, Lerato only has one pair', at: '09:55', hops: 1, via: 'Thabo'),
         ],
       ),
       Thread(
@@ -178,28 +211,3 @@ const ledger = <Entry>[
   Entry(id: 'l3', amount: -45, who: 'Braai Crew pot', hops: 0, note: 'SPLIT 4 WAYS · YESTERDAY'),
   Entry(id: 'l4', amount: 200, who: 'Opening balance', hops: 0, note: 'ISSUED AT SETUP · TUE 08:02'),
 ];
-
-class SummaryPoint {
-  final String k;
-  final String text;
-  const SummaryPoint(this.k, this.text);
-}
-
-class Summary {
-  final String model;
-  final int count;
-  final String took;
-  final List<SummaryPoint> points;
-  const Summary({required this.model, required this.count, required this.took, required this.points});
-}
-
-const summary = Summary(
-  model: 'Gemma 3 · on this phone',
-  count: 41,
-  took: '1.4 s',
-  points: [
-    SummaryPoint('WHEN', 'Braai moved to Saturday 14:00 at Lerato’s place.'),
-    SummaryPoint('BRING', 'Thabo has wood. You claimed meat. Nobody has claimed drinks.'),
-    SummaryPoint('OPEN', 'Naledi asked twice if you’re coming. Still unanswered.'),
-  ],
-);

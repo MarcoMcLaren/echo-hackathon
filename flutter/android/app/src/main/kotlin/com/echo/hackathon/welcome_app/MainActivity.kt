@@ -1,5 +1,6 @@
 package com.echo.hackathon.welcome_app
 
-import io.flutter.embedding.android.FlutterActivity
+// local_auth needs a FragmentActivity host to show the BiometricPrompt.
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+class MainActivity : FlutterFragmentActivity()
