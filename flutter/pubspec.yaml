@@ -43,6 +43,16 @@ dependencies:
   # qrcode-generator).
   qr_flutter: ^4.1.0
 
+  # Real mesh transport (Android): Google Nearby Connections over BLE + Wi-Fi
+  # Direct. RN equivalent: expo-nearby-connections. See NearbyTransport in
+  # lib/features/messaging/nearby_transport.dart.
+  nearby_connections: ^4.3.0
+
+  # Runtime permission requests (Bluetooth scan/advertise/connect, location,
+  # nearby Wi-Fi devices) that NearbyTransport needs before it can start.
+  # RN equivalent: PermissionsAndroid (built into react-native).
+  permission_handler: ^13.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

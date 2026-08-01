@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'components/chrome.dart' show AppTab, BottomNav;
+import 'config.dart';
 import 'features/ai/ocr_reader.dart';
 import 'features/ai/summarize.dart';
 import 'features/feedback/proximity_feedback.dart';
 import 'features/messaging/attachments.dart';
 import 'features/messaging/events.dart';
 import 'features/messaging/mock_transport.dart';
+import 'features/messaging/nearby_transport.dart';
 import 'features/messaging/notifier.dart';
 import 'features/sidequest/remote_gpu.dart';
 import 'features/vault/lock.dart';
@@ -49,7 +51,20 @@ class EchoApp extends StatelessWidget {
         // pass consumes yet (vision/sidequest), so a later screen never has
         // to instantiate an adapter ad hoc inside a widget.
         ChangeNotifierProvider(
-          create: (_) => MeshStore(transport: MockTransport(), notifier: BannerMeshNotifier(_scaffoldMessengerKey)),
+          create: (_) {
+            // NearbyTransport must advertise the exact device id MeshStore
+            // resolves for itself, or a peer's message addressed to us never
+            // matches and gets relayed past us instead of delivered. It
+            // isn't known until MeshStore.start() resolves its persisted
+            // identity, so NearbyTransport reads it lazily off the store
+            // instead of taking a value at construction.
+            late final MeshStore store;
+            final transport = useRealTransport
+                ? NearbyTransport(deviceId: () => store.me.deviceId, display: () => store.me.display)
+                : MockTransport();
+            store = MeshStore(transport: transport, notifier: BannerMeshNotifier(_scaffoldMessengerKey));
+            return store;
+          },
         ),
         Provider<SecureVault>(create: (_) => MockSecureVault()),
         Provider<AppLock>(create: (_) => MockAppLock()),

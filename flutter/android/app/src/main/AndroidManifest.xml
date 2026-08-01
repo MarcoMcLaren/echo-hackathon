@@ -1,4 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Nearby Connections mesh transport (lib/features/messaging/nearby_transport.dart).
+         BLUETOOTH_SCAN/ADVERTISE/CONNECT (API 31+) and NEARBY_WIFI_DEVICES
+         (API 33+) are declared unconditionally: the OS ignores a permission
+         declaration the running SDK predates, so no maxSdkVersion split is
+         needed. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
+
     <application
         android:label="welcome_app"
         android:name="${applicationName}"
