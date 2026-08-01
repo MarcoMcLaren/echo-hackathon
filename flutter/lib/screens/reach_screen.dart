@@ -117,7 +117,7 @@ class _ConvRow extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: colors.hair2, width: isLast ? 0 : 1)),
+            border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: colors.hair2)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,

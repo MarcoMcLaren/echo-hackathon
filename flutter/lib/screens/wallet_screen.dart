@@ -30,6 +30,7 @@ class WalletScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
+                  color: c.card,
                   border: Border.all(color: c.hair2),
                   borderRadius: BorderRadius.circular(tokens.AppRadius.card),
                 ),
@@ -149,7 +150,7 @@ class _LedgerRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: c.hair2, width: isLast ? 0 : 1)),
+        border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: c.hair2)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -13,8 +13,8 @@ class ModelGroup {
   final String sizeLabel;
 }
 
-const visionModels = ModelGroup(label: 'Object detection (SSDLite / COCO)', sizeLabel: '~28 MB');
-const languageModel = ModelGroup(label: 'On-device LLM (scene + thread summaries)', sizeLabel: '~1.2 GB');
+const visionModels = ModelGroup(label: 'Vision — obstacle detection + OCR', sizeLabel: '~50 MB');
+const languageModel = ModelGroup(label: 'Language model — summaries / describe scene', sizeLabel: '~400 MB');
 
 const _steps = 10;
 const _stepDuration = Duration(milliseconds: 80);
