@@ -1,23 +1,37 @@
-// Smoke test: the app opens behind the lock screen, then boots on the Reach
-// tab. There is no seed data any more (see lib/store/mesh_store.dart), so a
-// fresh boot has no conversations — pairing one, and opening it, is exercised
-// in the pairing-ux screens rather than here.
+// Smoke test: the app opens behind the lock screen, asks a first-run name on
+// the SetupScreen, then boots on the Reach tab. There is no seed data any
+// more (see lib/store/mesh_store.dart), so a fresh boot has no conversations
+// — pairing one, and opening it, is exercised in the pairing-ux screens
+// rather than here.
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
+
+/// Past the lock and past first-run setup, landing on the Reach tab.
+Future<void> _bootToReach(WidgetTester tester) async {
+  await tester.pumpWidget(const EchoApp());
+  await tester.pumpAndSettle();
+
+  // Nothing behind the lock renders until it opens — the demo phone has no
+  // lock enabled yet, so this is the "offer" phase's decline path.
+  expect(find.text('Lock Echo to this phone'), findsOneWidget);
+  await tester.tap(find.text('Not now'));
+  await tester.pumpAndSettle();
+
+  // Never set up: the first-run screen asks for a name before anything else.
+  expect(find.text('What should people call you?'), findsOneWidget);
+  await tester.enterText(find.byType(TextField), 'Reon Fourie');
+  await tester.pump();
+  await tester.tap(find.text('Start'));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('boots on Reach tab with no conversations yet', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const EchoApp());
-    await tester.pumpAndSettle();
-
-    // Nothing behind the lock renders until it opens — the demo phone has no
-    // lock enabled yet, so this is the "offer" phase's decline path.
-    expect(find.text('Lock Echo to this phone'), findsOneWidget);
-    await tester.tap(find.text('Not now'));
-    await tester.pumpAndSettle();
+    await _bootToReach(tester);
 
     expect(find.text('Reach'), findsOneWidget);
     expect(find.text('REACH'), findsOneWidget);
@@ -32,10 +46,7 @@ void main() {
   testWidgets('switching to the READ tab and back does not crash the shell', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const EchoApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Not now'));
-    await tester.pumpAndSettle();
+    await _bootToReach(tester);
 
     await tester.tap(find.text('READ'));
     await tester.pumpAndSettle();

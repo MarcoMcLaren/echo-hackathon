@@ -3,25 +3,40 @@
 // ShowMode's QR payload is generated from the real SecureVault adapter
 // (features/vault/vault.dart) rather than a hardcoded constant, so the pairing
 // flow actually proves out "keys never leave the device, only the public key
-// travels". ScanMode has no camera plugin behind it in this build — reading a
-// physical QR code needs a camera dependency this task isn't scoped to add —
-// so it offers a "simulate scan" affordance that feeds the same payload shape
-// back in, keeping the full pairing flow demoable end to end without hardware.
+// travels". It also carries this phone's mesh deviceId (`id=`), which is what
+// MeshStore.pair() needs to actually create a conversation — the vault key
+// alone identifies the crypto, not the mesh peer. ScanMode reads the camera
+// through the [QrScanner] adapter rather than importing mobile_scanner
+// directly, so it can be faked in widget tests.
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../components/avatar.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/type.dart';
 import '../features/vault/qr_code.dart';
+import '../features/vault/qr_scanner.dart';
+import '../features/vault/reset_sheet.dart';
 import '../features/vault/vault.dart';
 import '../store/mesh_store.dart';
 import '../store/theme_store.dart';
 import '../styles/theme.dart' as tokens;
 
 enum _Mode { tap, show, scan }
+
+/// What the other phone reads. Same payload either way, so NFC and QR are
+/// two doors into one pairing flow rather than two features.
+({String id, String key, String name})? _readPairPayload(String raw) {
+  if (!raw.startsWith('echo://pair')) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null) return null;
+  final id = uri.queryParameters['id'];
+  final key = uri.queryParameters['k'];
+  if (id == null || key == null) return null;
+  final name = uri.queryParameters['n'];
+  return (id: id, key: key, name: (name == null || name.isEmpty) ? id : name);
+}
 
 class TapScreen extends StatefulWidget {
   const TapScreen({super.key});
@@ -33,77 +48,107 @@ class TapScreen extends StatefulWidget {
 class _TapScreenState extends State<TapScreen> {
   _Mode _mode = _Mode.tap;
   String? _scanned;
+  bool _confirmReset = false;
 
   static const _segs = [(_Mode.tap, 'TAP'), (_Mode.show, 'SHOW CODE'), (_Mode.scan, 'SCAN')];
 
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
+    final mesh = context.watch<MeshStore>();
+    final reachable = mesh.peers.length;
 
-    return Column(
+    return Stack(
       children: [
-        MeshStatus(right: _mode == _Mode.tap ? 'NFC READY' : 'CAMERA PAIRING'),
-        const EchoAppBar(title: 'Meet a phone', sub: 'Adds a contact and swaps keys'),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-          child: Row(
-            children: [
-              for (final (id, label) in _segs)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _Segment(
-                      label: label,
-                      selected: id == _mode,
-                      colors: c,
-                      onTap: () => setState(() {
-                        _mode = id;
-                        _scanned = null;
-                      }),
+        Column(
+          children: [
+            MeshStatus(right: _mode == _Mode.tap ? 'NFC READY' : 'CAMERA PAIRING'),
+            const EchoAppBar(title: 'Meet a phone', sub: 'Adds a contact and swaps keys'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: Row(
+                children: [
+                  for (final (id, label) in _segs)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _Segment(
+                          label: label,
+                          selected: id == _mode,
+                          colors: c,
+                          onTap: () => setState(() {
+                            _mode = id;
+                            _scanned = null;
+                          }),
+                        ),
+                      ),
                     ),
-                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: switch (_mode) {
+                _Mode.tap => const _TapMode(),
+                _Mode.show => const _ShowMode(),
+                _Mode.scan => _ScanMode(
+                  scanned: _scanned,
+                  onScan: (v) => setState(() => _scanned = v),
                 ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: switch (_mode) {
-            _Mode.tap => const _TapMode(),
-            _Mode.show => const _ShowMode(),
-            _Mode.scan => _ScanMode(
-              scanned: _scanned,
-              onScan: (v) => setState(() => _scanned = v),
+              },
             ),
-          },
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: c.card,
-              border: Border.all(color: c.direct),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Avatar(initials: 'SD', hops: 0, size: 30),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Mono('PAIRED WITH SIPHO DLAMINI', size: 9, dim: 1),
-                      Mono('KEYS EXCHANGED · SCANNED CODE · 09:47', size: 8.5),
-                    ],
-                  ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: c.card,
+                  border: Border.all(color: c.hair2),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Mono(
+                            'YOU ARE ${mesh.me.display.toUpperCase()} · ${_fingerprint(mesh.me.deviceId)}',
+                            size: 9,
+                            dim: 1,
+                          ),
+                          Mono('${mesh.contacts.length} CONTACTS · $reachable NODES IN RANGE', size: 8.5),
+                        ],
+                      ),
+                    ),
+                    Semantics(
+                      button: true,
+                      label: 'Reset this phone',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        onTap: () => setState(() => _confirmReset = true),
+                        child: Container(
+                          constraints: const BoxConstraints(minWidth: tokens.touchMin, minHeight: tokens.touchMin),
+                          alignment: Alignment.center,
+                          child: Mono('RESET', size: 9, color: c.direct),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
+        if (_confirmReset)
+          ResetSheet(
+            onCancel: () => setState(() => _confirmReset = false),
+            onConfirm: () {
+              setState(() => _confirmReset = false);
+              mesh.resetApp();
+            },
+          ),
       ],
     );
   }
@@ -194,7 +239,7 @@ class _ShowModeState extends State<_ShowMode> {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
-    final display = context.read<MeshStore>().me.display;
+    final me = context.read<MeshStore>().me;
 
     return FutureBuilder<String>(
       future: _publicKey,
@@ -203,7 +248,11 @@ class _ShowModeState extends State<_ShowMode> {
         if (key == null) {
           return const _Zone(children: [Mono('GENERATING KEYS ON THIS PHONE', size: 10)]);
         }
-        final payload = 'echo://pair?k=$key&n=$display';
+        // The vault key proves this phone's crypto identity; the deviceId is
+        // what MeshStore.pair() needs to actually create a conversation —
+        // the two are not (yet) the same value.
+        final payload =
+            'echo://pair?id=${Uri.encodeComponent(me.deviceId)}&k=$key&n=${Uri.encodeComponent(me.display)}';
         return _Zone(
           children: [
             Container(
@@ -215,7 +264,7 @@ class _ShowModeState extends State<_ShowMode> {
             const Display('Let the other phone scan this', size: 26, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             const Body(
-              'Works on any phone with a camera. The code carries your public key, nothing else.',
+              'Works on any phone with a camera. The code carries who this phone is, nothing else.',
               size: 13,
               dim: 2,
               textAlign: TextAlign.center,
@@ -252,8 +301,9 @@ String _fingerprint(String key) {
   return groups.join(' ');
 }
 
-/// The fallback half that reads. No camera plugin is wired into this build —
-/// "simulate scan" stands in for pointing a real camera at a code.
+/// The fallback half that reads. The camera comes from [QrScanner] — a real
+/// preview on device, a tappable placeholder under test — so a detected
+/// payload always arrives through the same [onScan] callback either way.
 class _ScanMode extends StatelessWidget {
   const _ScanMode({required this.scanned, required this.onScan});
 
@@ -263,13 +313,16 @@ class _ScanMode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
+    final mesh = context.watch<MeshStore>();
 
     if (scanned != null) {
-      final ok = scanned!.startsWith('echo://pair');
+      final theirs = _readPairPayload(scanned!);
+      final ok = theirs != null;
+      final alreadyPaired = ok && mesh.contacts.containsKey(theirs.id);
       return _Zone(
         children: [
           Display(
-            ok ? 'Code read' : 'That is not an Echo code',
+            ok ? theirs.name : 'That is not an Echo code',
             size: 28,
             textAlign: TextAlign.center,
             color: ok ? c.ink : c.direct,
@@ -277,7 +330,7 @@ class _ScanMode extends StatelessWidget {
           const SizedBox(height: 16),
           Body(
             ok
-                ? 'Check the fingerprint matches what the other phone shows, then confirm.'
+                ? 'Check this fingerprint matches the one on their screen, then confirm.'
                 : 'Point the camera at the code on the other phone’s Show code screen.',
             size: 13,
             dim: 2,
@@ -292,8 +345,14 @@ class _ScanMode extends StatelessWidget {
                 color: c.card,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Mono(_fingerprint(scanned!), size: 10, dim: 1),
+              // Theirs, not ours — comparing our own code to itself proves
+              // nothing.
+              child: Mono(_fingerprint(theirs.key), size: 10, dim: 1),
             ),
+          ],
+          if (alreadyPaired) ...[
+            const SizedBox(height: 8),
+            Mono('ALREADY IN YOUR CONTACTS', size: 8.5, color: c.relay),
           ],
           const SizedBox(height: 16),
           Semantics(
@@ -301,7 +360,13 @@ class _ScanMode extends StatelessWidget {
             label: ok ? 'Add contact' : 'Scan again',
             excludeSemantics: true,
             child: GestureDetector(
-              onTap: () => onScan(''),
+              onTap: () {
+                // Scanning the code is the whole point: it is what turns a
+                // phone that was merely in range into someone you can talk
+                // to.
+                if (theirs != null) mesh.pair(theirs.id, theirs.name);
+                onScan('');
+              },
               child: Container(
                 constraints: const BoxConstraints(minHeight: 48),
                 padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
@@ -323,33 +388,18 @@ class _ScanMode extends StatelessWidget {
         Container(
           width: 210,
           height: 210,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: Colors.black,
             border: Border.all(color: c.hair),
             borderRadius: BorderRadius.circular(14),
           ),
-          alignment: Alignment.center,
-          child: const Mono('NO CAMERA ON THIS BUILD', size: 8.5, color: Colors.white54),
+          child: context.read<QrScanner>().preview(onDetect: onScan),
         ),
         const SizedBox(height: 16),
         const Display('Point at their code', size: 26, textAlign: TextAlign.center),
         const SizedBox(height: 8),
         const Mono('LOOKING FOR AN ECHO CODE', size: 9),
-        const SizedBox(height: 16),
-        Semantics(
-          button: true,
-          label: 'Simulate scan',
-          excludeSemantics: true,
-          child: GestureDetector(
-            onTap: () => onScan('echo://pair?k=mock-peer-key&n=Sipho'),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 48),
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-              decoration: BoxDecoration(border: Border.all(color: c.hair, width: 1.5), borderRadius: BorderRadius.circular(10)),
-              child: const Display('Simulate scan', size: 15),
-            ),
-          ),
-        ),
       ],
     );
   }
