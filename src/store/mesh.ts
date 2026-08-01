@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { MeshTransport, type PeerInfo } from '../features/messaging/api/transport';
 import { deviceIdentity } from '../features/vault/api/identity';
+import { prepareNotifications, notifyMessage } from '../features/messaging/api/notify';
 import { SeenCache, Reassembler, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
 import { threads as seedThreads, type Thread, type Msg, type Hops } from './mock';
 
@@ -79,6 +80,10 @@ export const useMesh = create<State>((set, get) => ({
     const me = { deviceId: await deviceIdentity(), display: get().me.display };
     set({ me });
 
+    // Asked for here rather than at launch: the permission makes sense to
+    // someone who has just turned the mesh on, and nowhere else.
+    prepareNotifications();
+
     transport = new MeshTransport(me, {
       onPeer: (peer: PeerInfo, state) => {
         set((s) => {
@@ -140,6 +145,15 @@ export const useMesh = create<State>((set, get) => ({
 
         const hops = hopsTaken(e) as Hops;
         const relay = relayedBy(e);
+
+        if (e.kind === 'msg' || e.kind === 'coin') {
+          notifyMessage({
+            from: get().peers[e.from]?.display ?? e.from,
+            body: e.kind === 'coin' ? `Sent you ${Number(e.body).toFixed(2)} echocoin` : e.body,
+            threadId: e.from,
+            hops,
+          });
+        }
 
         // A take-back references an earlier message rather than adding one.
         // The row stays on screen marked reverted — money that quietly
