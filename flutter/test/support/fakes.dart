@@ -5,11 +5,14 @@
 // lib/main.dart wires the real plugin-backed adapters, nothing in lib/
 // references them any more, so they live here as test-only support code
 // shared across the test suite.
+import 'package:flutter/widgets.dart';
+
 import 'package:echo/features/ai/ocr_reader.dart';
 import 'package:echo/features/ai/types.dart';
 import 'package:echo/features/feedback/proximity_feedback.dart' show SpeechOutput;
 import 'package:echo/features/messaging/attachments.dart';
 import 'package:echo/features/messaging/events.dart';
+import 'package:echo/features/vault/qr_scanner.dart';
 import 'package:echo/utils/ocr.dart';
 
 /// Silently swallows speech instead of touching a TTS plugin.
@@ -99,5 +102,31 @@ class MockOcrReader implements OcrReader {
     final boxes = _script[_i % _script.length];
     _i++;
     return ReadOk(ReadResult(text: composeSpeech(boxes), boxes: boxes));
+  }
+}
+
+/// Stands in for the camera: a tappable placeholder that "detects" a
+/// scripted payload instead of pointing a real lens at a code.
+class FakeQrScanner implements QrScanner {
+  FakeQrScanner({this.script = 'echo://pair?id=sipho&k=mock-peer-key&n=Sipho'});
+
+  /// What tapping the preview reports to [onDetect].
+  final String script;
+
+  @override
+  Widget preview({required ValueChanged<String> onDetect}) {
+    return Semantics(
+      button: true,
+      label: 'Camera preview (fake)',
+      excludeSemantics: true,
+      child: GestureDetector(
+        key: const Key('fake-qr-scanner'),
+        onTap: () => onDetect(script),
+        child: const ColoredBox(
+          color: Color(0xFF000000),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
   }
 }

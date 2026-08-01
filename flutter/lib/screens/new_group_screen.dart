@@ -59,7 +59,12 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
     final mesh = context.watch<MeshStore>();
-    final reachable = mesh.peers.entries.toList();
+    // People you have met, not phones that happen to be nearby. A group of
+    // strangers is not a group.
+    final reachable = [
+      for (final contact in mesh.contacts.values)
+        (id: contact.id, name: contact.name, inRange: mesh.peers.containsKey(contact.id)),
+    ];
     final canCreate = _name.text.trim().isNotEmpty && _picked.isNotEmpty && !_busy;
 
     return Column(
@@ -95,7 +100,10 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
               ),
               const SizedBox(height: 12),
               Mono(
-                (reachable.isNotEmpty ? '${reachable.length} reachable now' : 'Nobody reachable').toUpperCase(),
+                (reachable.isNotEmpty
+                        ? '${reachable.length} contact${reachable.length == 1 ? '' : 's'}'
+                        : 'No contacts')
+                    .toUpperCase(),
                 size: 10,
               ),
               const SizedBox(height: 12),
@@ -108,8 +116,11 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
                   ),
                   child: Body(
                     mesh.status == transport.MeshStatus.live
-                        ? 'No other phones in range yet. A group can only start with people you can reach — turn on Echo on another phone and it will appear here.'
-                        : 'Start the mesh from the Reach screen first, then the phones around you will show up here.',
+                        ? 'A group is made from people you have met. Go to Meet and tap '
+                              'phones together, or scan a code, then come back.'
+                        : 'Start the mesh from the Reach screen, then meet someone from the '
+                              'Meet tab. Groups are built from contacts, not from whoever '
+                              'happens to be nearby.',
                     size: 13,
                     dim: 2,
                   ),
@@ -117,12 +128,13 @@ class _NewGroupScreenState extends State<NewGroupScreen> {
               else
                 for (var i = 0; i < reachable.length; i++)
                   _PeerRow(
-                    id: reachable[i].key,
-                    display: reachable[i].value.display,
-                    selected: _picked.contains(reachable[i].key),
+                    id: reachable[i].id,
+                    display: reachable[i].name,
+                    inRange: reachable[i].inRange,
+                    selected: _picked.contains(reachable[i].id),
                     isLast: i == reachable.length - 1,
                     colors: c,
-                    onTap: () => _toggle(reachable[i].key),
+                    onTap: () => _toggle(reachable[i].id),
                   ),
             ],
           ),
@@ -170,6 +182,7 @@ class _PeerRow extends StatelessWidget {
   const _PeerRow({
     required this.id,
     required this.display,
+    required this.inRange,
     required this.selected,
     required this.isLast,
     required this.colors,
@@ -178,6 +191,7 @@ class _PeerRow extends StatelessWidget {
 
   final String id;
   final String display;
+  final bool inRange;
   final bool selected;
   final bool isLast;
   final tokens.Palette colors;
@@ -189,7 +203,7 @@ class _PeerRow extends StatelessWidget {
     return Semantics(
       button: true,
       checked: selected,
-      label: display,
+      label: '$display. ${inRange ? 'In range' : 'Out of range'}',
       excludeSemantics: true,
       child: GestureDetector(
         onTap: onTap,
@@ -202,7 +216,10 @@ class _PeerRow extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Avatar(initials: display.substring(0, display.length < 2 ? display.length : 2).toUpperCase(), hops: 0),
+              Avatar(
+                initials: display.substring(0, display.length < 2 ? display.length : 2).toUpperCase(),
+                hops: inRange ? 0 : null,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -210,7 +227,7 @@ class _PeerRow extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Display(display, size: 14),
-                    const Mono('IN BLUETOOTH RANGE', size: 8.5),
+                    Mono(inRange ? 'IN RANGE' : 'OUT OF RANGE — WILL GET IT LATER', size: 8.5),
                   ],
                 ),
               ),

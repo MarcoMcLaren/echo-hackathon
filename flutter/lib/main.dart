@@ -16,6 +16,7 @@ import 'features/messaging/mock_transport.dart';
 import 'features/messaging/notifier.dart';
 import 'features/sidequest/remote_gpu.dart';
 import 'features/vault/lock.dart';
+import 'features/vault/qr_scanner.dart';
 import 'features/vault/vault.dart';
 import 'features/vision/obstacle_detector.dart';
 import 'screens/chat_screen.dart';
@@ -24,6 +25,7 @@ import 'screens/new_group_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/read_screen.dart';
 import 'screens/send_coin_screen.dart';
+import 'screens/setup_screen.dart';
 import 'screens/tap_screen.dart';
 import 'screens/wallet_screen.dart';
 import 'services/shake_service.dart';
@@ -66,6 +68,7 @@ class EchoApp extends StatelessWidget {
         ),
         Provider<ImageSource>(create: (_) => PickerImageSource()),
         Provider<CalendarWriter>(create: (_) => DeviceCalendarWriter()),
+        Provider<QrScanner>(create: (_) => MobileScannerQrScanner()),
         Provider<ShakeService>(create: (_) => MockShakeService()),
         Provider<ObstacleDetector>(create: (_) => MockObstacleDetector()),
         Provider<HapticOutput>(create: (_) => SystemHapticOutput()),
@@ -94,8 +97,34 @@ class _EchoMaterialAppState extends State<_EchoMaterialApp> {
   bool _unlocked = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Claim this phone's identity before anything can ask for it — the
+    // pairing code has to encode a real device id even if the mesh is never
+    // started.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<MeshStore>().init();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final mode = context.watch<ThemeStore>().mode;
+    final ready = context.watch<MeshStore>().ready;
+
+    // Nothing behind the lock is built until it opens, so a shoulder-surfer
+    // can't read a thread off the screen behind a modal. Never set up, or
+    // just reset: ask for a name before anything else — this is also what
+    // mints the phone's id, so there is no identity to leak beforehand.
+    final Widget home;
+    if (!_unlocked) {
+      home = LockScreen(onUnlocked: () => setState(() => _unlocked = true));
+    } else if (!ready) {
+      home = const SetupScreen();
+    } else {
+      home = const AppShell();
+    }
+
     return MaterialApp(
       title: 'Echo',
       debugShowCheckedModeBanner: false,
@@ -103,9 +132,7 @@ class _EchoMaterialAppState extends State<_EchoMaterialApp> {
       themeMode: mode,
       theme: _themeData(tokens.light),
       darkTheme: _themeData(tokens.dark),
-      // Nothing behind the lock is built until it opens, so a shoulder-surfer
-      // can't read a thread off the screen behind a modal.
-      home: _unlocked ? const AppShell() : LockScreen(onUnlocked: () => setState(() => _unlocked = true)),
+      home: home,
     );
   }
 

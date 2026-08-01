@@ -17,13 +17,16 @@ class _P {
 }
 
 class MapNode {
-  const MapNode({required this.id, required this.name, required this.hops});
+  const MapNode({required this.id, required this.name, required this.hops, this.stranger = false});
 
   final String id;
   final String name;
 
   /// 0 = direct, >0 = hop count via a relay, null = no route.
   final int? hops;
+
+  /// A phone in range you have never met. It relays; it is not a contact.
+  final bool stranger;
 }
 
 const double _h = 178;
@@ -147,17 +150,27 @@ class ReachMap extends StatelessWidget {
               children: [
                 _ring(you, _r1, c.hair),
                 _ring(you, _r2, c.hair2),
-                for (final p in directAt) _line(you, p, c.direct),
+                for (var i = 0; i < directAt.length; i++)
+                  _line(you, directAt[i], direct[i].stranger ? c.hair : c.direct),
                 for (var i = 0; i < relayedAt.length; i++)
                   _line(directAt.isNotEmpty ? directAt[i % directAt.length] : you, relayedAt[i], c.relay),
-                for (final p in directAt) _station(p, c.direct, fill: c.paper),
+                for (var i = 0; i < directAt.length; i++)
+                  // A stranger is drawn hollow and grey: present, carrying
+                  // traffic, but not someone you know.
+                  _station(directAt[i], direct[i].stranger ? c.dim : c.direct, fill: c.paper),
                 for (final p in relayedAt) _station(p, c.relay, fill: c.paper),
                 for (var i = 0; i < gone.length; i++)
                   _station(_P(min(w - 24, you.x + 118 + i * 22), you.y - 4), c.dim, r: 5),
                 _station(you, c.ink, r: 7),
                 _labelAt(_P(you.x, you.y + 11), 'YOU'),
                 for (var i = 0; i < directAt.length; i++)
-                  _labelAt(_P(directAt[i].x, directAt[i].y - 21), _label(direct[i].name)),
+                  // Strangers are not named. You have not met them, and
+                  // showing a device model would imply you had.
+                  _labelAt(
+                    _P(directAt[i].x, directAt[i].y - 21),
+                    direct[i].stranger ? 'NODE' : _label(direct[i].name),
+                    faint: direct[i].stranger,
+                  ),
                 for (var i = 0; i < relayedAt.length; i++)
                   _labelAt(_P(relayedAt[i].x, relayedAt[i].y - 21), _label(relayed[i].name)),
                 for (var i = 0; i < gone.length; i++)

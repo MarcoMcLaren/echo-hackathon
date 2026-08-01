@@ -13,7 +13,9 @@ import 'package:echo/features/feedback/proximity_feedback.dart';
 import 'package:echo/features/messaging/attachments.dart';
 import 'package:echo/features/messaging/events.dart';
 import 'package:echo/features/messaging/mock_transport.dart';
+import 'package:echo/features/vault/identity.dart';
 import 'package:echo/features/vault/lock.dart';
+import 'package:echo/features/vault/qr_scanner.dart';
 import 'package:echo/features/vault/vault.dart';
 import 'package:echo/screens/catch_me_up_sheet.dart';
 import 'package:echo/screens/chat_screen.dart';
@@ -23,6 +25,7 @@ import 'package:echo/screens/new_group_screen.dart';
 import 'package:echo/screens/reach_screen.dart';
 import 'package:echo/screens/read_screen.dart';
 import 'package:echo/screens/send_coin_screen.dart';
+import 'package:echo/screens/setup_screen.dart';
 import 'package:echo/screens/tap_screen.dart';
 import 'package:echo/screens/wallet_screen.dart';
 import 'package:echo/services/shake_service.dart';
@@ -34,9 +37,13 @@ import 'support/demo_data.dart';
 
 import 'support/fakes.dart';
 
+<<<<<<< HEAD
 import 'features/vault_fakes.dart';
 
 Widget harness(Widget child, {MeshStore? mesh}) {
+=======
+Widget harness(Widget child, {MeshStore? mesh, QrScanner? qrScanner}) {
+>>>>>>> ceafe205170cc6941fac7b06296f76d6d445b13c
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => ThemeStore()),
@@ -50,6 +57,7 @@ Widget harness(Widget child, {MeshStore? mesh}) {
       Provider<ShakeService>(create: (_) => MockShakeService()),
       Provider<HapticOutput>(create: (_) => _NoOpHaptics()),
       Provider<SpeechOutput>(create: (_) => NoOpSpeechOutput()),
+      Provider<QrScanner>(create: (_) => qrScanner ?? FakeQrScanner()),
     ],
     child: MaterialApp(
       theme: ThemeData(brightness: Brightness.light),
@@ -111,6 +119,65 @@ void main() {
     await tester.tap(target);
     expect(tapped, isTrue);
     handle.dispose();
+  });
+
+  testWidgets('ReachScreen shows an empty state before anyone is paired', (tester) async {
+    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {})));
+    await tester.pump();
+
+    expect(find.textContaining('Tap the line above to start the mesh'), findsOneWidget);
+  });
+
+  group('ReachScreen remove', () {
+    testWidgets('holding a direct conversation, then Remove, unpairs the contact', (tester) async {
+      final mesh = demoStore();
+
+      await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {}), mesh: mesh));
+      await tester.pump();
+
+      await tester.longPress(find.text('Thabo Mokoena'));
+      await tester.pump();
+
+      expect(find.text('Remove Thabo Mokoena?'), findsOneWidget);
+
+      await tester.tap(find.text('Remove'));
+      await tester.pump();
+
+      expect(mesh.contacts.containsKey('thabo'), isFalse);
+      expect(mesh.threads.any((t) => t.id == 'thabo'), isFalse);
+    });
+
+    testWidgets('holding a group conversation offers to leave it, not remove a contact', (tester) async {
+      final mesh = demoStore();
+
+      await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {}), mesh: mesh));
+      await tester.pump();
+
+      await tester.longPress(find.text('Braai Crew'));
+      await tester.pump();
+
+      expect(find.text('Leave Braai Crew?'), findsOneWidget);
+
+      await tester.tap(find.text('Leave group'));
+      await tester.pump();
+
+      expect(mesh.threads.any((t) => t.id == 'braai'), isFalse);
+    });
+
+    testWidgets('Keep it dismisses the sheet without removing anything', (tester) async {
+      final mesh = demoStore();
+
+      await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {}), mesh: mesh));
+      await tester.pump();
+
+      await tester.longPress(find.text('Thabo Mokoena'));
+      await tester.pump();
+      await tester.tap(find.text('Keep it'));
+      await tester.pump();
+
+      expect(find.text('Remove Thabo Mokoena?'), findsNothing);
+      expect(mesh.contacts.containsKey('thabo'), isTrue);
+    });
   });
 
   testWidgets('ChatScreen renders thread title and messages', (tester) async {
@@ -217,17 +284,20 @@ void main() {
   });
 
   group('NewGroupScreen', () {
-    testWidgets('shows the empty state before the mesh is started', (tester) async {
+    testWidgets('shows the empty state before anyone is paired', (tester) async {
       await tester.pumpWidget(harness(NewGroupScreen(onBack: () {}, onCreated: (_) {})));
       await tester.pump();
 
       expect(find.text('New group'), findsOneWidget);
-      expect(find.text('NOBODY REACHABLE'), findsOneWidget);
-      expect(find.textContaining('Start the mesh from the Reach screen first'), findsOneWidget);
+      expect(find.text('NO CONTACTS'), findsOneWidget);
+      expect(find.textContaining('Start the mesh from the Reach screen'), findsOneWidget);
     });
 
-    testWidgets('creates a group from picked peers and calls onCreated', (tester) async {
-      final mesh = MeshStore(transport: MockTransport(), deviceId: 'me');
+    testWidgets('creates a group from picked contacts and calls onCreated', (tester) async {
+      final mesh = demoStore();
+      // Only Thabo is actually in range; the others are contacts reachable
+      // by relay later — a group is built from who you know, not who is
+      // nearby right now.
       mesh.peers = {'thabo': const MeshPeer(display: 'Thabo Mokoena', peerId: 'p-thabo')};
       String? created;
 
@@ -239,8 +309,10 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('1 REACHABLE NOW'), findsOneWidget);
+      expect(find.text('4 CONTACTS'), findsOneWidget);
       expect(find.text('Thabo Mokoena'), findsOneWidget);
+      expect(find.text('IN RANGE'), findsOneWidget);
+      expect(find.text('OUT OF RANGE — WILL GET IT LATER'), findsWidgets);
 
       await tester.enterText(find.byType(TextField), 'Braai Crew');
       await tester.tap(find.text('Thabo Mokoena'));
@@ -307,6 +379,115 @@ void main() {
     expect(find.text('Let the other phone scan this'), findsOneWidget);
   });
 
+  group('TapScreen pairing', () {
+    testWidgets('scanning a code, then confirming, pairs and creates a conversation', (tester) async {
+      final mesh = MeshStore(transport: MockTransport(), deviceId: 'me', display: 'Reon');
+
+      await tester.pumpWidget(
+        harness(
+          const TapScreen(),
+          mesh: mesh,
+          qrScanner: FakeQrScanner(script: 'echo://pair?id=sipho&k=mock-peer-key&n=Sipho'),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('SCAN'));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('fake-qr-scanner')));
+      await tester.pump();
+
+      expect(find.text('Sipho'), findsOneWidget);
+      expect(mesh.contacts.containsKey('sipho'), isFalse);
+
+      await tester.tap(find.text('Add contact'));
+      await tester.pumpAndSettle();
+
+      expect(mesh.contacts.containsKey('sipho'), isTrue);
+      expect(mesh.threads.any((t) => t.id == 'sipho'), isTrue);
+    });
+
+    testWidgets('scanning someone already paired shows the already-a-contact hint', (tester) async {
+      await tester.pumpWidget(
+        harness(
+          const TapScreen(),
+          mesh: demoStore(),
+          qrScanner: FakeQrScanner(script: 'echo://pair?id=sipho&k=mock-peer-key&n=Sipho'),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('SCAN'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('fake-qr-scanner')));
+      await tester.pump();
+
+      expect(find.text('ALREADY IN YOUR CONTACTS'), findsOneWidget);
+    });
+
+    testWidgets('a code from something other than Echo offers to scan again, not pair', (tester) async {
+      await tester.pumpWidget(
+        harness(const TapScreen(), qrScanner: FakeQrScanner(script: 'https://example.com')),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('SCAN'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('fake-qr-scanner')));
+      await tester.pump();
+
+      expect(find.text('That is not an Echo code'), findsOneWidget);
+      expect(find.text('Scan again'), findsOneWidget);
+    });
+  });
+
+  group('TapScreen reset', () {
+    testWidgets('resetting the phone asks twice before wiping contacts', (tester) async {
+      final handle = tester.ensureSemantics();
+      final mesh = MeshStore(transport: MockTransport(), deviceId: 'me', display: 'Reon');
+      await mesh.pair('thabo', 'Thabo Mokoena');
+      expect(mesh.contacts, isNotEmpty);
+
+      await tester.pumpWidget(harness(const TapScreen(), mesh: mesh));
+      await tester.pump();
+
+      await tester.tap(find.bySemanticsLabel('Reset this phone'));
+      await tester.pump();
+      expect(find.text('Reset this phone?'), findsOneWidget);
+
+      // First press just arms it — nothing is wiped yet.
+      await tester.tap(find.text('Reset'));
+      await tester.pump();
+      expect(mesh.contacts, isNotEmpty);
+
+      await tester.tap(find.text('Yes, erase everything'));
+      await tester.pump();
+
+      expect(mesh.contacts, isEmpty);
+      expect(find.text('Reset this phone?'), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('Keep everything dismisses the reset sheet without wiping anything', (tester) async {
+      final handle = tester.ensureSemantics();
+      final mesh = MeshStore(transport: MockTransport(), deviceId: 'me', display: 'Reon');
+      await mesh.pair('thabo', 'Thabo Mokoena');
+
+      await tester.pumpWidget(harness(const TapScreen(), mesh: mesh));
+      await tester.pump();
+
+      await tester.tap(find.bySemanticsLabel('Reset this phone'));
+      await tester.pump();
+      await tester.tap(find.text('Keep everything'));
+      await tester.pump();
+
+      expect(find.text('Reset this phone?'), findsNothing);
+      expect(mesh.contacts, isNotEmpty);
+      handle.dispose();
+    });
+  });
+
   testWidgets('ModelPreloadScreen auto-downloads vision models and offers the LLM download', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: ModelPreloadScreen()));
     await tester.pump();
@@ -357,6 +538,54 @@ void main() {
       expect(find.text('READER UNAVAILABLE'), findsOneWidget);
       // The button stays enabled so tapping again retries.
       expect(find.text('Read that'), findsWidgets);
+    });
+  });
+
+  group('SetupScreen', () {
+    testWidgets('Start does nothing until a name is entered', (tester) async {
+      final mesh = MeshStore(profileStore: InMemoryProfileStore());
+      await tester.pumpWidget(harness(const SetupScreen(), mesh: mesh));
+      await tester.pump();
+
+      expect(find.text('What should people call you?'), findsOneWidget);
+
+      await tester.tap(find.text('Start'));
+      await tester.pump();
+      expect(mesh.ready, isFalse);
+
+      await tester.enterText(find.byType(TextField), 'Reon Fourie');
+      await tester.pump();
+      await tester.tap(find.text('Start'));
+      await tester.pumpAndSettle();
+
+      expect(mesh.ready, isTrue);
+    });
+
+    testWidgets('Start mints an identity and flips the mesh ready', (tester) async {
+      final mesh = MeshStore(profileStore: InMemoryProfileStore());
+      expect(mesh.ready, isFalse);
+
+      await tester.pumpWidget(harness(const SetupScreen(), mesh: mesh));
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'Reon Fourie');
+      await tester.pump();
+      await tester.tap(find.text('Start'));
+      await tester.pumpAndSettle();
+
+      expect(mesh.ready, isTrue);
+      expect(mesh.me.display, 'Reon Fourie');
+    });
+
+    testWidgets('a name longer than 24 characters is truncated by the field', (tester) async {
+      await tester.pumpWidget(harness(const SetupScreen()));
+      await tester.pump();
+
+      await tester.enterText(find.byType(TextField), 'A Very Long Name That Goes On And On');
+      await tester.pump();
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text.length, 24);
     });
   });
 
