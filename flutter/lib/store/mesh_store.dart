@@ -165,6 +165,11 @@ class MeshStore extends ChangeNotifier {
   MeshStatus status = MeshStatus.off;
   String? error;
 
+  /// How long [start] waits on the transport before giving up. Generous
+  /// enough for a first run where Android is still stacking up permission
+  /// dialogs, short enough that a wedged radio doesn't strand the UI.
+  static const Duration startTimeout = Duration(seconds: 30);
+
   /// deviceId -> what we know about them right now. Most of these are
   /// strangers whose only job is carrying traffic.
   Map<String, MeshPeer> peers = {};
@@ -375,7 +380,18 @@ class MeshStore extends ChangeNotifier {
       notifyListeners();
     };
 
-    final result = await transport.start();
+    // The starting state disables the toggle, so a start that never returns
+    // pins the app there with no way back — a dismissed permission dialog is
+    // enough to do it. Time out into the error state instead, which is
+    // tappable and says what to do.
+    final result = await transport
+        .start()
+        .timeout(
+          startTimeout,
+          onTimeout: () => const TransportStartResult.failure(
+            'Mesh did not start. Check Bluetooth and location are on, then tap to try again.',
+          ),
+        );
     if (!result.ok) {
       status = MeshStatus.error;
       error = result.reason;
