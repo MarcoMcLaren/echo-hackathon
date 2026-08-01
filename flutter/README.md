@@ -1,9 +1,10 @@
-# welcome_app
+# echo (Flutter port)
 
-A basic Flutter welcome screen, used to verify the Flutter toolchain set up in
-[SETUP_FLUTTER.md](../SETUP_FLUTTER.md) (see that doc for prerequisites — JDK,
-Flutter SDK, Android SDK). This app is standalone and unrelated to Echo's React
-Native app in the rest of this repo.
+The Flutter port of Echo, scaffolded from a basic Flutter app used to verify
+the toolchain set up in [SETUP_FLUTTER.md](../SETUP_FLUTTER.md) (see that doc
+for prerequisites — JDK, Flutter SDK, Android SDK). The Android
+`applicationId` is still `com.echo.hackathon.welcome_app` from that
+verification step; the commands below reflect the current, unrenamed value.
 
 ## Run it on your phone
 
