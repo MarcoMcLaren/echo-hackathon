@@ -60,10 +60,15 @@ final _systemPrompt = [
 
 final _bulletRe = RegExp(r'^\s*(?:[-*•]|\d+[.)])\s*');
 
+/// Small models sometimes emit the two literal characters `\` and `n`
+/// instead of an actual line break (seen on-device with this Qwen .task
+/// bundle) — normalize both to real newlines before splitting.
+String _normalizeNewlines(String raw) => raw.replaceAll(r'\n', '\n');
+
 /// Strips leading bullet/number markers, trims, drops empties, caps at
 /// [_maxLines] — a direct port of RN's `toLines`.
 List<String> toLines(String raw) {
-  return raw
+  return _normalizeNewlines(raw)
       .split('\n')
       .map((l) => l.replaceFirst(_bulletRe, '').trim())
       .where((l) => l.length > 1)
@@ -153,18 +158,26 @@ class ThreadSummary extends ChangeNotifier {
 
   /// Small quantized models can fall into a deterministic repeat loop —
   /// MediaPipe's LLM Inference API has no repetition-penalty knob to prevent
-  /// this the way RN's executorch config did (see the file header). This is
-  /// the client-side backstop: if the tail of the buffer is just the same
-  /// short chunk repeating, stop rather than let it run to the token limit
-  /// producing nothing useful.
+  /// this the way RN's executorch config did (see the file header), confirmed
+  /// absent in flutter_gemma 0.12.8 too. This is the client-side backstop.
+  ///
+  /// On-device testing showed the loop isn't always a single repeated
+  /// token/short chunk — it can be a whole multi-sentence cycle (~200 chars)
+  /// repeating verbatim. A single 8-char window never saw far enough back to
+  /// catch that, so this checks several candidate cycle lengths instead of
+  /// just one.
   bool _looksStuck(String bufferSoFar) {
-    const window = 8;
-    const minRepeats = 6;
-    if (bufferSoFar.length < window * minRepeats) return false;
-    final tail = bufferSoFar.substring(bufferSoFar.length - window * minRepeats);
-    final chunk = tail.substring(tail.length - window);
-    if (chunk.trim().isEmpty) return true; // repeating whitespace/newlines only
-    return chunk * minRepeats == tail;
+    const minRepeats = 3;
+    const candidateLens = [8, 16, 24, 32, 48, 64, 96, 128, 160, 220, 300];
+    for (final window in candidateLens) {
+      final needed = window * minRepeats;
+      if (bufferSoFar.length < needed) continue;
+      final tail = bufferSoFar.substring(bufferSoFar.length - needed);
+      final chunk = tail.substring(tail.length - window);
+      if (chunk.trim().isEmpty) return true; // repeating whitespace/newlines only
+      if (chunk * minRepeats == tail) return true;
+    }
+    return false;
   }
 
   Future<void> summarise(Thread thread, int unread) async {
