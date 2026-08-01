@@ -9,6 +9,7 @@ import WalletScreen from './screens/WalletScreen';
 import TapScreen from './screens/TapScreen';
 import SendCoinScreen from './screens/SendCoinScreen';
 import LockScreen from './screens/LockScreen';
+import NewGroupScreen from './screens/NewGroupScreen';
 import ReadScreen from './screens/ReadScreen';
 // Side-effect import: this module calls initExecutorch(), which is the only
 // thing that registers the ExecuTorch resource fetcher. Without it every model
@@ -19,7 +20,11 @@ import './services/models';
 // Hand-rolled navigation: three tabs and a one-deep stack. react-navigation would
 // pull in react-native-screens + safe-area-context, which means a new dev-client
 // APK; this way the whole UI hot-reloads on the build we already have.
-type Route = { name: 'chat'; id: string } | { name: 'send'; id: string } | null;
+type Route =
+  | { name: 'chat'; id: string }
+  | { name: 'send'; id: string }
+  | { name: 'newgroup' }
+  | null;
 
 export default function App() {
   // Follows the system by default; the header control overrides it so dark mode
@@ -87,8 +92,16 @@ export default function App() {
               onBack={back}
               onQueued={(id) => setRoute({ name: 'chat', id })}
             />
+          ) : route?.name === 'newgroup' ? (
+            <NewGroupScreen
+              onBack={back}
+              onCreated={(id) => setRoute({ name: 'chat', id })}
+            />
           ) : tab === 'reach' ? (
-            <ReachScreen onOpen={(id) => setRoute({ name: 'chat', id })} />
+            <ReachScreen
+              onOpen={(id) => setRoute({ name: 'chat', id })}
+              onNewGroup={() => setRoute({ name: 'newgroup' })}
+            />
           ) : tab === 'wallet' ? (
             <WalletScreen
               onSend={() => setRoute({ name: 'send', id: 'naledi' })}

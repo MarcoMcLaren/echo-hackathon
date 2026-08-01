@@ -17,8 +17,9 @@ export type Envelope = {
    * `revert` carries the id of an earlier coin message to undo.
    * `image` carries base64 image data, split across parts.
    * `event` carries a calendar event as JSON.
+   * `invite` carries a group's id, name and member list.
    */
-  kind: 'msg' | 'coin' | 'revert' | 'image' | 'event';
+  kind: 'msg' | 'coin' | 'revert' | 'image' | 'event' | 'invite';
   /** Opaque to relays. Ciphertext once the vault lands. */
   body: string;
   /** Set on every part of a split payload. Shared by all parts of one message. */
@@ -78,7 +79,13 @@ export class SeenCache {
 export type Decision =
   | { action: 'drop'; why: 'duplicate' | 'expired' | 'loop' }
   | { action: 'deliver'; envelope: Envelope }
-  | { action: 'relay'; envelope: Envelope; excludePeer?: string };
+  | { action: 'relay'; envelope: Envelope; excludePeer?: string }
+  /**
+   * Group traffic: show it if this phone is a member, and pass it on either
+   * way. Whether we are a member is store knowledge, not routing knowledge, so
+   * that call belongs to the caller.
+   */
+  | { action: 'fanout'; envelope: Envelope; excludePeer?: string };
 
 /**
  * The whole hop rule, in one place.
@@ -99,6 +106,17 @@ export function route(
 
   if (envelope.to === me) return { action: 'deliver', envelope };
 
+  // A group has no single recipient, so it is never "for" one phone. Members
+  // read it, everyone carries it, and TTL is what stops it circulating.
+  if (isGroup(envelope.to)) {
+    if (envelope.ttl <= 0) return { action: 'fanout', envelope, excludePeer: fromPeer };
+    return {
+      action: 'fanout',
+      envelope: { ...envelope, ttl: envelope.ttl - 1, path: [...envelope.path, me] },
+      excludePeer: fromPeer,
+    };
+  }
+
   if (envelope.ttl <= 0) return { action: 'drop', why: 'expired' };
 
   // Carry it on: burn a hop and record that we touched it, so the recipient can
@@ -110,8 +128,11 @@ export function route(
   };
 }
 
-/** Group messages are delivered to everyone AND relayed onward. */
+/** Group addresses are `g:<id>`. There is no server holding the roster, so the
+ *  id is just a string every member agrees on. */
 export const isGroup = (to: string) => to.startsWith('g:');
+
+export const newGroupId = () => `g:${Math.random().toString(36).slice(2, 10)}`;
 
 /**
  * Nearby sends a BYTES payload, which Google caps at 32 KiB. Anything larger —

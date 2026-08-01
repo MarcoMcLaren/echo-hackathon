@@ -8,7 +8,13 @@ import ReachMap, { type MapNode } from '../features/messaging/components/ReachMa
 import { useMesh } from '../store/mesh';
 import { contacts as demoContacts } from '../store/mock';
 
-export default function ReachScreen({ onOpen }: { onOpen: (id: string) => void }) {
+export default function ReachScreen({
+  onOpen,
+  onNewGroup,
+}: {
+  onOpen: (id: string) => void;
+  onNewGroup: () => void;
+}) {
   const { c, mode, cycle } = useTheme();
   const { status, error, peers, threads, stats, start, stop } = useMesh();
 
@@ -45,14 +51,27 @@ export default function ReachScreen({ onOpen }: { onOpen: (id: string) => void }
             : 'Mesh off · showing the demo set'
         }
         right={
-          <Pressable
-            onPress={cycle}
-            hitSlop={14}
-            accessibilityRole="button"
-            accessibilityLabel={`Theme: ${mode}. Tap to change.`}
-          >
-            <Mono size={9}>{mode.toUpperCase()}</Mono>
-          </Pressable>
+          <View style={s.actions}>
+            <Pressable
+              onPress={cycle}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel={`Theme: ${mode}. Tap to change.`}
+            >
+              <Mono size={9}>{mode.toUpperCase()}</Mono>
+            </Pressable>
+            <Pressable
+              onPress={onNewGroup}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel="New group"
+              style={[s.plus, { borderColor: c.hair }]}
+            >
+              <Display size={17} dim={1}>
+                +
+              </Display>
+            </Pressable>
+          </View>
         }
       />
       <ScrollView contentContainerStyle={s.body} showsVerticalScrollIndicator={false}>
@@ -112,5 +131,7 @@ const s = StyleSheet.create({
   col: { flex: 1, minWidth: 0, gap: 1 },
   right: { alignItems: 'flex-end', gap: 4 },
   unread: { minWidth: 18, paddingHorizontal: 5, paddingVertical: 2, borderRadius: 9, alignItems: 'center' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  plus: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   caps: { textTransform: 'uppercase' },
 });
