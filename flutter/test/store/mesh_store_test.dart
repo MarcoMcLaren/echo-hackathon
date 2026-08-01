@@ -4,6 +4,7 @@
 // notification triggers, groups/invites, image/event kinds, persisted device
 // identity, and the pairing model (contacts gate who can message you, peers
 // alone never can).
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:fake_async/fake_async.dart';
@@ -26,7 +27,11 @@ class FakeTransport implements MeshTransport {
   FakeTransport({
     this.startResult = const TransportStartResult.ok(),
     this.fanout = 0,
+    this.startHangs = false,
   });
+
+  /// When true, [start] never resolves.
+  final bool startHangs;
 
   final TransportStartResult startResult;
   final int fanout;
@@ -42,7 +47,12 @@ class FakeTransport implements MeshTransport {
   void Function(String message)? onError;
 
   @override
-  Future<TransportStartResult> start() async => startResult;
+  Future<TransportStartResult> start() async {
+    // A start that never completes — what a dismissed permission dialog looks
+    // like from here.
+    if (startHangs) return Completer<TransportStartResult>().future;
+    return startResult;
+  }
 
   @override
   Future<void> stop() async {}
@@ -1122,6 +1132,22 @@ void main() {
       expect(store.contacts, isEmpty);
       expect(store.threads, isEmpty);
       expect(await profileStore.read(), isNull);
+    });
+  });
+
+  group('start timeout', () {
+    test('a transport start that never returns falls into a retryable error', () {
+      fakeAsync((async) {
+        final store = MeshStore(transport: FakeTransport(startHangs: true), deviceId: 'me');
+        store.start();
+        async.elapse(const Duration(seconds: 1));
+        // Still starting — the toggle is disabled while this is true.
+        expect(store.status, MeshStatus.starting);
+
+        async.elapse(MeshStore.startTimeout);
+        expect(store.status, MeshStatus.error);
+        expect(store.error, contains('tap to try again'));
+      });
     });
   });
 }
