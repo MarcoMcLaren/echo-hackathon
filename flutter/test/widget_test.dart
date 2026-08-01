@@ -1,9 +1,4 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,20 +6,59 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:welcome_app/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  // Default test surface is a tiny 800x600 window — nothing like the tall
+  // phone viewport these screens are built for. Size it like a real phone.
+  void sizeLikeAPhone(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+  }
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('App opens on Reach and can open a conversation', (WidgetTester tester) async {
+    sizeLikeAPhone(tester);
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Reach'), findsOneWidget);
+    expect(find.text('Braai Crew'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.tap(find.text('Braai Crew'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Naledi: someone bring tongs'), findsNothing); // Chat view, not the list preview
+    expect(find.text('TODAY'), findsOneWidget);
+  });
+
+  testWidgets('Wallet screen shows balance and can open Send', (WidgetTester tester) async {
+    sizeLikeAPhone(tester);
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('WALLET'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Wallet'), findsOneWidget);
+    expect(find.text('148.25'), findsOneWidget);
+
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Send echocoin'), findsOneWidget);
+  });
+
+  testWidgets('Sending a chat message appends a queued bubble', (WidgetTester tester) async {
+    sizeLikeAPhone(tester);
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Thabo Mokoena'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Howzit');
+    await tester.tap(find.text('↑'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Howzit'), findsOneWidget);
+    expect(find.textContaining('QUEUED'), findsOneWidget);
   });
 }
