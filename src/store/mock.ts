@@ -1,5 +1,6 @@
 // Demo data. Mirrors the three-phone demo: you, Thabo (relay), Naledi (1 hop),
 // Lerato (direct), Sipho (no route).
+import type { MeshEvent } from '../features/messaging/api/events';
 export type Hops = 0 | 1 | 2 | null; // null = no route
 export type Contact = {
   id: string;
@@ -30,6 +31,10 @@ export type Msg = {
   hops: Hops;
   via?: string;
   state?: 'delivered' | 'queued' | 'sent';
+  /** A photo, as a data URI. Travels in chunks; see utils/relay. */
+  image?: string;
+  /** A calendar event someone shared. Saving it is a separate, explicit act. */
+  event?: MeshEvent;
   /** Held locally during the cancel window — not on the air yet. */
   pending?: boolean;
   /** Sent, then taken back. The row stays visible; money that vanishes

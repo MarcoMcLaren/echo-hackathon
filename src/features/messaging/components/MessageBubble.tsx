@@ -1,7 +1,8 @@
-import { View, StyleSheet } from 'react-native';
-import { useTheme, radius } from '../../../styles/theme';
+import { View, Image, Pressable, StyleSheet } from 'react-native';
+import { useTheme, radius, TOUCH_MIN } from '../../../styles/theme';
 import { Body, Mono, Display, CoinMark } from '../../../components/Type';
 import RouteStrip from '../../../components/RouteStrip';
+import { formatWhen, type MeshEvent } from '../api/events';
 import type { Msg } from '../../../store/mock';
 
 /** Outgoing only. Incoming messages get a route strip instead. */
@@ -17,13 +18,93 @@ export default function MessageBubble({
   msg,
   senderName,
   animate,
+  onSaveEvent,
 }: {
   msg: Msg;
   senderName?: string;
   animate?: boolean;
+  onSaveEvent?: (event: MeshEvent) => void;
 }) {
   const { c } = useTheme();
   const mine = msg.from === 'me';
+
+  // A photo carries its own frame; a bubble around it would be noise.
+  if (msg.image) {
+    return (
+      <View style={[s.slot, mine && s.right]}>
+        {senderName && !mine ? (
+          <Mono size={9} style={{ marginBottom: 3 }}>
+            {senderName.toUpperCase()}
+          </Mono>
+        ) : null}
+        <Image
+          source={{ uri: msg.image }}
+          style={[s.photo, { borderColor: c.hair2 }]}
+          resizeMode="cover"
+          accessibilityLabel="Photo"
+        />
+        <View style={{ marginTop: 4 }}>
+          {mine ? (
+            <Mono size={8.5}>{stateLine(msg)}</Mono>
+          ) : (
+            <RouteStrip
+              hops={msg.hops}
+              via={msg.via}
+              animate={animate}
+              label={msg.hops ? `VIA ${msg.via?.toUpperCase()} · ${msg.at}` : `DIRECT · ${msg.at}`}
+            />
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // An event you can act on. Saving it to the phone's calendar is a separate
+  // tap — a received message should never write to someone's calendar itself.
+  if (msg.event) {
+    return (
+      <View style={[s.slot, mine && s.right]}>
+        {senderName && !mine ? (
+          <Mono size={9} style={{ marginBottom: 3 }}>
+            {senderName.toUpperCase()}
+          </Mono>
+        ) : null}
+        <View style={[s.eventCard, { borderColor: c.hair, backgroundColor: c.card }]}>
+          <Mono size={9} dim={3}>
+            EVENT
+          </Mono>
+          <Display size={19}>{msg.event.title}</Display>
+          <Mono size={9} dim={2}>
+            {formatWhen(msg.event).toUpperCase()}
+          </Mono>
+          {msg.event.location ? (
+            <Body size={12} dim={2}>
+              {msg.event.location}
+            </Body>
+          ) : null}
+          <Pressable
+            onPress={() => onSaveEvent?.(msg.event!)}
+            accessibilityRole="button"
+            style={[s.eventBtn, { borderColor: c.ink }]}
+          >
+            <Display size={13}>Add to calendar</Display>
+          </Pressable>
+        </View>
+        <View style={{ marginTop: 4 }}>
+          {mine ? (
+            <Mono size={8.5}>{stateLine(msg)}</Mono>
+          ) : (
+            <RouteStrip
+              hops={msg.hops}
+              via={msg.via}
+              animate={animate}
+              label={msg.hops ? `VIA ${msg.via?.toUpperCase()} · ${msg.at}` : `DIRECT · ${msg.at}`}
+            />
+          )}
+        </View>
+      </View>
+    );
+  }
 
   // Money is a first-class message, not an attachment.
   if (msg.coin != null) {
@@ -120,6 +201,17 @@ const s = StyleSheet.create({
   bub: { paddingHorizontal: 11, paddingVertical: 8, borderRadius: radius.bubble },
   coinCard: { borderWidth: 1.5, borderRadius: radius.bubble, padding: 12, gap: 7, minWidth: 200 },
   dashed: { borderStyle: 'dashed' },
+  photo: { width: 220, height: 220, borderRadius: radius.bubble, borderWidth: 1 },
+  eventCard: { borderWidth: 1.5, borderRadius: radius.card, padding: 13, gap: 5, minWidth: 220 },
+  eventBtn: {
+    marginTop: 6,
+    borderWidth: 1.5,
+    borderRadius: 9,
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: TOUCH_MIN - 8,
+  },
   coinLeft: { borderBottomLeftRadius: radius.tail },
   coinRight: { borderBottomRightRadius: radius.tail },
   amtRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },

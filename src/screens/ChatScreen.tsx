@@ -17,6 +17,14 @@ import CatchMeUpSheet from './CatchMeUpSheet';
 import { byId } from '../store/mock';
 import { useMesh, SUMMARY_THRESHOLD } from '../store/mesh';
 import { useShake } from '../hooks/useShake';
+import EventComposer from '../features/messaging/components/EventComposer';
+import {
+  pickFromCamera,
+  pickFromLibrary,
+  chunkCount,
+  MAX_IMAGE_CHARS,
+} from '../features/messaging/api/attachments';
+import { encodeEvent, saveToCalendar, type MeshEvent } from '../features/messaging/api/events';
 
 export default function ChatScreen({
   threadId,
@@ -32,6 +40,8 @@ export default function ChatScreen({
   const sendToMesh = useMesh((s) => s.send);
   const markRead = useMesh((s) => s.markRead);
   const pending = useMesh((s) => s.pending);
+  const peers = useMesh((s) => s.peers);
+  const peerName = (id: string) => peers[id]?.display ?? id;
   const cancelPending = useMesh((s) => s.cancelPending);
   const revertLastCoin = useMesh((s) => s.revertLastCoin);
   const [left, setLeft] = useState(0);
@@ -69,6 +79,8 @@ export default function ChatScreen({
   const thread = useMemo(() => threads.find((t) => t.id === threadId)!, [threads, threadId]);
   const [draft, setDraft] = useState('');
   const [summary, setSummary] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+  const [composingEvent, setComposingEvent] = useState(false);
   const scroller = useRef<ScrollView>(null);
 
   // Anything past this index arrived while the screen was open, so its route
@@ -88,6 +100,38 @@ export default function ChatScreen({
     setDraft('');
     sendToMesh(threadId, text);
     requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
+  };
+
+  const attachPhoto = async (from: 'library' | 'camera') => {
+    setAttaching(false);
+    const picked = from === 'camera' ? await pickFromCamera() : await pickFromLibrary();
+    if (!picked) return;
+    if (picked.bytes > MAX_IMAGE_CHARS) {
+      setNote('That photo is too big to send over the mesh');
+      return;
+    }
+    setNote(`Sending photo in ${chunkCount(picked.bytes)} parts`);
+    sendToMesh(threadId, picked.dataUri, 'image');
+    requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
+  };
+
+  const sendEvent = (event: MeshEvent) => {
+    setComposingEvent(false);
+    sendToMesh(threadId, encodeEvent(event), 'event');
+    requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
+  };
+
+  const addToCalendar = async (event: MeshEvent) => {
+    const result = await saveToCalendar(event);
+    setNote(
+      result.ok
+        ? 'Added to your calendar'
+        : result.reason === 'denied'
+          ? 'Echo needs calendar permission to add it'
+          : result.reason === 'no-calendar'
+            ? 'No calendar on this phone can be written to'
+            : 'Could not add it to the calendar'
+    );
   };
 
   const sub = thread.group
@@ -124,8 +168,11 @@ export default function ChatScreen({
           <MessageBubble
             key={m.id}
             msg={m}
-            senderName={thread.group ? byId(m.from)?.name.split(' ')[0] : undefined}
+            senderName={
+              thread.group ? byId(m.from)?.name.split(' ')[0] ?? peerName(m.from) : undefined
+            }
             animate={i >= baseline.current}
+            onSaveEvent={addToCalendar}
           />
         ))}
 
@@ -174,9 +221,44 @@ export default function ChatScreen({
         </View>
       ) : null}
 
+      {composingEvent ? (
+        <EventComposer onCancel={() => setComposingEvent(false)} onSend={sendEvent} />
+      ) : null}
+
+      {attaching ? (
+        <View style={[s.attachRow, { backgroundColor: c.card, borderTopColor: c.hair2 }]}>
+          <Pressable onPress={() => attachPhoto('camera')} accessibilityRole="button" style={[s.attach, { borderColor: c.hair }]}>
+            <Display size={13}>Take a photo</Display>
+          </Pressable>
+          <Pressable onPress={() => attachPhoto('library')} accessibilityRole="button" style={[s.attach, { borderColor: c.hair }]}>
+            <Display size={13}>Choose photo</Display>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              setAttaching(false);
+              setComposingEvent(true);
+            }}
+            accessibilityRole="button"
+            style={[s.attach, { borderColor: c.hair }]}
+          >
+            <Display size={13}>Event</Display>
+          </Pressable>
+        </View>
+      ) : null}
+
       <View
         style={[s.composer, { backgroundColor: c.card, borderTopColor: c.hair2, paddingBottom: bottomInset + 9 }]}
       >
+        <Pressable
+          onPress={() => setAttaching((a) => !a)}
+          accessibilityRole="button"
+          accessibilityLabel="Attach a photo or an event"
+          style={[s.rbtn, { borderWidth: 1.5, borderColor: c.hair }]}
+        >
+          <Display size={17} dim={1}>
+            {attaching ? '×' : '+'}
+          </Display>
+        </Pressable>
         <Pressable
           onPress={() => onSendCoin(thread.id)}
           accessibilityRole="button"
@@ -241,6 +323,8 @@ const s = StyleSheet.create({
   pips: { flexDirection: 'row', gap: 3 },
   pip: { width: 7, height: 7, borderRadius: 4 },
   catch: { alignSelf: 'center', borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 7, marginTop: 6, minHeight: 36, justifyContent: 'center' },
+  attachRow: { flexDirection: 'row', gap: 7, paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1 },
+  attach: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10, borderWidth: 1.5, minHeight: 44 },
   undo: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 10 },
   undoBtn: { paddingHorizontal: 14, paddingVertical: 8, minHeight: 40, justifyContent: 'center' },
   note: { alignSelf: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, marginBottom: 8 },

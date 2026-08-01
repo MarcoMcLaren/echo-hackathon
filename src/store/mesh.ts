@@ -5,7 +5,17 @@ import { create } from 'zustand';
 import { MeshTransport, type PeerInfo } from '../features/messaging/api/transport';
 import { deviceIdentity } from '../features/vault/api/identity';
 import { prepareNotifications, notifyMessage } from '../features/messaging/api/notify';
-import { SeenCache, Reassembler, newEnvelope, route, hopsTaken, relayedBy } from '../utils/relay';
+import { decodeEvent } from '../features/messaging/api/events';
+import {
+  SeenCache,
+  Reassembler,
+  newEnvelope,
+  route,
+  hopsTaken,
+  relayedBy,
+  isGroup,
+  newGroupId,
+} from '../utils/relay';
 import { threads as seedThreads, type Thread, type Msg, type Hops } from './mock';
 
 /** The phone model, so demo handsets are told apart on sight. Replace with a
@@ -38,8 +48,14 @@ type State = {
   start: () => Promise<void>;
   stop: () => Promise<void>;
   setName: (display: string) => void;
-  send: (threadId: string, body: string, kind?: 'msg' | 'coin' | 'revert') => Promise<void>;
+  send: (
+    threadId: string,
+    body: string,
+    kind?: 'msg' | 'coin' | 'revert' | 'invite' | 'image' | 'event'
+  ) => Promise<void>;
   markRead: (threadId: string) => void;
+  /** Make a group from peers you can currently reach, and tell them about it. */
+  createGroup: (name: string, memberIds: string[]) => Promise<string>;
   /** Show it in the thread, but hold it back for CANCEL_WINDOW_MS first. */
   queueCoin: (threadId: string, amount: number) => void;
   cancelPending: () => void;
@@ -70,6 +86,35 @@ export const useMesh = create<State>((set, get) => ({
     set((s) => ({
       threads: s.threads.map((t) => (t.id === threadId ? { ...t, unread: 0 } : t)),
     })),
+
+  createGroup: async (name, memberIds) => {
+    const id = newGroupId();
+    const me = get().me;
+    const members = [me.deviceId, ...memberIds];
+
+    set((s) => ({
+      threads: [
+        {
+          id,
+          title: name,
+          initials: initialsOf(name),
+          group: true,
+          members,
+          preview: `${members.length} people`,
+          at: 'now',
+          hops: 0,
+          messages: [],
+          unread: 0,
+        },
+        ...s.threads,
+      ],
+    }));
+
+    // Addressed to the group, so it fans out to everyone in range. Phones not
+    // named in it forward the invite without joining.
+    await get().send(id, JSON.stringify({ id, name, members }), 'invite');
+    return id;
+  },
 
   start: async () => {
     if (get().status === 'live' || get().status === 'starting') return;
@@ -114,7 +159,18 @@ export const useMesh = create<State>((set, get) => ({
             ];
           } else if (known) {
             threads = threads.map((t) =>
-              t.id === peer.deviceId ? { ...t, hops: state === 'connected' ? 0 : null } : t
+              t.id === peer.deviceId
+                ? {
+                    ...t,
+                    hops: state === 'connected' ? 0 : null,
+                    // A thread created from a message that predates knowing the
+                    // sender's name is titled with their raw device id. Now that
+                    // they are a peer, give it their actual name.
+                    ...(t.title === t.id
+                      ? { title: peer.display, initials: initialsOf(peer.display) }
+                      : null),
+                  }
+                : t
             );
           }
 
@@ -136,6 +192,17 @@ export const useMesh = create<State>((set, get) => ({
           return;
         }
 
+        // Group traffic: carry it on regardless, then show it only if this
+        // phone is actually in the group.
+        if (decision.action === 'fanout') {
+          if (decision.envelope.ttl > 0) {
+            set((s) => ({ stats: { ...s.stats, relayed: s.stats.relayed + 1 } }));
+            transport?.broadcast(decision.envelope, decision.excludePeer);
+          }
+          const member = get().threads.some((t) => t.id === decision.envelope.to);
+          if (!member && decision.envelope.kind !== 'invite') return;
+        }
+
         // Delivered to us. A split payload only becomes a message once every
         // part has landed; until then there is nothing to show.
         const partial = decision.envelope;
@@ -146,9 +213,45 @@ export const useMesh = create<State>((set, get) => ({
         const hops = hopsTaken(e) as Hops;
         const relay = relayedBy(e);
 
+        // An invite creates the group locally — but only for people actually
+        // named in it. Everyone in radio range sees the envelope; that is not
+        // the same as being in the group.
+        if (e.kind === 'invite') {
+          try {
+            const g = JSON.parse(e.body) as { id: string; name: string; members: string[] };
+            const meId = get().me.deviceId;
+            if (!g.members?.includes(meId)) return;
+            set((s) =>
+              s.threads.some((t) => t.id === g.id)
+                ? s
+                : {
+                    threads: [
+                      {
+                        id: g.id,
+                        title: g.name,
+                        initials: initialsOf(g.name),
+                        group: true,
+                        members: g.members,
+                        preview: `${g.members.length} people`,
+                        at: clock(e.at),
+                        hops,
+                        via: relay ? s.peers[relay]?.display ?? relay : undefined,
+                        messages: [],
+                        unread: 0,
+                      },
+                      ...s.threads,
+                    ],
+                  }
+            );
+          } catch {
+            // A malformed invite from another build is not our problem.
+          }
+          return;
+        }
+
         if (e.kind === 'msg' || e.kind === 'coin') {
           notifyMessage({
-            from: get().peers[e.from]?.display ?? e.from,
+            from: e.fromName ?? get().peers[e.from]?.display ?? e.from,
             body: e.kind === 'coin' ? `Sent you ${Number(e.body).toFixed(2)} echocoin` : e.body,
             threadId: e.from,
             hops,
@@ -179,17 +282,22 @@ export const useMesh = create<State>((set, get) => ({
           stats: { ...s.stats, delivered: s.stats.delivered + 1 },
           threads: upsertMessage(
             s.threads,
-            e.from,
+            // A group message belongs to the group, not to whoever sent it.
+            isGroup(e.to) ? e.to : e.from,
             {
               id: e.id,
               from: e.from,
               text: e.kind === 'msg' ? e.body : undefined,
               coin: e.kind === 'coin' ? Number(e.body) : undefined,
+              image: e.kind === 'image' ? e.body : undefined,
+              event: e.kind === 'event' ? decodeEvent(e.body) ?? undefined : undefined,
               at: clock(e.at),
               hops,
               via: relay ? s.peers[relay]?.display ?? relay : undefined,
             },
-            { unread: true }
+            // Name the thread from the envelope, not the peer list — a relayed
+            // sender is not a peer here.
+            { unread: true, title: e.fromName }
           ),
         }));
       },
@@ -221,6 +329,9 @@ export const useMesh = create<State>((set, get) => ({
     const envelope = newEnvelope({
       id: `${me.deviceId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       from: me.deviceId,
+      // Travels with the message so a relayed sender still has a name at the
+      // far end, where they are not a peer and cannot be looked up.
+      fromName: me.display,
       to: threadId,
       kind,
       body,
@@ -228,12 +339,14 @@ export const useMesh = create<State>((set, get) => ({
     });
     seen.check(envelope.id); // never relay our own message back to ourselves
 
-    const reachable = Boolean(peers[threadId]);
+    // A group has no single peer to be "in range of" — it is reachable if
+    // anyone is, and the delivery line says how many actually got it.
+    const reachable = isGroup(threadId) ? Object.keys(peers).length > 0 : Boolean(peers[threadId]);
     const fanout = transport ? await transport.broadcast(envelope) : 0;
 
-    // A revert is bookkeeping on an existing message, not a new one in the
-    // thread — revertLastCoin has already struck the original through.
-    if (kind === 'revert') {
+    // Neither a revert nor an invite is a message in the thread. Both are
+    // bookkeeping the UI has already reflected.
+    if (kind === 'revert' || kind === 'invite') {
       set((s) => ({ stats: { ...s.stats, sent: s.stats.sent + 1 } }));
       return;
     }
@@ -245,6 +358,8 @@ export const useMesh = create<State>((set, get) => ({
         from: 'me',
         text: kind === 'msg' ? body : undefined,
         coin: kind === 'coin' ? Number(body) : undefined,
+        image: kind === 'image' ? body : undefined,
+        event: kind === 'event' ? decodeEvent(body) ?? undefined : undefined,
         at: clock(envelope.at),
         hops: reachable ? 0 : fanout > 0 ? 1 : null,
         // No peer at all means it waits — never show it as sent.
@@ -338,17 +453,22 @@ function upsertMessage(
   threads: Thread[],
   threadId: string,
   msg: Msg,
-  opts?: { unread?: boolean }
+  opts?: { unread?: boolean; title?: string }
 ): Thread[] {
-  const preview = msg.text ?? `${msg.coin?.toFixed(2)} echocoin`;
+  const preview =
+    msg.text ??
+    (msg.image ? 'Photo' : undefined) ??
+    (msg.event ? msg.event.title : undefined) ??
+    `${msg.coin?.toFixed(2)} echocoin`;
   const i = threads.findIndex((t) => t.id === threadId);
 
   if (i < 0) {
+    const title = opts?.title ?? threadId;
     return [
       {
         id: threadId,
-        title: threadId,
-        initials: threadId.slice(0, 2).toUpperCase(),
+        title,
+        initials: initialsOf(title),
         preview,
         at: msg.at,
         hops: msg.hops,
