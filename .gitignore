@@ -39,3 +39,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# graphify: keep the deliverables, ignore per-machine intermediates
+graphify-out/.graphify_chunk_*.json
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json
