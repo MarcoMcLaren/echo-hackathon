@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useTheme, TOUCH_MIN } from '../styles/theme';
 import { Display, Body, Mono } from '../components/Type';
@@ -5,7 +6,9 @@ import { MeshStatus, AppBar } from '../components/Chrome';
 import Avatar from '../components/Avatar';
 import { HopChip } from '../components/Chip';
 import ReachMap, { type MapNode } from '../features/messaging/components/ReachMap';
+import RemoveSheet from '../features/messaging/components/RemoveSheet';
 import { useMesh } from '../store/mesh';
+import type { Thread } from '../store/types';
 
 export default function ReachScreen({
   onOpen,
@@ -15,26 +18,30 @@ export default function ReachScreen({
   onNewGroup: () => void;
 }) {
   const { c, mode, cycle } = useTheme();
-  const { status, error, peers, threads, stats, start, stop } = useMesh();
+  const { status, error, peers, threads, contacts, stats, start, stop, unpair, forgetThread } =
+    useMesh();
+  const [removing, setRemoving] = useState<Thread | null>(null);
 
   const live = Object.keys(peers).length;
 
   const statusLine =
     status === 'live'
-      ? `MESH LIVE · ${live} PEER${live === 1 ? '' : 'S'} · TAP TO STOP`
+      ? `MESH LIVE · ${live} NODE${live === 1 ? '' : 'S'} IN RANGE · TAP TO STOP`
       : status === 'starting'
         ? 'STARTING MESH'
         : status === 'error'
           ? (error ?? 'MESH FAILED').toUpperCase()
           : 'MESH OFF · TAP TO START';
 
-  // Only what is actually out there. An empty map means nothing is in range,
-  // which is information — not a screen waiting to be filled with a demo set.
+  // Everything in range goes on the map, but only people you have met are
+  // named. The rest are nodes: they carry traffic and nothing else.
   const nodes: MapNode[] = Object.entries(peers).map(([id, p]) => ({
     id,
-    name: p.display,
+    name: contacts[id]?.name ?? p.display,
     hops: 0,
+    stranger: !contacts[id],
   }));
+  const strangers = nodes.filter((n) => n.stranger).length;
 
   return (
     <>
@@ -47,7 +54,7 @@ export default function ReachScreen({
         title="Reach"
         sub={
           status === 'live'
-            ? `${live} reachable · ${stats.relayed} relayed for others`
+            ? `${Object.keys(contacts).length} contacts · ${strangers} relaying · ${stats.relayed} carried`
             : 'Mesh off · nothing is listening'
         }
         right={
@@ -84,9 +91,11 @@ export default function ReachScreen({
         {threads.length === 0 ? (
           <View style={[s.empty, { borderColor: c.hair2 }]}>
             <Body size={13} dim={2}>
-              {status === 'live'
-                ? 'Nothing in range yet. Open Echo on another phone nearby and start its mesh — it will appear here on its own.'
-                : 'Tap the line above to start the mesh. Phones running Echo nearby will appear here, and you can talk to them with no cell and no wifi.'}
+              {status !== 'live'
+                ? 'Tap the line above to start the mesh, then meet someone with a phone tap or a scanned code.'
+                : strangers > 0
+                  ? `${strangers} phone${strangers === 1 ? '' : 's'} in range ${strangers === 1 ? 'is' : 'are'} carrying messages for the mesh, but being nearby is not the same as knowing someone. Go to Meet and tap or scan a code to start a conversation.`
+                  : 'Nobody yet. Go to Meet and hold the phones together, or scan a code, to add someone.'}
             </Body>
           </View>
         ) : null}
@@ -96,8 +105,11 @@ export default function ReachScreen({
             <Pressable
               key={t.id}
               onPress={() => onOpen(t.id)}
+              onLongPress={() => setRemoving(t)}
+              delayLongPress={400}
               accessibilityRole="button"
               accessibilityLabel={`${t.title}. ${t.hops === null ? 'No route' : t.hops === 0 ? 'Direct' : `Via ${t.via}`}`}
+              accessibilityHint={t.group ? 'Hold to leave this group' : 'Hold to remove this phone'}
               style={({ pressed }) => [
                 s.conv,
                 { borderBottomColor: c.hair2, borderBottomWidth: i === threads.length - 1 ? 0 : 1 },
@@ -130,7 +142,27 @@ export default function ReachScreen({
             </Pressable>
           ))}
         </View>
+
+        {threads.length > 0 ? (
+          <Mono size={8.5} style={{ alignSelf: 'center', marginTop: 6 }}>
+            HOLD A CONVERSATION TO REMOVE IT
+          </Mono>
+        ) : null}
       </ScrollView>
+
+      {removing ? (
+        <RemoveSheet
+          thread={removing}
+          onCancel={() => setRemoving(null)}
+          onConfirm={() => {
+            // A group has no peer behind it, so there is nothing to block —
+            // leaving is just forgetting it.
+            if (removing.group) forgetThread(removing.id);
+            else unpair(removing.id);
+            setRemoving(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

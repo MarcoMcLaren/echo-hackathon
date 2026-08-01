@@ -1,9 +1,19 @@
 // Live mesh state. Owns the transport and applies the relay rules to anything
 // that arrives, so screens only ever read plain data.
-import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { MeshTransport, type PeerInfo } from '../features/messaging/api/transport';
-import { deviceIdentity } from '../features/vault/api/identity';
+import {
+  loadProfile,
+  createProfile,
+  renameProfile,
+  resetIdentity,
+} from '../features/vault/api/identity';
+import {
+  loadContacts,
+  addContact as persistContact,
+  removeContact as forgetContact,
+  type Contact,
+} from '../features/vault/api/contacts';
 import { prepareNotifications, notifyMessage } from '../features/messaging/api/notify';
 import { decodeEvent } from '../features/messaging/api/events';
 import {
@@ -51,10 +61,6 @@ export function walletFrom(threads: Thread[]): { balance: number; entries: Entry
   return { balance: OPENING_BALANCE + net, entries: entries.reverse() };
 }
 
-/** The phone model, so demo handsets are told apart on sight. Replace with a
- *  name the user picks once there's a settings screen. */
-const defaultName = String((Platform.constants as any)?.Model ?? 'Echo phone');
-
 /** Under this many unread, you can just read them yourself. */
 export const SUMMARY_THRESHOLD = 5;
 
@@ -65,12 +71,17 @@ type State = {
   status: MeshStatus;
   error?: string;
   /**
-   * Only phones reachable right now. A peer that goes away is removed rather
-   * than kept as a disconnected entry — a ghost node on the map that will never
-   * reconnect reads as a bug, and it makes the peer count disagree with the
-   * conversation list.
+   * Every Echo phone in range right now — nodes, not friends. Most of these are
+   * strangers whose only job is carrying traffic. A node that goes away is
+   * removed rather than kept as a disconnected entry, since a ghost on the map
+   * that will never reconnect reads as a bug.
    */
   peers: Record<string, { display: string; peerId: string }>;
+  /**
+   * The people you have actually met, by tap or by scanned code. Only these get
+   * a conversation, and only these can put a message in front of you.
+   */
+  contacts: Record<string, Contact>;
   threads: Thread[];
   /** Counts for the demo — proof the relay actually did something. */
   stats: { sent: number; delivered: number; relayed: number; dropped: number };
@@ -78,9 +89,22 @@ type State = {
   /** A coin send held in its cancel window. One at a time, deliberately. */
   pending: { msgId: string; threadId: string; amount: number; until: number } | null;
 
+  /**
+   * Claim this phone's identity and load its contacts. Called once at launch,
+   * not when the mesh starts — your identity is who you are, not something that
+   * only exists while the radio is on. Without this the pairing code would read
+   * "pending" until you happened to start the mesh.
+   */
+  init: () => Promise<void>;
+  /** False until a name has been chosen. Drives the first-run screen. */
+  ready: boolean;
+  /** First launch: pick a name, get an id. */
+  createIdentity: (name: string) => Promise<void>;
+  /** Wipe everything and go back to first launch, with a brand new id. */
+  resetApp: () => Promise<void>;
   start: () => Promise<void>;
   stop: () => Promise<void>;
-  setName: (display: string) => void;
+  setName: (display: string) => Promise<void>;
   send: (
     threadId: string,
     body: string,
@@ -89,6 +113,16 @@ type State = {
   markRead: (threadId: string) => void;
   /** Make a group from peers you can currently reach, and tell them about it. */
   createGroup: (name: string, memberIds: string[]) => Promise<string>;
+  /** A tap or a scanned code proved you met. Creates the conversation. */
+  pair: (deviceId: string, name: string) => Promise<void>;
+  /**
+   * Remove someone. They go back to being a node — still relaying for the mesh,
+   * no longer able to reach you. No block needed: the contact list is an
+   * allowlist, so being off it is enough.
+   */
+  unpair: (deviceId: string) => Promise<void>;
+  /** Forget a conversation that has no contact behind it, such as a group. */
+  forgetThread: (threadId: string) => void;
   /** Show it in the thread, but hold it back for CANCEL_WINDOW_MS first. */
   queueCoin: (threadId: string, amount: number) => void;
   cancelPending: () => void;
@@ -105,21 +139,84 @@ let transport: MeshTransport | null = null;
 let cancelTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useMesh = create<State>((set, get) => ({
-  // Replaced with the persisted id the first time the mesh starts.
-  me: { deviceId: 'pending', display: defaultName },
+  // Replaced by init() at launch, or by createIdentity() on first run.
+  me: { deviceId: 'pending', display: '' },
+  ready: false,
   status: 'off',
   peers: {},
   // Empty. Conversations appear when a phone connects or a message arrives.
   threads: [],
   stats: { sent: 0, delivered: 0, relayed: 0, dropped: 0 },
   pending: null,
+  contacts: {},
 
-  setName: (display) => set((s) => ({ me: { ...s.me, display } })),
+  createIdentity: async (name) => {
+    const profile = await createProfile(name);
+    set({ ready: true, me: { deviceId: profile.id, display: profile.name }, contacts: {} });
+  },
+
+  resetApp: async () => {
+    await get().stop();
+    resetIdentity();
+    // Back to the state of a phone that has never been opened. The next launch
+    // asks for a name and mints a new id, so to everyone else this is a
+    // different phone rather than the same one with its history hidden.
+    set({
+      ready: false,
+      me: { deviceId: 'pending', display: '' },
+      contacts: {},
+      threads: [],
+      peers: {},
+      pending: null,
+      stats: { sent: 0, delivered: 0, relayed: 0, dropped: 0 },
+      error: undefined,
+    });
+  },
+
+  setName: async (display) => {
+    const profile = await renameProfile(display);
+    if (profile) set((s) => ({ me: { ...s.me, display: profile.name } }));
+  },
 
   markRead: (threadId) =>
     set((s) => ({
       threads: s.threads.map((t) => (t.id === threadId ? { ...t, unread: 0 } : t)),
     })),
+
+  pair: async (deviceId, name) => {
+    const all = await persistContact(deviceId, name);
+    set((s) => ({
+      contacts: all,
+      threads: s.threads.some((t) => t.id === deviceId)
+        ? s.threads.map((t) => (t.id === deviceId ? { ...t, title: name, initials: initialsOf(name) } : t))
+        : [
+            {
+              id: deviceId,
+              title: name,
+              initials: initialsOf(name),
+              preview: 'Paired — say something',
+              at: 'now',
+              hops: s.peers[deviceId] ? 0 : null,
+              messages: [],
+              unread: 0,
+            },
+            ...s.threads,
+          ],
+    }));
+  },
+
+  unpair: async (deviceId) => {
+    const all = await forgetContact(deviceId);
+    // The connection stays up: they are still a useful node for the mesh.
+    // Only the relationship goes.
+    set((s) => ({
+      contacts: all,
+      threads: s.threads.filter((t) => t.id !== deviceId),
+    }));
+  },
+
+  forgetThread: (threadId) =>
+    set((s) => ({ threads: s.threads.filter((t) => t.id !== threadId) })),
 
   createGroup: async (name, memberIds) => {
     const id = newGroupId();
@@ -150,14 +247,44 @@ export const useMesh = create<State>((set, get) => ({
     return id;
   },
 
+  init: async () => {
+    if (get().ready) return;
+    const profile = await loadProfile();
+    // Never set up. The first-run screen asks for a name, and only then does
+    // this phone get an id.
+    if (!profile) {
+      set({ ready: false });
+      return;
+    }
+    // Contacts survive restarts; their conversations are rebuilt from them.
+    const contacts = await loadContacts();
+    set((s) => ({
+      ready: true,
+      me: { deviceId: profile.id, display: profile.name },
+      contacts,
+      threads: s.threads.length
+        ? s.threads
+        : Object.values(contacts).map((k) => ({
+            id: k.id,
+            title: k.name,
+            initials: initialsOf(k.name),
+            preview: 'Paired',
+            at: '',
+            hops: null as Hops,
+            messages: [],
+            unread: 0,
+          })),
+    }));
+  },
+
   start: async () => {
     if (get().status === 'live' || get().status === 'starting') return;
     set({ status: 'starting', error: undefined });
 
-    // Stable across restarts, so the phone you spoke to earlier is still the
-    // same phone and doesn't come back as a stranger.
-    const me = { deviceId: await deviceIdentity(), display: get().me.display };
-    set({ me });
+    // Identity and contacts are claimed at launch, but starting the mesh
+    // without them would advertise as "pending", so make sure they are in.
+    await get().init();
+    const me = get().me;
 
     // Asked for here rather than at launch: the permission makes sense to
     // someone who has just turned the mesh on, and nowhere else.
@@ -173,40 +300,16 @@ export const useMesh = create<State>((set, get) => ({
             peers[peer.deviceId] = { display: peer.display, peerId: peer.peerId };
           }
 
-          // A phone you can reach has to be a phone you can open a chat with,
-          // or the mesh is live and there is nothing to do with it.
-          let threads = s.threads;
-          const known = threads.some((t) => t.id === peer.deviceId);
-          if (state === 'connected' && !known) {
-            threads = [
-              {
-                id: peer.deviceId,
-                title: peer.display,
-                initials: initialsOf(peer.display),
-                preview: 'Connected over the mesh',
-                at: 'now',
-                hops: 0,
-                messages: [],
-                unread: 0,
-              },
-              ...threads,
-            ];
-          } else if (known) {
-            threads = threads.map((t) =>
-              t.id === peer.deviceId
-                ? {
-                    ...t,
-                    hops: state === 'connected' ? 0 : null,
-                    // A thread created from a message that predates knowing the
-                    // sender's name is titled with their raw device id. Now that
-                    // they are a peer, give it their actual name.
-                    ...(t.title === t.id
-                      ? { title: peer.display, initials: initialsOf(peer.display) }
-                      : null),
-                  }
-                : t
-            );
-          }
+          // Connecting to a node does NOT create a conversation. Being in range
+          // of a stranger is not a relationship — it just means they can carry
+          // traffic. Conversations come from pairing, nowhere else.
+          //
+          // What a connection does do is update the route on a conversation you
+          // already have with this person.
+          const route: Hops = state === 'connected' ? 0 : null;
+          const threads = s.threads.map((t) =>
+            t.id === peer.deviceId ? { ...t, hops: route } : t
+          );
 
           return { peers, threads };
         });
@@ -244,13 +347,31 @@ export const useMesh = create<State>((set, get) => ({
         if (whole === null) return;
         const e = { ...partial, body: whole };
 
+        // Only people you have met can put something in front of you. A
+        // stranger's message is still relayed onward for whoever it is for —
+        // we just do not show it. This is the difference between being a node
+        // in someone's mesh and being in their contacts.
+        const known = get().contacts[e.from] || isGroup(e.to);
+        if (!known) {
+          set((s) => ({ stats: { ...s.stats, dropped: s.stats.dropped + 1 } }));
+          return;
+        }
+
         const hops = hopsTaken(e) as Hops;
         const relay = relayedBy(e);
 
-        // An invite creates the group locally — but only for people actually
-        // named in it. Everyone in radio range sees the envelope; that is not
-        // the same as being in the group.
+        // An invite creates the group locally — but only from someone you have
+        // met, and only if you are actually named in it. Group messages are
+        // exempt from the contact check above, because the group itself is the
+        // trust boundary: two people in Alice's group need not have paired with
+        // each other. An invite is what draws that boundary, so it cannot come
+        // from a stranger — otherwise anyone in radio range could put a group on
+        // your phone and talk to you through it.
         if (e.kind === 'invite') {
+          if (!get().contacts[e.from]) {
+            set((s) => ({ stats: { ...s.stats, dropped: s.stats.dropped + 1 } }));
+            return;
+          }
           try {
             const g = JSON.parse(e.body) as { id: string; name: string; members: string[] };
             const meId = get().me.deviceId;
