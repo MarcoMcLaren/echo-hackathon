@@ -19,6 +19,7 @@ import 'features/messaging/notifier.dart';
 import 'features/sidequest/remote_gpu.dart';
 import 'features/vault/lock.dart';
 import 'features/vault/qr_scanner.dart';
+import 'features/vault/secure_stores.dart';
 import 'features/vault/vault.dart';
 import 'features/vision/obstacle_detector.dart';
 import 'screens/chat_screen.dart';
@@ -69,7 +70,16 @@ class EchoApp extends StatelessWidget {
             final transport = useRealTransport
                 ? NearbyTransport(deviceId: () => store.me.deviceId, display: () => store.me.display)
                 : MockTransport();
-            store = MeshStore(transport: transport, notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey));
+            // Without these the stores default to in-memory, so identity and
+            // contacts die with the process: every launch asks for a name
+            // again and mints a new device id, which silently orphans every
+            // pairing made before the restart.
+            store = MeshStore(
+              transport: transport,
+              notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey),
+              profileStore: SecureStorageProfileStore(),
+              contactsStore: SecureStorageContactsStore(),
+            );
             return store;
           },
         ),
