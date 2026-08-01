@@ -11,6 +11,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:nearby_connections/nearby_connections.dart';
 
 import '../../utils/relay.dart';
@@ -84,7 +86,9 @@ class NearbyTransport implements MeshTransport {
   Future<TransportStartResult> start() async {
     if (_running) return const TransportStartResult.ok();
 
+    debugPrint('[mesh-debug] transport.start: requesting permissions');
     final perm = await ensureNearbyPermissions();
+    debugPrint('[mesh-debug] transport.start: permissions ok=${perm.ok} missing=${perm.missing}');
     if (!perm.ok) {
       return const TransportStartResult.failure(
         'Echo needs Bluetooth and location permission to find phones.',
@@ -97,7 +101,9 @@ class NearbyTransport implements MeshTransport {
     // A previous session (or a hot reload that reset our Dart state) can
     // leave the radio still advertising, which makes the next start fail.
     // Clear it first, same as upstream.
+    debugPrint('[mesh-debug] transport.start: stopping stale radio');
     await _stopRadio();
+    debugPrint('[mesh-debug] transport.start: radio clear, advertising as $advertised');
 
     try {
       await _nearby.startAdvertising(
@@ -108,6 +114,7 @@ class NearbyTransport implements MeshTransport {
         onConnectionResult: _onConnectionResult,
         onDisconnected: _onDisconnected,
       );
+      debugPrint('[mesh-debug] transport.start: advertising up, starting discovery');
       await _nearby.startDiscovery(
         advertised,
         Strategy.P2P_CLUSTER,
@@ -116,10 +123,12 @@ class NearbyTransport implements MeshTransport {
         onEndpointLost: _onEndpointLost,
       );
     } catch (e) {
+      debugPrint('[mesh-debug] transport.start: FAILED: $e');
       await stop();
       return TransportStartResult.failure(_explain(e));
     }
 
+    debugPrint('[mesh-debug] transport.start: live');
     _running = true;
     return const TransportStartResult.ok();
   }
