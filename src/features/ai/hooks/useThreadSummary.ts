@@ -4,12 +4,12 @@
 // ciphertext between phones, so shipping the plaintext to a server to summarise
 // it would undo the thing the app is for.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLLM, QWEN2_5_0_5B_QUANTIZED } from 'react-native-executorch';
+import { useLLM, QWEN2_5_1_5B_QUANTIZED } from 'react-native-executorch';
 import type { Thread } from '../../../store/types';
 
 /** Shown on the sheet. The claim of "on device" is worth nothing if the UI
  *  doesn't say which model ran and where. */
-export const SUMMARY_MODEL = 'Qwen 2.5 0.5B · on this phone';
+export const SUMMARY_MODEL = 'Qwen 2.5 1.5B · on this phone';
 
 /** A 0.5B model will happily write an essay. Stop it once it has said enough. */
 const MAX_LINES = 4;
@@ -108,7 +108,7 @@ export const toLines = (raw: string): string[] =>
 export function useThreadSummary({ enabled }: { enabled: boolean }) {
   // preventLoad keeps the ~400 MB model out of RAM until someone asks for a
   // summary, so opening a chat stays cheap.
-  const llm = useLLM({ model: QWEN2_5_0_5B_QUANTIZED, preventLoad: !enabled });
+  const llm = useLLM({ model: QWEN2_5_1_5B_QUANTIZED, preventLoad: !enabled });
 
   const [failed, setFailed] = useState<string | null>(null);
   const [tookMs, setTookMs] = useState<number | null>(null);
