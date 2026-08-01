@@ -1,11 +1,13 @@
 // Ported from src/screens/WalletScreen.tsx.
 import 'package:flutter/material.dart';
-import '../models/mock.dart' as mock;
+import '../store/app_store.dart';
+import '../store/app_store_scope.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
 import '../widgets/chrome.dart';
 import '../widgets/route_strip.dart';
 import '../widgets/type.dart';
+import '../models/types.dart';
 
 class WalletScreen extends StatelessWidget {
   final VoidCallback onSend;
@@ -16,6 +18,9 @@ class WalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
+    final store = AppStoreScope.of(context);
+    final wallet = walletFrom(store.threads);
+
     return Column(
       children: [
         const MeshStatusBar(),
@@ -44,7 +49,7 @@ class WalletScreen extends StatelessWidget {
                           const CoinMark(size: 34),
                           const SizedBox(width: 9),
                           Text(
-                            mock.balance.toStringAsFixed(2),
+                            wallet.balance.toStringAsFixed(2),
                             style: tabularNums(TextStyle(
                               fontFamily: EchoFont.display,
                               fontSize: 44,
@@ -56,7 +61,7 @@ class WalletScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 3),
-                    const MonoText('ECHOCOIN · LAST SYNCED WITH 3 PEERS 2M AGO', size: 8.5),
+                    MonoText('ECHOCOIN · ${store.contacts.length} CONTACTS PAIRED', size: 8.5),
                   ],
                 ),
               ),
@@ -85,7 +90,23 @@ class WalletScreen extends StatelessWidget {
               const SizedBox(height: 12),
               const MonoText('ACTIVITY', size: 10),
               const SizedBox(height: 4),
-              for (var i = 0; i < mock.ledger.length; i++) _LedgerRow(entry: mock.ledger[i], isLast: i == mock.ledger.length - 1),
+              if (wallet.entries.isEmpty)
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: c.hair2, style: BorderStyle.solid),
+                    borderRadius: BorderRadius.circular(EchoRadius.card),
+                  ),
+                  child: const BodyText(
+                    'Nothing has moved yet. Send or receive echocoin with a paired contact to see it here.',
+                    size: 12.5,
+                    dim: Dim.two,
+                  ),
+                )
+              else
+                for (var i = 0; i < wallet.entries.length; i++)
+                  _LedgerRow(entry: wallet.entries[i], isLast: i == wallet.entries.length - 1),
             ],
           ),
         ),
@@ -132,7 +153,7 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _LedgerRow extends StatelessWidget {
-  final mock.Entry entry;
+  final Entry entry;
   final bool isLast;
 
   const _LedgerRow({required this.entry, required this.isLast});

@@ -32,7 +32,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 
-import '../models/mock.dart';
+import '../models/types.dart';
 
 /// Shown on the sheet next to "Catch me up" — matches RN's SUMMARY_MODEL.
 const summaryModel = 'Qwen 2.5 0.5B · on this phone';

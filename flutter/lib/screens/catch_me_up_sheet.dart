@@ -7,7 +7,7 @@
 // LLM (see lib/features/thread_summary.dart), not a static mock.
 import 'package:flutter/material.dart';
 import '../features/thread_summary.dart';
-import '../models/mock.dart';
+import '../models/types.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
 import '../widgets/type.dart';

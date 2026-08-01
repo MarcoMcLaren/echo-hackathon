@@ -19,7 +19,10 @@ class MapNode {
   final String id;
   final String name;
   final int? hops;
-  const MapNode({required this.id, required this.name, required this.hops});
+  /// A raw nearby peer that isn't a contact — you haven't met them, so
+  /// showing anything but "NODE" would imply you had. Ported from `ff3f159`.
+  final bool stranger;
+  const MapNode({required this.id, required this.name, required this.hops, this.stranger = false});
 }
 
 class ReachMap extends StatelessWidget {
@@ -63,7 +66,9 @@ class ReachMap extends StatelessWidget {
             }(),
         ];
 
-        String label(String name) => name.split(' ')[0].toUpperCase().substring(0, math.min(8, name.split(' ')[0].length));
+        String label(MapNode n) => n.stranger
+            ? 'NODE'
+            : n.name.split(' ')[0].toUpperCase().substring(0, math.min(8, n.name.split(' ')[0].length));
 
         Widget dashedRing(Offset at, double r) => Positioned(
               left: at.dx - r,
@@ -121,19 +126,21 @@ class ReachMap extends StatelessWidget {
           children: [
             dashedRing(you, _r1),
             dashedRing(you, _r2),
-            for (final p in directAt) line(you, p, c.direct),
+            for (var i = 0; i < directAt.length; i++) line(you, directAt[i], direct[i].stranger ? c.hair : c.direct),
             for (var i = 0; i < relayedAt.length; i++)
               line(directAt.isNotEmpty ? directAt[i % directAt.length] : you, relayedAt[i], c.relay),
-            for (final p in directAt) station(p, c.direct, fill: c.paper),
+            for (var i = 0; i < directAt.length; i++)
+              station(directAt[i], direct[i].stranger ? c.hair : c.direct, fill: c.paper),
             for (final p in relayedAt) station(p, c.relay, fill: c.paper),
             for (var i = 0; i < gone.length; i++)
               station(Offset(math.min(w - 24, you.dx + 118 + i * 22), you.dy - 4), c.dim, r: 5),
             station(you, c.ink, r: 7),
             nodeLabel(Offset(you.dx, you.dy + 11), 'YOU'),
-            for (var i = 0; i < directAt.length; i++) nodeLabel(Offset(directAt[i].dx, directAt[i].dy - 21), label(direct[i].name)),
-            for (var i = 0; i < relayedAt.length; i++) nodeLabel(Offset(relayedAt[i].dx, relayedAt[i].dy - 21), label(relayed[i].name)),
+            for (var i = 0; i < directAt.length; i++)
+              nodeLabel(Offset(directAt[i].dx, directAt[i].dy - 21), label(direct[i]), faint: direct[i].stranger),
+            for (var i = 0; i < relayedAt.length; i++) nodeLabel(Offset(relayedAt[i].dx, relayedAt[i].dy - 21), label(relayed[i])),
             for (var i = 0; i < gone.length; i++)
-              nodeLabel(Offset(math.min(w - 24, you.dx + 118 + i * 22), you.dy + 10), label(gone[i].name), faint: true),
+              nodeLabel(Offset(math.min(w - 24, you.dx + 118 + i * 22), you.dy + 10), label(gone[i]), faint: true),
           ],
         );
       }),

@@ -1,6 +1,6 @@
 // Ported from src/screens/SendCoinScreen.tsx.
 import 'package:flutter/material.dart';
-import '../models/mock.dart' as mock;
+import '../store/app_store.dart';
 import '../store/app_store_scope.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
@@ -42,15 +42,15 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
 
-    final contact = mock.byId(widget.contactId);
-    final thread = mock.threadById(widget.contactId);
-    final name = contact?.name ?? thread?.title ?? 'Contact';
-    final initials = contact?.initials ?? thread?.initials ?? '··';
-    // Matches the RN `contact?.hops ?? thread?.hops ?? 0` chain verbatim,
-    // including its quirk: a contact with hops: null (no route) falls through
-    // to 0 here rather than staying null, if its thread fallback is also null.
-    final int? hops = contact?.hops ?? thread?.hops ?? 0;
-    final via = contact?.via ?? thread?.via;
+    final store = AppStoreScope.of(context);
+    final thread = store.threadById(widget.contactId);
+    final name = thread?.title ?? 'Contact';
+    final initials = thread?.initials ?? '··';
+    final int? hops = thread?.hops ?? 0;
+    final via = thread?.via;
+    final balance = walletFrom(store.threads).balance;
+    final parsed = double.tryParse(amount) ?? 0;
+    final enough = parsed > 0 && parsed <= balance;
 
     final routeNote = hops == null
         ? 'QUEUES UNTIL A ROUTE OPENS'
@@ -61,7 +61,7 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
     return Column(
       children: [
         const MeshStatusBar(),
-        EchoAppBar(title: 'Send echocoin', sub: 'Balance ${mock.balance.toStringAsFixed(2)}', onBack: widget.onBack),
+        EchoAppBar(title: 'Send echocoin', sub: 'Balance ${balance.toStringAsFixed(2)}', onBack: widget.onBack),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
@@ -134,17 +134,22 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
                 ),
                 const Spacer(),
                 GestureDetector(
-                  onTap: () {
-                    AppStoreScope.of(context).queueCoin(widget.contactId, double.tryParse(amount) ?? 0);
-                    widget.onQueued(widget.contactId);
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(minHeight: touchMin),
-                    alignment: Alignment.center,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(color: c.coin, borderRadius: BorderRadius.circular(10)),
-                    child: DisplayText('Send $amount', size: 15, color: Colors.white),
+                  onTap: !enough
+                      ? null
+                      : () {
+                          store.queueCoin(widget.contactId, parsed);
+                          widget.onQueued(widget.contactId);
+                        },
+                  child: Opacity(
+                    opacity: enough ? 1 : 0.5,
+                    child: Container(
+                      width: double.infinity,
+                      constraints: const BoxConstraints(minHeight: touchMin),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(color: c.coin, borderRadius: BorderRadius.circular(10)),
+                      child: DisplayText(enough ? 'Send $amount' : 'More than you have', size: 15, color: Colors.white),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),

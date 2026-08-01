@@ -51,4 +51,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Real mesh transport (NearbyTransportPlugin.kt) — the same Google Nearby
+    // Connections API RN's expo-nearby-connections wraps.
+    implementation("com.google.android.gms:play-services-nearby:19.3.0")
 }

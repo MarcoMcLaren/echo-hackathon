@@ -1,25 +1,29 @@
 // Ported from src/screens/TapScreen.tsx.
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../features/vault/contacts.dart';
+import '../features/vault/identity.dart';
+import '../store/app_store.dart';
+import '../store/app_store_scope.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
 import '../widgets/avatar.dart';
 import '../widgets/chrome.dart';
 import '../widgets/qr_code.dart';
+import '../widgets/reset_sheet.dart';
 import '../widgets/type.dart';
 
 const _core = 52.0;
 const _max = 150.0;
 
-// What the other phone reads. Same payload either way, so NFC and QR are two
-// doors into one pairing flow rather than two features.
-const _myPairPayload = 'echo://pair?id=rf7k2m&k=9fA2c4Be71D0&n=Reon';
-const _myFingerprint = '9FA2 C4BE 71D0';
-
 enum _Mode { tap, show, scan }
 
 class TapScreen extends StatefulWidget {
-  const TapScreen({super.key});
+  /// Fires once a scanned code is confirmed and the contact is persisted —
+  /// wired by main.dart to jump straight into the new conversation.
+  final ValueChanged<String>? onPaired;
+
+  const TapScreen({super.key, this.onPaired});
 
   @override
   State<TapScreen> createState() => _TapScreenState();
@@ -28,87 +32,146 @@ class TapScreen extends StatefulWidget {
 class _TapScreenState extends State<TapScreen> {
   _Mode mode = _Mode.tap;
   String? scanned;
+  bool _resetting = false;
+
+  Future<void> _confirmScan(AppStore store, String id, String name) async {
+    await store.pair(id, name);
+    if (!mounted) return;
+    setState(() {
+      scanned = null;
+      mode = _Mode.tap;
+    });
+    widget.onPaired?.call(id);
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
+    final store = AppStoreScope.of(context);
     const segs = [(id: _Mode.tap, label: 'TAP'), (id: _Mode.show, label: 'SHOW CODE'), (id: _Mode.scan, label: 'SCAN')];
 
-    return Column(
+    Contact? mostRecent;
+    for (final contact in store.contacts.values) {
+      if (mostRecent == null || contact.addedAt > mostRecent.addedAt) mostRecent = contact;
+    }
+
+    return Stack(
       children: [
-        MeshStatusBar(right: mode == _Mode.tap ? 'NFC READY' : 'CAMERA PAIRING'),
-        const EchoAppBar(title: 'Meet a phone', sub: 'Adds a contact and swaps keys'),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-          child: Row(
-            children: [
-              for (final sg in segs)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: () => setState(() {
-                        mode = sg.id;
-                        scanned = null;
-                      }),
-                      child: Semantics(
-                        button: true,
-                        selected: sg.id == mode,
-                        child: Container(
-                          constraints: const BoxConstraints(minHeight: 36),
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(EchoRadius.pill),
-                            border: Border.all(color: sg.id == mode ? c.ink : c.hair, width: 1.5),
-                            color: sg.id == mode ? c.ink : Colors.transparent,
+        Column(
+          children: [
+            MeshStatusBar(right: mode == _Mode.tap ? 'NFC READY' : 'CAMERA PAIRING'),
+            const EchoAppBar(title: 'Meet a phone', sub: 'Adds a contact and swaps keys'),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: Row(
+                children: [
+                  for (final sg in segs)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: GestureDetector(
+                          onTap: () => setState(() {
+                            mode = sg.id;
+                            scanned = null;
+                          }),
+                          child: Semantics(
+                            button: true,
+                            selected: sg.id == mode,
+                            child: Container(
+                              constraints: const BoxConstraints(minHeight: 36),
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(EchoRadius.pill),
+                                border: Border.all(color: sg.id == mode ? c.ink : c.hair, width: 1.5),
+                                color: sg.id == mode ? c.ink : Colors.transparent,
+                              ),
+                              child: MonoText(sg.label, size: 9, color: sg.id == mode ? c.paper : c.ink2),
+                            ),
                           ),
-                          child: MonoText(sg.label, size: 9, color: sg.id == mode ? c.paper : c.ink2),
                         ),
                       ),
                     ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: switch (mode) {
-            _Mode.tap => const _TapMode(),
-            _Mode.show => const _ShowMode(),
-            _Mode.scan => _ScanMode(
-                scanned: scanned,
-                onScan: (v) => setState(() => scanned = v),
+                ],
               ),
-          },
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(14, 0, 14, 16 + MediaQuery.paddingOf(context).bottom),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: c.card, border: Border.all(color: c.direct), borderRadius: BorderRadius.circular(10)),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Avatar(initials: 'SD', hops: 0, size: 30),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      MonoText('PAIRED WITH SIPHO DLAMINI', size: 9, dim: Dim.one),
-                      MonoText('KEYS EXCHANGED · SCANNED CODE · 09:47', size: 8.5),
-                    ],
-                  ),
-                ),
-              ],
             ),
-          ),
+            Expanded(
+              child: switch (mode) {
+                _Mode.tap => const _TapMode(),
+                _Mode.show => _ShowMode(deviceId: store.meId, display: store.meDisplay),
+                _Mode.scan => _ScanMode(
+                    scanned: scanned,
+                    onScan: (v) => setState(() => scanned = v),
+                    onConfirm: (id, name) => _confirmScan(store, id, name),
+                  ),
+              },
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(14, 0, 14, 12 + MediaQuery.paddingOf(context).bottom),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: c.card, border: Border.all(color: c.hair2), borderRadius: BorderRadius.circular(10)),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Avatar(initials: mostRecent != null ? _initials(mostRecent.name) : '··', hops: mostRecent != null ? 0 : null, size: 30),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              MonoText(
+                                mostRecent != null ? 'PAIRED WITH ${mostRecent.name.toUpperCase()}' : 'NOBODY PAIRED YET',
+                                size: 9,
+                                dim: Dim.one,
+                              ),
+                              MonoText(
+                                mostRecent != null ? 'KEYS EXCHANGED · ${store.contacts.length} CONTACT${store.contacts.length == 1 ? '' : 'S'} TOTAL' : 'TAP OR SCAN TO MEET SOMEONE',
+                                size: 8.5,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Semantics(
+                    button: true,
+                    label: 'Reset this phone',
+                    child: GestureDetector(
+                      onTap: () => setState(() => _resetting = true),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: MonoText('RESET', size: 8.5, dim: Dim.two),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
+        if (_resetting)
+          ResetSheet(
+            onConfirm: () {
+              setState(() => _resetting = false);
+              store.resetApp();
+            },
+            onClose: () => setState(() => _resetting = false),
+          ),
       ],
     );
   }
+}
+
+String _initials(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty) return '??';
+  return trimmed.length >= 2 ? trimmed.substring(0, 2).toUpperCase() : trimmed.toUpperCase();
 }
 
 /// NFC: the fastest path when both phones have the hardware.
@@ -152,7 +215,9 @@ class _TapMode extends StatelessWidget {
 
 /// The fallback half you hold up.
 class _ShowMode extends StatelessWidget {
-  const _ShowMode();
+  final String deviceId;
+  final String display;
+  const _ShowMode({required this.deviceId, required this.display});
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +231,7 @@ class _ShowMode extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(border: Border.all(color: c.hair), borderRadius: BorderRadius.circular(12)),
-              child: const QrCode(value: _myPairPayload, size: 196),
+              child: QrCode(value: pairPayload(deviceId, display), size: 196),
             ),
             const SizedBox(height: 16),
             const SizedBox(
@@ -182,7 +247,7 @@ class _ShowMode extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(border: Border.all(color: c.hair2), color: c.card, borderRadius: BorderRadius.circular(8)),
-              child: const MonoText(_myFingerprint, size: 10, dim: Dim.one),
+              child: MonoText(fingerprintOf(deviceId), size: 10, dim: Dim.one),
             ),
             const SizedBox(height: 16),
             const MonoText('CHECK THIS MATCHES ON THEIR SCREEN', size: 8.5),
@@ -197,14 +262,16 @@ class _ShowMode extends StatelessWidget {
 class _ScanMode extends StatelessWidget {
   final String? scanned;
   final ValueChanged<String> onScan;
-  const _ScanMode({required this.scanned, required this.onScan});
+  final void Function(String id, String name) onConfirm;
+  const _ScanMode({required this.scanned, required this.onScan, required this.onConfirm});
 
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
 
     if (scanned != null && scanned!.isNotEmpty) {
-      final ok = scanned!.startsWith('echo://pair');
+      final parsed = decodePairPayload(scanned!);
+      final ok = parsed != null;
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 26),
@@ -225,17 +292,19 @@ class _ScanMode extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
               ),
-              if (ok) ...[
+              if (parsed != null) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(border: Border.all(color: c.hair2), color: c.card, borderRadius: BorderRadius.circular(8)),
-                  child: const MonoText(_myFingerprint, size: 10, dim: Dim.one),
+                  child: MonoText(fingerprintOf(parsed.id), size: 10, dim: Dim.one),
                 ),
+                const SizedBox(height: 8),
+                MonoText('FROM ${parsed.name.toUpperCase()}', size: 9),
               ],
               const SizedBox(height: 16),
               GestureDetector(
-                onTap: () => onScan(''),
+                onTap: () => ok ? onConfirm(parsed.id, parsed.name) : onScan(''),
                 child: Container(
                   constraints: const BoxConstraints(minHeight: touchMin),
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 22),

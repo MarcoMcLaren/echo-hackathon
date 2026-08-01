@@ -4,6 +4,7 @@ import 'screens/lock_screen.dart';
 import 'screens/read_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/send_coin_screen.dart';
+import 'screens/setup_screen.dart';
 import 'screens/tap_screen.dart';
 import 'screens/wallet_screen.dart';
 import 'store/app_store.dart';
@@ -58,6 +59,26 @@ class _RootState extends State<_Root> {
   // it clears. Mirrors Chrome.tsx's `disabled` prop on BottomNav.
   bool _readBusy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStoreChanged);
+    // Claims identity/contacts regardless of whether the mesh is ever
+    // started — this must resolve before the tab UI can render, so a fresh
+    // install shows SetupScreen instead of an app with an undefined identity.
+    _store.init();
+  }
+
+  void _onStoreChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
   void _back() => setState(() => _route = null);
 
   @override
@@ -70,6 +91,13 @@ class _RootState extends State<_Root> {
       return Scaffold(
         backgroundColor: c.paper,
         body: LockScreen(onUnlocked: () => setState(() => _unlocked = true)),
+      );
+    }
+
+    if (!_store.ready) {
+      return Scaffold(
+        backgroundColor: c.paper,
+        body: SafeArea(child: SetupScreen(onCreate: _store.createIdentity)),
       );
     }
 
@@ -87,10 +115,12 @@ class _RootState extends State<_Root> {
       _ => switch (_tab) {
           EchoTab.reach => ReachScreen(onOpen: (id) => setState(() => _route = _AppRoute('chat', id))),
           EchoTab.wallet => WalletScreen(
-              onSend: () => setState(() => _route = _AppRoute('send', 'naledi')),
+              // No contact picker exists — go pick a real conversation to
+              // send from, same fallback RN's own mock-removal took.
+              onSend: () => setState(() => _tab = EchoTab.reach),
               onTap: () => setState(() => _tab = EchoTab.tap),
             ),
-          EchoTab.tap => const TapScreen(),
+          EchoTab.tap => TapScreen(onPaired: (id) => setState(() => _route = _AppRoute('chat', id))),
           EchoTab.read => ReadScreen(onBusyChange: (busy) => setState(() => _readBusy = busy)),
         },
     };

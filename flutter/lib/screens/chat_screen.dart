@@ -2,14 +2,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../features/messaging/attachments.dart';
+import '../features/messaging/events.dart';
 import '../hooks/use_shake.dart';
-import '../models/mock.dart' as mock;
 import '../store/app_store.dart';
 import '../store/app_store_scope.dart';
 import '../theme/echo_theme.dart';
 import '../theme/palette.dart';
 import '../widgets/chip.dart';
 import '../widgets/chrome.dart';
+import '../widgets/event_composer.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/type.dart';
 import 'catch_me_up_sheet.dart';
@@ -42,6 +44,8 @@ class _ChatScreenState extends State<ChatScreen> {
   int _left = 0;
   String? _note;
   Timer? _noteTimer;
+  bool _attachOpen = false;
+  bool _composingEvent = false;
 
   @override
   void didChangeDependencies() {
@@ -136,6 +140,31 @@ class _ChatScreenState extends State<ChatScreen> {
     _scrollToEnd();
   }
 
+  Future<void> _attachPhoto(String threadId, {required bool fromCamera}) async {
+    setState(() => _attachOpen = false);
+    final picked = fromCamera ? await pickFromCamera() : await pickFromLibrary();
+    if (picked == null || !mounted) return;
+    if (picked.bytes > maxImageChars) {
+      _showNote('That photo is too big to send over the mesh');
+      return;
+    }
+    _showNote('Sending photo in ${chunkCount(picked.bytes)} parts');
+    _store.send(threadId, picked.dataUri, kind: 'image');
+    _scrollToEnd();
+  }
+
+  void _sendEvent(String threadId, MeshEvent event) {
+    setState(() => _composingEvent = false);
+    _store.send(threadId, encodeEvent(event), kind: 'event');
+    _scrollToEnd();
+  }
+
+  Future<void> _saveEvent(MeshEvent event) async {
+    final outcome = await saveToCalendar(event);
+    if (!mounted) return;
+    _showNote(outcome.message ?? (outcome.ok ? 'Added to your calendar' : 'Could not add it to the calendar'));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
@@ -145,8 +174,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final holding = store.pending?.threadId == widget.threadId ? store.pending : null;
     final backlog = _backlog ?? thread.unread;
 
+    final otherMembers = thread.group ? (thread.members ?? const []).where((m) => m != store.meId).toList() : const <String>[];
+    final reachableMembers = thread.group ? otherMembers.where((m) => store.peers.containsKey(m)).toList() : const <String>[];
+
     final sub = thread.group
-        ? '${thread.members!.length} members · 3 reachable'
+        ? '${thread.members!.length} members · ${reachableMembers.length} reachable'
         : thread.hops == null
             ? 'No route · messages queue here'
             : thread.hops == 0
@@ -164,13 +196,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 controller: _scroller,
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
                 children: [
-                  if (thread.group) const _ReachBar(),
+                  if (thread.group)
+                    _ReachBar(
+                      reachable: reachableMembers.length,
+                      away: otherMembers.length - reachableMembers.length,
+                      awayNames: [
+                        for (final id in otherMembers)
+                          if (!store.peers.containsKey(id)) (store.contacts[id]?.name ?? id).split(' ')[0]
+                      ],
+                    ),
                   const Center(child: Padding(padding: EdgeInsets.only(bottom: 8), child: MonoText('TODAY', size: 8.5))),
                   for (var i = 0; i < thread.messages.length; i++)
                     MessageBubble(
                       msg: thread.messages[i],
-                      senderName: thread.group && thread.messages[i].from != 'me' ? mock.byId(thread.messages[i].from)?.name.split(' ')[0] : null,
+                      senderName: thread.group && thread.messages[i].from != 'me' ? thread.messages[i].fromName?.split(' ')[0] : null,
                       animate: i >= _baseline!,
+                      onSaveEvent: _saveEvent,
                     ),
                   if (backlog >= summaryThreshold)
                     Center(
@@ -235,11 +276,40 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: MonoText(_note!.toUpperCase(), size: 9, color: c.paper),
                 ),
               ),
+            if (_attachOpen)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: c.card, border: Border(top: BorderSide(color: c.hair2, width: 1))),
+                child: Row(
+                  children: [
+                    Expanded(child: _AttachOption(label: 'Take a photo', onTap: () => _attachPhoto(thread.id, fromCamera: true))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _AttachOption(label: 'Choose photo', onTap: () => _attachPhoto(thread.id, fromCamera: false))),
+                    const SizedBox(width: 8),
+                    Expanded(child: _AttachOption(label: 'Event', onTap: () => setState(() { _attachOpen = false; _composingEvent = true; }))),
+                  ],
+                ),
+              ),
             Container(
               padding: EdgeInsets.fromLTRB(12, 9, 12, 9 + MediaQuery.paddingOf(context).bottom),
               decoration: BoxDecoration(color: c.card, border: Border(top: BorderSide(color: c.hair2, width: 1))),
               child: Row(
                 children: [
+                  Semantics(
+                    button: true,
+                    label: 'Attach',
+                    child: GestureDetector(
+                      onTap: () => setState(() => _attachOpen = !_attachOpen),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.hair, width: 1.5)),
+                        child: DisplayText('+', size: 20, dim: Dim.one),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Semantics(
                     button: true,
                     label: 'Send echocoin',
@@ -296,6 +366,11 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
         if (_summary) CatchMeUpSheet(thread: thread, unread: backlog, onClose: () => setState(() => _summary = false)),
+        if (_composingEvent)
+          EventComposer(
+            onSend: (event) => _sendEvent(thread.id, event),
+            onClose: () => setState(() => _composingEvent = false),
+          ),
       ],
     );
   }
@@ -303,12 +378,22 @@ class _ChatScreenState extends State<ChatScreen> {
 
 /// Who can actually hear you right now, before you type.
 class _ReachBar extends StatelessWidget {
-  const _ReachBar();
+  final int reachable;
+  final int away;
+  final List<String> awayNames;
+  const _ReachBar({required this.reachable, required this.away, required this.awayNames});
 
   @override
   Widget build(BuildContext context) {
     final c = EchoTheme.of(context).c;
-    final pips = [c.direct, c.direct, c.relay, c.dim];
+    final pips = [
+      for (var i = 0; i < reachable; i++) c.direct,
+      for (var i = 0; i < away; i++) c.dim,
+    ];
+    final line2 = awayNames.isEmpty
+        ? 'EVERYONE HAS THIS NOW'
+        : '${awayNames.take(2).join(', ').toUpperCase()} GET${awayNames.length == 1 ? 'S' : ''} IT WHEN THEY’RE BACK';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(9),
@@ -322,13 +407,38 @@ class _ReachBar extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                MonoText('2 DIRECT · 1 VIA THABO · 1 OUT OF REACH', size: 8.5, dim: Dim.two),
-                MonoText('SIPHO GETS IT WHEN HE’S BACK', size: 8.5),
+              children: [
+                MonoText('$reachable REACHABLE · $away OUT OF REACH', size: 8.5, dim: Dim.two),
+                MonoText(line2, size: 8.5),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AttachOption extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AttachOption({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = EchoTheme.of(context).c;
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: touchMin),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(border: Border.all(color: c.hair, width: 1.5), borderRadius: BorderRadius.circular(10)),
+          child: DisplayText(label, size: 12.5),
+        ),
       ),
     );
   }

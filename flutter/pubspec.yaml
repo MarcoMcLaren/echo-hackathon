@@ -72,6 +72,15 @@ dependencies:
   # rather than jumping to the 1.x line, which likely has larger API changes.
   flutter_gemma: ^0.12.2
 
+  # Photo message capture/pick — mirrors attachments.ts's use of
+  # expo-image-picker for both gallery pick and camera capture in one API.
+  image_picker: ^1.1.2
+
+  # Calendar event creation for "Add to calendar" — mirrors events.ts's use of
+  # expo-calendar (legacy API): list writable calendars, create an event with
+  # an explicit timeZone (Android rejects one with none).
+  device_calendar: ^4.3.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
