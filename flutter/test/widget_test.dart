@@ -1,5 +1,5 @@
-// Smoke test: the app boots on the Reach tab and can navigate to Chat and
-// back via the stub screens' demo affordances.
+// Smoke test: the app boots on the Reach tab and can navigate into a real
+// chat thread and back, wired through MeshStore's seeded demo data.
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/main.dart';
@@ -16,13 +16,13 @@ void main() {
     expect(find.text('WALLET'), findsOneWidget);
     expect(find.text('MEET'), findsOneWidget);
 
-    await tester.tap(find.text('Open demo thread'));
+    await tester.tap(find.text('Thabo Mokoena'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Chat'), findsOneWidget);
     expect(find.text('REACH'), findsNothing);
+    expect(find.text('Here, for the wood run'), findsOneWidget);
 
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.bySemanticsLabel('Back'));
     await tester.pumpAndSettle();
 
     expect(find.text('Reach'), findsOneWidget);

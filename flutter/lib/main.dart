@@ -6,11 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'components/chrome.dart' show AppTab, BottomNav;
+import 'features/ai/summarize.dart';
+import 'features/feedback/proximity_feedback.dart';
+import 'features/messaging/mock_transport.dart';
+import 'features/sidequest/remote_gpu.dart';
+import 'features/vault/vault.dart';
+import 'features/vision/obstacle_detector.dart';
 import 'screens/chat_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/send_coin_screen.dart';
 import 'screens/tap_screen.dart';
 import 'screens/wallet_screen.dart';
+import 'store/mesh_store.dart';
 import 'store/theme_store.dart';
 import 'styles/theme.dart' as tokens;
 
@@ -23,8 +30,22 @@ class EchoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ThemeStore(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeStore()),
+        // Mock-first adapters: every feature area from the project brief is
+        // reachable from the provider tree, even the ones no screen in this
+        // pass consumes yet (vision/feedback/sidequest), so a later screen
+        // never has to instantiate an adapter ad hoc inside a widget.
+        ChangeNotifierProvider(create: (_) => MeshStore(transport: MockTransport())),
+        Provider<SecureVault>(create: (_) => MockSecureVault()),
+        Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
+        Provider<ObstacleDetector>(create: (_) => MockObstacleDetector()),
+        Provider<ProximityFeedback>(
+          create: (_) => ProximityFeedback(haptics: SystemHapticOutput(), speech: NoOpSpeechOutput()),
+        ),
+        Provider<RemoteGpuClient>(create: (_) => UnavailableRemoteGpuClient()),
+      ],
       child: const _EchoMaterialApp(),
     );
   }
