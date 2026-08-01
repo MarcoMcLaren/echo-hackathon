@@ -50,4 +50,23 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Reach'), findsOneWidget);
   });
+
+  testWidgets('Wallet Send on a fresh install goes to Reach, not a phantom conversation', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const EchoApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Not now'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('WALLET'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send'));
+    await tester.pumpAndSettle();
+
+    // Money goes to a conversation, so with nobody paired yet, Send lands on
+    // Reach (the list you'd pick one from) rather than a picked contact.
+    expect(find.text('Reach'), findsOneWidget);
+    expect(find.text('Send echocoin'), findsNothing);
+  });
 }

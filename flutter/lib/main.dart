@@ -179,8 +179,9 @@ class _AppShellState extends State<AppShell> {
         onNewGroup: () => setState(() => _route = const _Route(_RouteName.newGroup)),
       ),
       (null, AppTab.wallet) => WalletScreen(
-        onSend: () =>
-            setState(() => _route = const _Route(_RouteName.send, 'naledi')),
+        // Money goes to a conversation, so send starts by choosing one.
+        // Reach is that list; there is no separate contact picker.
+        onSend: () => setState(() => _tab = AppTab.reach),
         onTap: () => setState(() => _tab = AppTab.tap),
       ),
       (null, AppTab.tap) => const TapScreen(),
