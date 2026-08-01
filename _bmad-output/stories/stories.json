@@ -1,0 +1,489 @@
+{
+  "project": "Echo Currency — RN vs Flutter benchmark",
+  "spec": "_bmad-output/specs/spec-currency-app-framework-comparison/SPEC.md",
+  "epics": [
+    { "key": "E1", "name": "Foundations", "goal": "Frozen contract and a wallet state layer in both frameworks." },
+    { "key": "E2", "name": "App shell", "goal": "Three views, send state machine, receive pipeline — both frameworks." },
+    { "key": "E3", "name": "Channel 1 — QR", "goal": "Static QR transfer, same-app then cross-framework." },
+    { "key": "E4", "name": "Channel 2 — Nearby", "goal": "Nearby Connections transfer and the cross-framework toggle." },
+    { "key": "E5", "name": "Channel 3 — Relay", "goal": "App-layer multi-hop relay over Nearby." },
+    { "key": "E6", "name": "Channel 4 — NFC", "goal": "Tag-based NFC transfer." },
+    { "key": "E7", "name": "Measurement", "goal": "The numbers the project exists to produce." },
+    { "key": "E8", "name": "Agentic (gated)", "goal": "Tier A streaming comparison. Blocked until an endpoint exists." },
+    { "key": "E9", "name": "Demo readiness", "goal": "Four phones, rehearsed, claims aligned to what shipped." }
+  ],
+  "stories": [
+    {
+      "id": "E1-01", "epic": "E1", "title": "Freeze wire format v0 + conformance vectors",
+      "framework": "both", "size": "M", "status": "done", "cap": "CAP-9",
+      "context": "The byte contract both implementations derive from. Blocks everything.",
+      "ac": [
+        "spec/wire.md specifies all 42 bytes, offsets and endianness",
+        "spec/vectors.json holds 9 vectors (6 encode, 3 reject)",
+        "spec/ref.py verifies them: `uv run spec/ref.py` prints OK 9",
+        "At least one vector cross-checked against a base64 implementation other than ref.py"
+      ],
+      "notes": "Done. Vector 1 cross-checked against coreutils base64."
+    },
+    {
+      "id": "E1-02", "epic": "E1", "title": "RN — wire codec + vector tests",
+      "framework": "rn", "size": "M", "status": "done", "cap": "CAP-9",
+      "context": "TypeScript codec. RN has no Buffer, so base64url is hand-rolled.",
+      "ac": [
+        "currency-rn/src/wire.ts implements encode, decode, toB64url, fromB64url, relay helpers",
+        "No TS parameter properties — must run under `node --experimental-strip-types`",
+        "test/vectors.json is a COPY of spec/vectors.json, never a link",
+        "`node --experimental-strip-types --test currency-rn/test/wire.test.ts` passes"
+      ],
+      "notes": "Done. 6/6 tests pass."
+    },
+    {
+      "id": "E1-03", "epic": "E1", "title": "Flutter — wire codec + vector tests",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-9",
+      "context": "Written from the same prose spec but NEVER EXECUTED — authored on a box with no Dart. Expect to fix something on first run.",
+      "ac": [
+        "`cd currency-flutter && dart test` passes all 9 vectors",
+        "Byte output identical to spec/ref.py for every encode vector",
+        "Error codes match the RN side verbatim",
+        "If Dart and RN disagree, ref.py decides and the losing side is fixed"
+      ],
+      "notes": "GATE: no channel work starts in Flutter until this is green. See currency-flutter/STATUS.md."
+    },
+    {
+      "id": "E1-04", "epic": "E1", "title": "RN — scaffold currency-rn",
+      "framework": "rn", "size": "S", "status": "ready", "cap": "CAP-1",
+      "context": "Expo project, entirely separate from the echo-hackathon base app.",
+      "ac": [
+        "Expo blank-typescript project builds and runs on a physical device",
+        "applicationId distinct from the Flutter build so both install on one phone",
+        "No build file references anything outside currency-rn/",
+        "src/wire.ts and test/ preserved by the scaffold"
+      ]
+    },
+    {
+      "id": "E1-05", "epic": "E1", "title": "Flutter — scaffold currency-flutter",
+      "framework": "flutter", "size": "S", "status": "ready", "cap": "CAP-1",
+      "context": "flutter create over the existing lib/ and test/.",
+      "ac": [
+        "`flutter create --org com.echo.currency --project-name currency_flutter .` completes",
+        "lib/wire.dart and test/ survive the scaffold",
+        "applicationId distinct from the RN build",
+        "`test: ^1.25.0` added to dev_dependencies",
+        "Runs on a physical device"
+      ]
+    },
+    {
+      "id": "E1-06", "epic": "E1", "title": "RN — wallet state layer (device id, storage, preload)",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-1",
+      "context": "See app-contract.md §3–§5. One JSON blob, no database.",
+      "ac": [
+        "16-byte random device id generated once and persisted",
+        "Wallet persists as a single JSON blob in AsyncStorage matching the documented shape",
+        "First launch preloads exactly 20 notes: 10x1, 6x5, 3x20, 1x100 (total 22500)",
+        "note_id derived from deviceId + index so devices never mint colliding ids",
+        "Balance is a fold over HELD notes only",
+        "State survives force-quit and relaunch"
+      ]
+    },
+    {
+      "id": "E1-07", "epic": "E1", "title": "Flutter — wallet state layer (device id, storage, preload)",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-1",
+      "context": "Same contract as E1-06. SharedPreferences instead of AsyncStorage.",
+      "ac": [
+        "16-byte random device id generated once and persisted",
+        "Wallet persists as a single JSON blob matching the documented shape",
+        "First launch preloads exactly 20 notes: 10x1, 6x5, 3x20, 1x100 (total 22500)",
+        "note_id derived from deviceId + index",
+        "Balance is a fold over HELD notes only",
+        "State survives force-quit and relaunch"
+      ]
+    },
+    {
+      "id": "E2-01", "epic": "E2", "title": "RN — three views behind a state enum",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-1",
+      "context": "Wallet / Send / Receive. NO navigation library — react-navigation vs go_router is not what we are measuring.",
+      "ac": [
+        "Three views switched by a single state enum, no nav dependency",
+        "Wallet lists notes grouped by denomination with a total",
+        "IN_FLIGHT notes render greyed with a Cancel affordance",
+        "Deliberately custom styling — not Material, not Cupertino"
+      ]
+    },
+    {
+      "id": "E2-02", "epic": "E2", "title": "Flutter — three views behind a state enum",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-1",
+      "context": "Same contract as E2-01.",
+      "ac": [
+        "Three views switched by a single state enum, no go_router or Navigator 2",
+        "Wallet lists notes grouped by denomination with a total",
+        "IN_FLIGHT notes render greyed with a Cancel affordance",
+        "Deliberately custom styling — not Material, not Cupertino"
+      ]
+    },
+    {
+      "id": "E2-03", "epic": "E2", "title": "RN — send state machine (IN_FLIGHT / Delivered / Cancel)",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-13",
+      "context": "Fire-and-forget has no ACK, so the human is the acknowledgement. This lock — not cryptography — is what prevents double-spend in v0.",
+      "ac": [
+        "Selecting a note moves it HELD -> IN_FLIGHT",
+        "IN_FLIGHT notes are excluded from the balance fold and cannot be selected again",
+        "Delivered deletes the note; Cancel restores it to HELD",
+        "Both buttons are equally prominent — no confirm-by-default",
+        "A QR displayed and never scanned, then cancelled, loses nothing"
+      ]
+    },
+    {
+      "id": "E2-04", "epic": "E2", "title": "Flutter — send state machine (IN_FLIGHT / Delivered / Cancel)",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-13",
+      "context": "Same contract as E2-03.",
+      "ac": [
+        "Selecting a note moves it HELD -> IN_FLIGHT",
+        "IN_FLIGHT notes are excluded from the balance fold and cannot be selected again",
+        "Delivered deletes the note; Cancel restores it to HELD",
+        "Both buttons are equally prominent",
+        "A QR displayed and never scanned, then cancelled, loses nothing"
+      ]
+    },
+    {
+      "id": "E2-05", "epic": "E2", "title": "RN — receive pipeline + verbatim error codes",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-2",
+      "context": "app-contract.md §2. Error codes are shown literally — they are the fastest debugging tool on the day.",
+      "ac": [
+        "Pipeline: fromB64url -> decode -> dedupe check -> bearer/holder check -> accept",
+        "Rejections surface unsupported_version, bad_length, bad_flags, duplicate, not_holder VERBATIM",
+        "On accept, holder is rewritten to this device and lamport incremented before storing",
+        "seen set keyed on (note_id, lamport), in-memory only"
+      ]
+    },
+    {
+      "id": "E2-06", "epic": "E2", "title": "Flutter — receive pipeline + verbatim error codes",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-2",
+      "context": "Same contract as E2-05.",
+      "ac": [
+        "Pipeline: fromB64url -> decode -> dedupe check -> bearer/holder check -> accept",
+        "Rejections surface the same five codes verbatim",
+        "On accept, holder rewritten and lamport incremented before storing",
+        "seen set keyed on (note_id, lamport), in-memory only"
+      ]
+    },
+    {
+      "id": "E3-01", "epic": "E3", "title": "RN — static QR driver (BEARER)",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-3",
+      "context": "QR is BEARER by necessity — the sender cannot learn who will scan. expo-camera already scans, so only an encoder dep is needed.",
+      "ac": [
+        "Implements the ChannelDriver interface, profile SMALL",
+        "Send renders the 56-char base64url as QR text mode, EC level M, >=240dp",
+        "Notes sent over QR set flags bit 0 and holder all-zero",
+        "Receive decodes via expo-camera barcode scanning",
+        "Works in airplane mode"
+      ]
+    },
+    {
+      "id": "E3-02", "epic": "E3", "title": "Flutter — static QR driver (BEARER)",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-3",
+      "context": "qr_flutter to encode, mobile_scanner to decode.",
+      "ac": [
+        "Implements the ChannelDriver interface, profile SMALL",
+        "Send renders the 56-char base64url as QR text mode, EC level M, >=240dp",
+        "Notes sent over QR set flags bit 0 and holder all-zero",
+        "Receive decodes via mobile_scanner",
+        "Works in airplane mode"
+      ]
+    },
+    {
+      "id": "E3-03", "epic": "E3", "title": "Same-app QR transfer verified in airplane mode",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-7",
+      "context": "The baseline deliverable. Two RN phones, two Flutter phones.",
+      "ac": [
+        "RN -> RN transfer completes with wifi and cellular off",
+        "Flutter -> Flutter transfer completes with wifi and cellular off",
+        "Sender's note is gone, receiver's wallet total increases by the right amount",
+        "Rescanning the same QR is rejected as duplicate"
+      ]
+    },
+    {
+      "id": "E3-04", "epic": "E3", "title": "Cross-framework QR transfer, both directions",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-8",
+      "context": "The riskiest step in the project and the cheapest to test. Do it the moment E3-03 passes.",
+      "ac": [
+        "RN -> Flutter transfer completes",
+        "Flutter -> RN transfer completes",
+        "Both directions tested independently — encode and decode are different code paths",
+        "Airplane mode throughout"
+      ]
+    },
+    {
+      "id": "E4-01", "epic": "E4", "title": "RN — Nearby Connections driver (DIRECTED)",
+      "framework": "rn", "size": "L", "status": "ready", "cap": "CAP-4",
+      "context": "expo-nearby-connections is ALREADY in the base repo — this is the head start. Time it from a clean scaffold or the number is worthless.",
+      "ac": [
+        "serviceId is the constant echo.currency.v0",
+        "Endpoint name is rn:<first 4 bytes of device id hex>",
+        "Strategy P2P_CLUSTER, payload type BYTES",
+        "Directed transfer: holder set to the discovered peer's device id",
+        "Works with wifi and cellular off"
+      ]
+    },
+    {
+      "id": "E4-02", "epic": "E4", "title": "Flutter — Nearby Connections driver (DIRECTED)",
+      "framework": "flutter", "size": "L", "status": "ready", "cap": "CAP-4",
+      "context": "nearby_connections package. Same underlying Google Nearby API as the RN side, which is what makes this a fair binding comparison.",
+      "ac": [
+        "serviceId is the constant echo.currency.v0",
+        "Endpoint name is fl:<first 4 bytes of device id hex>",
+        "Strategy P2P_CLUSTER, payload type BYTES",
+        "Directed transfer: holder set to the discovered peer's device id",
+        "Works with wifi and cellular off"
+      ]
+    },
+    {
+      "id": "E4-03", "epic": "E4", "title": "Cross-framework toggle",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-8",
+      "context": "THE headline demo beat. One boolean, client-side discovery filtering only.",
+      "ac": [
+        "Visible switch in Wallet, persisted — not buried in settings",
+        "Off (default): Nearby ignores endpoints whose prefix differs from this build",
+        "On: every endpoint accepted",
+        "Affects discovery only — QR and NFC are unaffected",
+        "No re-advertising and no second serviceId"
+      ]
+    },
+    {
+      "id": "E4-04", "epic": "E4", "title": "Nearby same-app and cross-framework, both directions",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-7",
+      "context": "Four interop cells over Nearby.",
+      "ac": [
+        "RN->RN and FL->FL pass with the toggle off",
+        "RN->FL and FL->RN pass with the toggle on",
+        "Airplane mode throughout"
+      ]
+    },
+    {
+      "id": "E5-01", "epic": "E5", "title": "Relay algorithm — written once by the floater",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-5",
+      "context": "One algorithm, implemented twice independently. TTL and dedupe bugs are invisible until four phones are in a room.",
+      "ac": [
+        "Pseudocode in spec/wire.md reviewed and agreed by both devs before either implements",
+        "TTL start of 3 and the dedupe key (note_id, lamport) confirmed identical on both sides"
+      ]
+    },
+    {
+      "id": "E5-02", "epic": "E5", "title": "RN — multi-hop relay driver",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-5",
+      "context": "Pure TypeScript over the Nearby transport — no native code. Relay is DIRECTED-only.",
+      "ac": [
+        "Parses and emits the R|<ttl>|<base64url> envelope",
+        "Forwards to all endpoints except the sender",
+        "Drops at ttl <= 1 and on a dedupe hit",
+        "Claims the note when holder == own device id",
+        "A BEARER note offered to the relay driver is rejected, not forwarded"
+      ]
+    },
+    {
+      "id": "E5-03", "epic": "E5", "title": "Flutter — multi-hop relay driver",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-5",
+      "context": "Same algorithm as E5-02, implemented independently in Dart.",
+      "ac": [
+        "Parses and emits the R|<ttl>|<base64url> envelope",
+        "Forwards to all endpoints except the sender",
+        "Drops at ttl <= 1 and on a dedupe hit",
+        "Claims the note when holder == own device id",
+        "A BEARER note offered to the relay driver is rejected, not forwarded"
+      ]
+    },
+    {
+      "id": "E5-04", "epic": "E5", "title": "Four-phone multi-hop test",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-5",
+      "context": "A -> B -> C where A and C are never directly connected.",
+      "ac": [
+        "Note travels two hops to a device out of A's radio range",
+        "TTL stops propagation — no infinite loop with 4 devices in range",
+        "A note is never forwarded twice by the same device",
+        "Airplane mode throughout"
+      ]
+    },
+    {
+      "id": "E6-01", "epic": "E6", "title": "RN — NFC tag driver (BEARER)",
+      "framework": "rn", "size": "M", "status": "ready", "cap": "CAP-6",
+      "context": "Tag-based, NOT Host Card Emulation. HCE needs a native Android service plus AID registration in both frameworks and Android Beam is gone.",
+      "ac": [
+        "Writes the 56-char base64url as an NDEF text record",
+        "Notes written to a tag set flags bit 0 and holder all-zero",
+        "Sender's copy is deleted only on Delivered, per CAP-13",
+        "Reading a tag claims the note and blanks the tag",
+        "react-native-nfc-manager, no native module written"
+      ]
+    },
+    {
+      "id": "E6-02", "epic": "E6", "title": "Flutter — NFC tag driver (BEARER)",
+      "framework": "flutter", "size": "M", "status": "ready", "cap": "CAP-6",
+      "context": "nfc_manager package. Same tag semantics as E6-01.",
+      "ac": [
+        "Writes the 56-char base64url as an NDEF text record",
+        "Notes written to a tag set flags bit 0 and holder all-zero",
+        "Reading a tag claims the note and blanks the tag",
+        "nfc_manager, no native module written"
+      ]
+    },
+    {
+      "id": "E6-03", "epic": "E6", "title": "NFC tag interop — write in one framework, read in the other",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-8",
+      "context": "Tags carry no framework identity, so this should work for free. Prove it.",
+      "ac": [
+        "Tag written by RN is read and claimed by Flutter",
+        "Tag written by Flutter is read and claimed by RN",
+        "A blanked tag read again produces a clean error, not a crash"
+      ]
+    },
+    {
+      "id": "E7-01", "epic": "E7", "title": "RN — 100k-row scroll screen",
+      "framework": "rn", "size": "S", "status": "ready", "cap": "CAP-10",
+      "context": "Generated in-memory list — never the wallet, never a database.",
+      "ac": [
+        "Renders 100k generated rows",
+        "Reachable from Wallet via a debug affordance",
+        "Identical row content and layout to the Flutter build"
+      ]
+    },
+    {
+      "id": "E7-02", "epic": "E7", "title": "Flutter — 100k-row scroll screen",
+      "framework": "flutter", "size": "S", "status": "ready", "cap": "CAP-10",
+      "context": "Same content and layout as E7-01 or the comparison is meaningless.",
+      "ac": [
+        "Renders 100k generated rows",
+        "Reachable from Wallet via a debug affordance",
+        "Identical row content and layout to the RN build"
+      ]
+    },
+    {
+      "id": "E7-03", "epic": "E7", "title": "Null-app baseline in both frameworks",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-10",
+      "context": "An empty scroll list in each, so framework cost is separable from our code.",
+      "ac": [
+        "Empty-list app built in both frameworks",
+        "Measured with the same adb commands as the real builds"
+      ]
+    },
+    {
+      "id": "E7-04", "epic": "E7", "title": "adb telemetry capture, both builds",
+      "framework": "both", "size": "M", "status": "ready", "cap": "CAP-10",
+      "context": "No in-app telemetry screen — everything external. Requires a Path B machine with the Android SDK.",
+      "ac": [
+        "Release builds, cold, after a reboot — no hot-reload numbers",
+        "Both apps on the SAME phone, runs interleaved",
+        "Battery % and thermal state logged beside every sample",
+        "Cold start (am start -W), APK size per ABI, jank/p95 (dumpsys gfxinfo), PSS (dumpsys meminfo)",
+        "Median of 5 for every timing"
+      ]
+    },
+    {
+      "id": "E7-05", "epic": "E7", "title": "Fill the scorecard and write the read-out",
+      "framework": "both", "size": "M", "status": "ready", "cap": "CAP-10",
+      "context": "The deliverable is a decision table, not a winner.",
+      "ac": [
+        "Every row of scorecard.md filled or explicitly marked not-measured",
+        "Per-channel build cost recorded from CLEAN SCAFFOLDS",
+        "The RN head start (expo-nearby-connections, executorch) printed, not hidden",
+        "'Anything that fought you' written for every channel in both frameworks",
+        "Five read-out rows each answered in one line"
+      ]
+    },
+    {
+      "id": "E8-01", "epic": "E8", "title": "BLOCKED — provision and freeze a streaming endpoint",
+      "framework": "both", "size": "S", "status": "blocked", "cap": "CAP-12",
+      "context": "No OpenAI-compatible endpoint is available yet. Nothing else in E8 can start. The whole epic is sequenced AFTER the app is finished.",
+      "ac": [
+        "An endpoint reachable from the demo network is identified and tested",
+        "URL and model name frozen in a constant shared by both apps",
+        "Both apps confirmed to hit the IDENTICAL endpoint and model",
+        "Fallback decided in case the datacenter GPU is unavailable on the day"
+      ],
+      "notes": "Blocks E8-02..E8-05. If this is still blocked when the channels are done, agentic becomes a slide."
+    },
+    {
+      "id": "E8-02", "epic": "E8", "title": "Reference streaming client (floater)",
+      "framework": "both", "size": "S", "status": "blocked", "cap": "CAP-12",
+      "context": "Built once by the floater so each dev integrates in ~30 min instead of an hour.",
+      "ac": [
+        "Documented request shape, streaming parse, and error handling",
+        "Verified against the frozen endpoint before either dev touches it"
+      ]
+    },
+    {
+      "id": "E8-03", "epic": "E8", "title": "RN — agent view (Tier A)",
+      "framework": "rn", "size": "M", "status": "blocked", "cap": "CAP-12",
+      "context": "One prompt box, one streamed response. Shipped and labelled as a BENCHMARK HARNESS, not sold as a feature.",
+      "ac": [
+        "Identical prompt and endpoint to the Flutter build",
+        "Tokens render as they stream",
+        "No native code — this tier isolates pure UI streaming"
+      ]
+    },
+    {
+      "id": "E8-04", "epic": "E8", "title": "Flutter — agent view (Tier A)",
+      "framework": "flutter", "size": "M", "status": "blocked", "cap": "CAP-12",
+      "context": "Same contract as E8-03.",
+      "ac": [
+        "Identical prompt and endpoint to the RN build",
+        "Tokens render as they stream",
+        "No native code"
+      ]
+    },
+    {
+      "id": "E8-05", "epic": "E8", "title": "Capture Tier A metrics",
+      "framework": "both", "size": "S", "status": "blocked", "cap": "CAP-12",
+      "context": "Report as separate numbers. Tiers B and C are NOT attempted — say so.",
+      "ac": [
+        "Time to first token, tokens/sec, jank while streaming, glue LOC — both frameworks",
+        "Write-up states plainly that Tiers B and C were not attempted"
+      ]
+    },
+    {
+      "id": "E9-01", "epic": "E9", "title": "Source four phones — 2 RN, 2 Flutter",
+      "framework": "both", "size": "S", "status": "ready", "cap": null,
+      "context": "A day-zero logistics task with a named owner, not something discovered at 4pm. The 2+2 split IS the requirement.",
+      "ac": [
+        "Four Android devices confirmed, arm64, NFC-capable",
+        "Named owner assigned",
+        "Both APKs installed side by side on at least one device"
+      ]
+    },
+    {
+      "id": "E9-02", "epic": "E9", "title": "Buy NTAG215 stickers",
+      "framework": "both", "size": "S", "status": "ready", "cap": "CAP-6",
+      "context": "Cheap, and they are the entire NFC demo.",
+      "ac": ["A pack of writable NFC tags is physically present on the day"]
+    },
+    {
+      "id": "E9-03", "epic": "E9", "title": "Rehearse hot-reload with radios off",
+      "framework": "both", "size": "S", "status": "ready", "cap": null,
+      "context": "You cannot reload in airplane mode. Teams discover this mid-demo.",
+      "ac": [
+        "A working edit-and-see-it loop demonstrated with wifi off, or",
+        "A documented decision to demo from release builds only"
+      ]
+    },
+    {
+      "id": "E9-04", "epic": "E9", "title": "Airplane-mode dress rehearsal",
+      "framework": "both", "size": "M", "status": "ready", "cap": null,
+      "context": "A scheduled block, not leftover time. Hackathon demos fail at the demo, not at the build.",
+      "ac": [
+        "Full 90-second sequence run end to end with radios off",
+        "QR same-app, toggle, cross-framework, Nearby relay across the room, NFC tag off a table",
+        "Run twice without a reinstall"
+      ]
+    },
+    {
+      "id": "E9-05", "epic": "E9", "title": "Align the pitch to what actually shipped",
+      "framework": "both", "size": "S", "status": "ready", "cap": null,
+      "context": "An overclaiming pitch is what judges punish. Several claims are already known-false for v0.",
+      "ac": [
+        "No signature or forger-identification claim — v0 notes are unsigned",
+        "No fraud-detection claim — CAP-11 was cut",
+        "Agentic claims match the tiers actually run",
+        "Cut list stated out loud: HCE, SIG mesh, animated QR, ultrasonic, UWB, satellite, VLC, hardware keys",
+        "The RN head start is disclosed"
+      ]
+    }
+  ]
+}

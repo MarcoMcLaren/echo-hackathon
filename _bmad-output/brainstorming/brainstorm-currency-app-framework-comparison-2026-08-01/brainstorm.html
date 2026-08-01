@@ -621,6 +621,423 @@ h2.sec-title{font-size:clamp(24px,4.4vw,40px); letter-spacing:-.03em}
 .consequence .cbox p{font-size:14px; color:var(--ink2); margin-top:8px; line-height:1.55}
 .consequence .cbox p b{color:var(--ink)}
 
+/* ============================================================
+   ROUND TWO
+   ============================================================ */
+.r2mast{position:relative; margin-top:86px; padding:64px 0 4px; border-top:1px solid var(--line2)}
+.r2mast::before{
+  content:""; position:absolute; left:50%; top:-1px; transform:translateX(-50%);
+  width:min(620px,92%); height:2px;
+  background:linear-gradient(90deg, transparent, var(--violet), var(--sig), transparent);
+  box-shadow:0 0 26px rgba(180,140,255,.55);
+}
+.r2mast .r2k{font-family:var(--mono); font-size:11px; letter-spacing:.3em; text-transform:uppercase; color:var(--violet); text-align:center}
+.r2mast .r2t{
+  text-align:center; font-size:clamp(40px,12vw,132px); font-weight:850; letter-spacing:-.055em; line-height:.9; margin-top:12px;
+  background:linear-gradient(96deg, var(--violet), var(--sig) 55%, var(--rn));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.r2mast .r2sub{text-align:center; max-width:70ch; margin:16px auto 0; color:var(--ink2); font-size:clamp(14px,2.1vw,17px)}
+.r2threads{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:26px}
+@media(max-width:760px){.r2threads{grid-template-columns:1fr}}
+.thread{border:1px solid var(--line); border-radius:10px; padding:14px 16px; background:var(--panel)}
+.thread .tn{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--violet)}
+.thread .tt{font-size:14px; margin-top:7px; color:var(--ink)}
+
+/* starburst */
+.burstwrap{display:grid; place-items:center; margin:6px 0 26px}
+.qgroups{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+@media(max-width:940px){.qgroups{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:620px){.qgroups{grid-template-columns:1fr}}
+.qgroup{border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:14px 15px 16px}
+.qgroup .gh{
+  display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font-family:var(--mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--violet);
+  border-bottom:1px dashed var(--line2); padding-bottom:10px;
+}
+.qgroup .gh span{color:var(--mut); font-size:9.5px; letter-spacing:.16em}
+.qgroup ul{list-style:none; margin:0; padding:0}
+.qgroup li{
+  font-size:13.3px; color:var(--ink2); line-height:1.5; padding:11px 0 11px 18px; position:relative;
+  border-bottom:1px dotted var(--line);
+}
+.qgroup li:last-child{border-bottom:0; padding-bottom:2px}
+.qgroup li::before{content:"?"; position:absolute; left:0; top:11px; font-family:var(--mono); font-size:12px; color:rgba(180,140,255,.65)}
+
+.resgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px}
+@media(max-width:820px){.resgrid{grid-template-columns:1fr}}
+.res{
+  border:1px solid var(--line); border-left:2px solid var(--sig); border-radius:0 11px 11px 0;
+  background:linear-gradient(90deg, rgba(52,229,196,.06), transparent 70%), var(--panel);
+  padding:14px 16px 16px;
+}
+.res .rn2{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--sig)}
+.res .rt2{font-size:13.8px; color:var(--ink2); margin-top:8px; line-height:1.55}
+.res .rt2 b{color:var(--ink)}
+.res.wide{grid-column:1/-1; border-left-color:var(--rn); background:linear-gradient(90deg, rgba(97,218,251,.09), transparent 70%), var(--panel)}
+.res.wide .rn2{color:var(--rn)}
+
+/* fork ladder */
+.forks{display:flex; flex-direction:column; gap:12px}
+.fork{border:1px solid var(--line); border-radius:12px; background:var(--panel); overflow:hidden}
+.fork .fq{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; color:var(--mut);
+  padding:10px 16px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.015);
+}
+.fork .fq b{color:var(--ink2); font-weight:600}
+.fbranches{display:grid; grid-template-columns:1fr 40px 1fr; align-items:center}
+.fbranches .b{padding:13px 16px; font-size:14px; min-width:0}
+.fbranches .rej{color:var(--mut); text-decoration:line-through; text-decoration-color:rgba(255,111,125,.5)}
+.fbranches .cho{color:var(--ink); font-weight:650; text-align:right}
+.fbranches .cho .tick{font-family:var(--mono); color:var(--sig); font-weight:400; font-size:12px; margin-right:8px}
+.fbranches .split{display:grid; place-items:center; align-self:stretch; background:#070a0e; border-left:1px solid var(--line); border-right:1px solid var(--line)}
+.fork .fcost{
+  padding:11px 16px 13px; border-top:1px dotted var(--line); font-size:13px; color:var(--ink2);
+  background:linear-gradient(90deg, rgba(255,157,61,.06), transparent 60%);
+}
+.fork .fcost .ck2{font-family:var(--mono); font-size:9px; letter-spacing:.2em; text-transform:uppercase; color:var(--hot); margin-right:10px}
+.fork.keystone{border-color:rgba(52,229,196,.45); box-shadow:0 0 34px -18px rgba(52,229,196,.7)}
+.fork.keystone .fq{color:var(--sig); background:rgba(52,229,196,.07)}
+@media(max-width:760px){
+  .fbranches{grid-template-columns:1fr}
+  .fbranches .cho{text-align:left; border-top:1px dotted var(--line)}
+  .fbranches .split{height:34px; border-left:0; border-right:0; border-top:1px dotted var(--line)}
+}
+
+/* solution matrix */
+.mtx{border-collapse:collapse; width:100%; min-width:880px; font-size:12.4px}
+.mtx th, .mtx td{border-bottom:1px solid var(--line); padding:11px 12px; text-align:left; vertical-align:top}
+.mtx thead th{
+  font-family:var(--mono); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--mut);
+  border-bottom:1px solid var(--line2); white-space:nowrap; background:var(--bg2); position:sticky; top:0;
+}
+.mtx tbody th{
+  font-family:var(--mono); font-size:12px; color:var(--ink); font-weight:600; white-space:nowrap;
+  position:sticky; left:0; background:var(--bg2); border-right:1px solid var(--line);
+}
+.mtx td{color:var(--ink2)}
+.mtx td.na{color:#3d4a5a}
+.mtx tr:hover td{background:rgba(255,255,255,.017)}
+.vd{font-family:var(--mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; padding:4px 8px; border-radius:5px; white-space:nowrap; display:inline-block}
+.vd.hero{color:#04120f; background:var(--sig); font-weight:700}
+.vd.sleeper{color:#0d0715; background:var(--violet); font-weight:700}
+.vd.cond{color:var(--fl); border:1px solid rgba(255,180,87,.5)}
+.vd.cut{color:var(--bad); border:1px solid rgba(255,111,125,.5)}
+.vd.ast{color:var(--ink2); border:1px solid var(--line2)}
+.emptycell{
+  border:1px solid rgba(180,140,255,.34); border-radius:12px; padding:18px 18px 20px; margin-top:14px;
+  background:linear-gradient(180deg, rgba(180,140,255,.08), transparent 70%), var(--bg2);
+}
+.emptycell .ek{font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--violet)}
+.emptycell h4{font-size:17px; margin-top:9px; letter-spacing:-.02em; line-height:1.25}
+.emptycell p{font-size:13.8px; color:var(--ink2); margin:9px 0 0; line-height:1.55}
+.emptycell p b{color:var(--ink)}
+.pairviz{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px}
+.pairviz .pbox{border:1px solid var(--line2); border-radius:9px; padding:9px 13px; font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase}
+.pairviz .pbox.a{color:var(--sig); border-color:rgba(52,229,196,.45)}
+.pairviz .pbox.b{color:var(--rn); border-color:rgba(97,218,251,.45)}
+.pairviz .plus{font-family:var(--mono); color:var(--mut)}
+
+/* kill the crown jewel */
+.killhead{
+  display:grid; grid-template-columns:auto 1fr; gap:22px; align-items:center;
+  border:1px solid rgba(255,111,125,.35); border-radius:14px; padding:20px;
+  background:linear-gradient(120deg, rgba(255,111,125,.10), transparent 60%), var(--bg2);
+}
+@media(max-width:640px){.killhead{grid-template-columns:1fr}}
+.killhead .kt{font-size:clamp(16px,2.6vw,22px); font-weight:750; letter-spacing:-.02em}
+.killhead .kb{font-size:13.8px; color:var(--ink2); margin-top:8px}
+.reveal2{
+  border:1px solid rgba(52,229,196,.34); border-radius:14px; padding:clamp(20px,3.6vw,34px); margin-top:16px;
+  background:radial-gradient(120% 170% at 100% 0%, rgba(52,229,196,.13), transparent 58%), var(--bg2);
+}
+.reveal2 .rk2{font-family:var(--mono); font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--sig)}
+.reveal2 .rbig{font-size:clamp(22px,4.6vw,42px); font-weight:850; letter-spacing:-.035em; line-height:1.06; margin-top:14px}
+.reveal2 .rbig .fl{color:var(--fl)} .reveal2 .rbig .sg{color:var(--sig)}
+.reveal2 .rp{font-size:clamp(14px,2vw,16.5px); color:var(--ink2); margin-top:16px; max-width:74ch}
+.reveal2 .rp b{color:var(--ink)}
+.chansplit{display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-top:16px}
+@media(max-width:640px){.chansplit{grid-template-columns:1fr}}
+.chansplit .cs{padding:18px 20px}
+.chansplit .cs.prod{background:linear-gradient(180deg, rgba(97,218,251,.07), transparent)}
+.chansplit .cs.demo{background:linear-gradient(180deg, rgba(180,140,255,.07), transparent); border-left:1px solid var(--line)}
+.chansplit .cs .csk{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut)}
+.chansplit .cs .csv{font-size:clamp(18px,3vw,26px); font-weight:800; letter-spacing:-.03em; margin-top:8px}
+.chansplit .cs.prod .csv{color:var(--rn)} .chansplit .cs.demo .csv{color:var(--violet)}
+.chansplit .cs p{font-size:13px; color:var(--ink2); margin-top:8px}
+@media(max-width:640px){.chansplit .cs.demo{border-left:0; border-top:1px solid var(--line)}}
+
+/* backcasting */
+.finished{
+  border:1px solid rgba(255,180,87,.36); border-radius:14px; overflow:hidden; background:var(--bg2);
+}
+.finished .fh{
+  padding:12px 18px; border-bottom:1px solid rgba(255,180,87,.24);
+  font-family:var(--mono); font-size:10px; letter-spacing:.3em; text-transform:uppercase; color:var(--fl);
+}
+.finished .fb{padding:20px 20px 24px}
+.finished .fb p{font-size:clamp(15px,2.3vw,19px); color:#ffe6c8; max-width:76ch; line-height:1.55}
+.finished .fb p b{color:#fff}
+.bsteps{display:flex; flex-direction:column; gap:10px; margin-top:20px}
+.bstep{
+  display:flex; gap:14px; align-items:flex-start; border:1px solid var(--line); border-radius:10px;
+  padding:13px 16px; background:linear-gradient(270deg, rgba(255,180,87,.05), transparent 55%), var(--panel);
+}
+.bstep .bn{
+  font-family:var(--mono); font-size:11px; color:var(--fl); flex:0 0 74px; letter-spacing:.1em; padding-top:2px;
+}
+.bstep .bt{font-size:14px; color:var(--ink2); min-width:0}
+.bstep .bt b{color:var(--ink)}
+.backarrow{display:grid; place-items:center; padding:16px 0 10px; color:var(--mut)}
+.backarrow .lbl{font-family:var(--mono); font-size:9.5px; letter-spacing:.3em; text-transform:uppercase; margin-top:8px}
+
+/* ship in 60 */
+.ledger4{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+@media(max-width:880px){.ledger4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.ledger4{grid-template-columns:1fr}}
+.lcol{background:var(--bg2); padding:16px 15px 18px}
+.lcol .lk{font-family:var(--mono); font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:var(--hue); font-weight:700}
+.lcol ul{list-style:none; margin:12px 0 0; padding:0}
+.lcol li{font-size:13px; color:var(--ink2); padding:9px 0; border-bottom:1px dotted var(--line); line-height:1.45}
+.lcol li:last-child{border-bottom:0}
+.lcol li b{color:var(--ink)}
+
+.ladder{position:relative; padding:0 26px; margin-top:20px}
+.ladder::before, .ladder::after{
+  content:""; position:absolute; top:0; bottom:0; width:3px; border-radius:2px;
+  background:linear-gradient(180deg, rgba(52,229,196,.55), rgba(52,229,196,.12));
+}
+.ladder::before{left:8px} .ladder::after{right:8px}
+.rung{
+  position:relative; display:flex; gap:14px; align-items:flex-start;
+  border:1px solid var(--line2); border-radius:9px; background:var(--panel); padding:13px 16px;
+}
+.rung .rnum{
+  font-family:var(--mono); font-size:12px; font-weight:700; color:var(--sig);
+  flex:0 0 30px; height:30px; border-radius:7px; display:grid; place-items:center;
+  border:1px solid rgba(52,229,196,.4); background:rgba(52,229,196,.08);
+}
+.rung .rtx{font-size:14px; color:var(--ink); min-width:0; padding-top:4px}
+.rung .rtx span{color:var(--mut); font-size:12.5px; display:block; margin-top:3px}
+.rung.risk{border-color:rgba(255,157,61,.5); background:linear-gradient(90deg, rgba(255,157,61,.08), var(--panel) 60%)}
+.rung.risk .rnum{color:var(--hot); border-color:rgba(255,157,61,.5); background:rgba(255,157,61,.09)}
+.gate{
+  display:flex; align-items:center; gap:10px; padding:8px 0 8px 44px;
+  font-family:var(--mono); font-size:8.8px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut);
+}
+.gate .gl{flex:1; height:1px; background:repeating-linear-gradient(90deg, var(--line2) 0 5px, transparent 5px 11px)}
+.hardrule{
+  margin-top:18px; border:1px solid rgba(52,229,196,.42); border-radius:12px; padding:16px 18px;
+  background:linear-gradient(90deg, rgba(52,229,196,.10), transparent 70%);
+  font-size:clamp(14px,2.2vw,18px); color:var(--ink);
+}
+.hardrule .hk{font-family:var(--mono); font-size:9.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--sig); display:block; margin-bottom:8px}
+.hardrule b{color:var(--sig)}
+
+/* round two synthesis / keystone */
+.keychain{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:22px}
+.keychain .kn{
+  font-family:var(--mono); font-size:11px; letter-spacing:.06em; color:var(--ink);
+  border:1px solid var(--line2); background:var(--panel); border-radius:8px; padding:9px 12px;
+}
+.keychain .kn.hot{border-color:rgba(52,229,196,.5); color:var(--sig)}
+.keychain .ka{color:var(--mut); font-family:var(--mono); font-size:13px}
+.collapse-note{
+  margin-top:16px; font-family:var(--mono); font-size:10px; letter-spacing:.24em; text-transform:uppercase; color:var(--sig);
+}
+.dsteps.d7{grid-template-columns:repeat(4,1fr)}
+@media(max-width:940px){.dsteps.d7{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.dsteps.d7{grid-template-columns:1fr}}
+
+/* ============================================================
+   ROUND THREE
+   ============================================================ */
+.r2mast.r3::before{background:linear-gradient(90deg, transparent, var(--fl), var(--rn), transparent); box-shadow:0 0 26px rgba(255,180,87,.5)}
+.r2mast.r3 .r2k{color:var(--fl)}
+.r2mast.r3 .r2t{background:linear-gradient(96deg, var(--fl), var(--violet) 52%, var(--rn)); -webkit-background-clip:text; background-clip:text}
+.r2mast.r3 .thread .tn{color:var(--fl)}
+
+.inputs2{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:26px}
+@media(max-width:820px){.inputs2{grid-template-columns:1fr}}
+.input2{
+  border:1px solid rgba(255,180,87,.34); border-radius:13px; padding:18px 18px 20px;
+  background:linear-gradient(180deg, rgba(255,180,87,.09), transparent 65%), var(--bg2);
+}
+.input2 .ik{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:#12080a;
+  background:var(--fl); padding:4px 8px; border-radius:4px; font-weight:700; display:inline-block;
+}
+.input2 h4{font-size:clamp(17px,2.7vw,23px); margin-top:12px; letter-spacing:-.025em; line-height:1.2}
+.input2 p{font-size:13.8px; color:var(--ink2); margin:10px 0 0; line-height:1.55}
+.input2 p b{color:var(--ink)}
+
+.basestrip{
+  margin-top:14px; border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:16px 18px 18px;
+}
+.basestrip .bk2{font-family:var(--mono); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--mut)}
+.basestrip h4{font-size:16px; margin-top:8px; letter-spacing:-.02em}
+.pills{display:flex; flex-wrap:wrap; gap:7px; margin-top:12px}
+.pill{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; color:var(--ink2);
+  border:1px solid var(--line2); border-radius:6px; padding:5px 9px; background:var(--bg2);
+}
+.pill.on{color:var(--rn); border-color:rgba(97,218,251,.45)}
+.pill.warn{color:var(--fl); border-color:rgba(255,180,87,.42)}
+.consequence.red{border-color:rgba(255,111,125,.42)}
+.consequence.red .chd{color:var(--bad); border-bottom-color:rgba(255,111,125,.26)}
+
+/* four-cell test matrix */
+.cell2{
+  display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:13px; overflow:hidden; margin-top:16px;
+}
+.cell2 .cell{background:var(--bg2); padding:20px 14px 22px; text-align:center}
+.cell2 .cell .cpair{font-family:var(--mono); font-size:clamp(14px,3vw,21px); font-weight:700; letter-spacing:-.01em}
+.cell2 .cell .cpair .a{color:var(--rn)} .cell2 .cell .cpair .b{color:var(--fl)} .cell2 .cell .cpair .ar{color:var(--mut)}
+.cell2 .cell .ctag{
+  display:inline-block; margin-top:12px; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
+  text-transform:uppercase; padding:4px 9px; border-radius:5px;
+}
+.cell2 .cell .ctag.req{color:#04120f; background:var(--sig); font-weight:700}
+.cell2 .cell .ctag.bonus{color:var(--fl); border:1px solid rgba(255,180,87,.5)}
+.cell2 .cell .cnote{font-size:11.5px; color:var(--mut); margin-top:10px; line-height:1.45}
+
+/* how might we */
+.hmws{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+@media(max-width:760px){.hmws{grid-template-columns:1fr}}
+.hmw{
+  display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:10px;
+  padding:13px 15px; background:var(--panel);
+}
+.hmw .hn2{font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; color:var(--violet); flex:0 0 auto; padding-top:3px}
+.hmw .ht2{font-size:13.8px; color:var(--ink2); line-height:1.5; min-width:0}
+.hmw.sel{
+  grid-column:1/-1; border-color:rgba(52,229,196,.5);
+  background:radial-gradient(120% 200% at 0% 0%, rgba(52,229,196,.14), transparent 60%), var(--panel);
+  padding:22px 20px 24px; align-items:center;
+}
+.hmw.sel .hn2{color:var(--sig)}
+.hmw.sel .ht2{font-size:clamp(17px,3.4vw,30px); font-weight:800; letter-spacing:-.03em; color:var(--ink); line-height:1.12}
+.hmw.sel .why{display:block; font-size:13.5px; font-weight:400; color:var(--ink2); margin-top:12px; letter-spacing:0; line-height:1.5}
+.agentgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(258px,1fr)); gap:12px; margin-top:16px}
+.agentcard{border:1px solid var(--line); border-left:2px solid var(--sig); border-radius:0 11px 11px 0; padding:14px 15px 16px; background:var(--panel)}
+.agentcard .ak{font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--sig)}
+.agentcard .at{font-size:13.5px; color:var(--ink2); margin-top:8px; line-height:1.5}
+.agentcard .at b{color:var(--ink)}
+
+/* job to be done */
+.hired{display:flex; flex-direction:column; gap:10px}
+.hire{
+  display:grid; grid-template-columns:130px 1fr; gap:0; border:1px solid var(--line); border-radius:11px; overflow:hidden;
+}
+.hire .hl2{
+  background:linear-gradient(180deg, rgba(97,218,251,.09), transparent); padding:14px 16px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--rn);
+  border-right:1px solid var(--line);
+}
+.hire .hr2{padding:14px 16px; font-size:14.2px; color:var(--ink2); background:var(--panel); line-height:1.5}
+.hire .hr2 b{color:var(--ink)}
+.hire.neg{border-color:rgba(255,111,125,.4)}
+.hire.neg .hl2{color:var(--bad); background:linear-gradient(180deg, rgba(255,111,125,.10), transparent); border-right-color:rgba(255,111,125,.25)}
+@media(max-width:600px){.hire{grid-template-columns:1fr}.hire .hl2{border-right:0; border-bottom:1px solid var(--line)}}
+
+/* six thinking hats */
+.hats{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px}
+.hat{border:1px solid var(--line); border-top:3px solid var(--hue); border-radius:4px 4px 12px 12px; background:var(--panel); padding:16px 16px 18px}
+.hat .hh{display:flex; gap:11px; align-items:center; border-bottom:1px dashed var(--line2); padding-bottom:12px}
+.hat .hh .hname{font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--hue); font-weight:700}
+.hat .hh .hcount{margin-left:auto; font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; color:var(--mut)}
+.hat ul{list-style:none; margin:0; padding:0}
+.hat li{font-size:13.3px; color:var(--ink2); line-height:1.5; padding:11px 0 11px 16px; position:relative; border-bottom:1px dotted var(--line)}
+.hat li:last-child{border-bottom:0; padding-bottom:2px}
+.hat li::before{content:""; position:absolute; left:0; top:19px; width:6px; height:6px; border-radius:50%; background:var(--hue); opacity:.75}
+.hat li b{color:var(--ink)}
+.hat li.big{font-size:14.5px; color:var(--ink)}
+.hat.wide{grid-column:1/-1}
+.hat.wide ul{columns:2; column-gap:26px}
+@media(max-width:760px){.hat.wide ul{columns:1}}
+
+/* three-tier agent test */
+.tiers{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:16px}
+@media(max-width:900px){.tiers{grid-template-columns:1fr}}
+.tier{border:1px solid var(--line); border-radius:13px; overflow:hidden; background:var(--panel)}
+.tier .th{
+  padding:14px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center;
+  background:linear-gradient(90deg, color-mix(in srgb, var(--hue) 12%, transparent), transparent);
+}
+.tier .th .tl{
+  font-family:var(--mono); font-size:15px; font-weight:700; color:var(--hue);
+  width:32px;height:32px;border-radius:8px; display:grid; place-items:center;
+  border:1px solid color-mix(in srgb, var(--hue) 45%, transparent);
+}
+.tier .th .tn2{font-size:14.5px; font-weight:700; letter-spacing:-.015em; line-height:1.2}
+.tier .tb{padding:14px 16px 18px}
+.tier .trow{display:flex; gap:10px; font-size:12.5px; padding:7px 0; border-bottom:1px dotted var(--line)}
+.tier .trow:last-child{border-bottom:0}
+.tier .trow .tk2{font-family:var(--mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); flex:0 0 82px; padding-top:2px}
+.tier .trow .tv{color:var(--ink2); min-width:0; line-height:1.45}
+.tier .trow .tv b{color:var(--ink)}
+.neveravg{
+  margin-top:16px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; justify-content:center;
+  border:1px solid rgba(52,229,196,.4); border-radius:12px; padding:14px 18px;
+  background:linear-gradient(90deg, rgba(52,229,196,.09), transparent 70%);
+  font-family:var(--mono); font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--sig); text-align:center;
+}
+.neveravg .strike{color:var(--bad); text-decoration:line-through}
+
+/* crank the dial */
+.dialwrap{display:grid; grid-template-columns:200px 1fr; gap:20px; align-items:start}
+@media(max-width:760px){.dialwrap{grid-template-columns:1fr}.dialwrap .gauge{justify-self:center}}
+.dialrows{display:flex; flex-direction:column; gap:10px}
+.drow{border:1px solid var(--line); border-radius:11px; padding:13px 15px; background:var(--panel)}
+.drow .dhead{display:flex; gap:12px; align-items:baseline}
+.drow .dlv{font-family:var(--mono); font-size:11px; color:var(--hot); letter-spacing:.14em; flex:0 0 auto}
+.drow .dtx{font-size:14px; color:var(--ink); min-width:0; line-height:1.45}
+.drow .dsub{font-size:12.8px; color:var(--mut); margin-top:7px; line-height:1.5}
+.dmeter{height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:11px}
+.dmeter i{display:block; height:100%; width:var(--w); background:linear-gradient(90deg, var(--sig), var(--hot))}
+.drow.max{border-color:rgba(255,157,61,.55); background:linear-gradient(90deg, rgba(255,157,61,.10), var(--panel) 65%)}
+.drow.max .dtx{font-size:clamp(15px,2.6vw,20px); font-weight:750; letter-spacing:-.02em}
+.residue{
+  margin-top:16px; border:1px solid rgba(180,140,255,.4); border-radius:12px; padding:18px;
+  background:linear-gradient(180deg, rgba(180,140,255,.09), transparent 70%), var(--bg2);
+}
+.residue .rk3{font-family:var(--mono); font-size:9.5px; letter-spacing:.24em; text-transform:uppercase; color:var(--violet)}
+.residue h4{font-size:clamp(17px,2.8vw,24px); margin-top:10px; letter-spacing:-.025em; line-height:1.2}
+.residue p{font-size:13.8px; color:var(--ink2); margin-top:10px; line-height:1.55}
+.residue p b{color:var(--ink)}
+.descriptor{display:flex; flex-wrap:wrap; gap:7px; margin-top:13px}
+.descriptor .df{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--violet); border:1px solid rgba(180,140,255,.4); border-radius:6px; padding:5px 9px}
+
+/* trait transfer grafts */
+.grafts{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px}
+.graft{border:1px solid var(--line); border-radius:12px; background:var(--panel); overflow:hidden}
+.graft .gsrc{
+  padding:11px 15px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.018);
+  font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--rn);
+}
+.graft .gbody{padding:13px 15px 16px}
+.graft .gtrait{font-size:13.2px; color:var(--mut); line-height:1.5}
+.graft .garrow{font-family:var(--mono); font-size:10px; letter-spacing:.22em; color:var(--sig); margin:11px 0 8px; text-transform:uppercase}
+.graft .ggraft{font-size:13.8px; color:var(--ink); line-height:1.5}
+.graft .ggraft b{color:var(--sig)}
+
+/* opposite directions */
+.opposite{display:grid; grid-template-columns:1fr auto 1fr; gap:0; margin-top:22px; border:1px solid var(--line); border-radius:13px; overflow:hidden}
+@media(max-width:760px){.opposite{grid-template-columns:1fr}}
+.opposite .oside{padding:18px 20px}
+.opposite .oside.rn2s{background:linear-gradient(90deg, rgba(97,218,251,.10), transparent)}
+.opposite .oside.fl2s{background:linear-gradient(270deg, rgba(255,180,87,.10), transparent); text-align:right}
+.opposite .ok{font-family:var(--mono); font-size:9.5px; letter-spacing:.2em; text-transform:uppercase; margin-bottom:9px}
+.opposite .rn2s .ok{color:var(--rn)} .opposite .fl2s .ok{color:var(--fl)}
+.opposite .ov{font-size:15px; color:var(--ink); line-height:1.45}
+.opposite .ov span{display:block; color:var(--ink2); font-size:13px; margin-top:6px}
+.opposite .omid{display:grid; place-items:center; padding:0 14px; background:#070a0e; border-left:1px solid var(--line); border-right:1px solid var(--line)}
+@media(max-width:760px){
+  .opposite .fl2s{text-align:left; border-top:1px solid var(--line)}
+  .opposite .omid{height:52px; border-left:0; border-right:0}
+}
+
 /* footer */
 footer{margin-top:70px; border-top:1px solid var(--line); padding:26px 0 60px; color:var(--mut); font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase}
 footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap}
@@ -647,8 +1064,8 @@ footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wr
       <span class="pip"><span class="dot"></span> Session complete</span>
       <span>BMad · Brainstorming</span>
       <span>2026&#8209;08&#8209;01</span>
-      <span>142 log entries</span>
-      <span>7 techniques</span>
+      <span>343 log entries</span>
+      <span>19 techniques · 3 rounds</span>
     </div>
 
     <h1 class="title">
@@ -658,8 +1075,8 @@ footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wr
 
     <p class="subtitle">
       A peer-to-peer offline currency, built twice — once in React Native, once in Flutter —
-      and squeezed through every radio, sensor and secure chip a phone has, to find out
-      where the two frameworks actually diverge.
+      and squeezed through every radio, sensor and secure chip a phone has — and, by round three,
+      through an on-device agent as well — to find out where the two frameworks actually diverge.
     </p>
 
     <svg class="wave" viewBox="0 0 1200 60" preserveAspectRatio="none" aria-hidden="true">
@@ -695,7 +1112,7 @@ footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wr
       </div>
       <div class="meta-cell">
         <div class="k">Mode</div>
-        <div class="v">Autonomous — <span class="mut">"ideate for me"</span>; seven-technique batch run end to end</div>
+        <div class="v">Autonomous — <span class="mut">"ideate for me"</span>; three rounds, nineteen techniques run end to end</div>
       </div>
       <div class="meta-cell">
         <div class="k">Status / Updated</div>
@@ -727,6 +1144,24 @@ footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wr
       <a href="#split">The Split</a>
       <a href="#synthesis">Synthesis</a>
       <a href="#segregation">Segregation</a>
+      <a href="#r2">Round Two</a>
+      <a href="#t8">08 Starburst</a>
+      <a href="#profiles">Wire Profiles</a>
+      <a href="#t9">09 Forks</a>
+      <a href="#t10">10 Matrix</a>
+      <a href="#t11">11 Kill NFC</a>
+      <a href="#t12">12 Backcast</a>
+      <a href="#t13">13 Ship in 60</a>
+      <a href="#synthesis2">R2 Synthesis</a>
+      <a href="#r3">Round Three</a>
+      <a href="#sameapp">Same-App</a>
+      <a href="#t14">14 How Might We</a>
+      <a href="#t15">15 JTBD</a>
+      <a href="#t16">16 Six Hats</a>
+      <a href="#tier3">3-Tier Agent Test</a>
+      <a href="#t17">17 Dial to 11</a>
+      <a href="#t18">18 Worst / Graft</a>
+      <a href="#synthesis3">R3 Synthesis</a>
     </div>
   </div>
 </nav>
@@ -1793,10 +2228,1409 @@ footer .frow{display:flex; justify-content:space-between; gap:16px; flex-wrap:wr
   </div>
 </section>
 
+<!-- ============================ ROUND TWO ============================ -->
+<section class="r2mast" id="r2">
+  <div class="r2k rv">Autonomous continuation · six more techniques</div>
+  <div class="r2t rv">ROUND TWO</div>
+  <p class="r2sub rv">The first round decided what to build and why. The second round attacks the three things that were still
+  hand-waving: the wire format, which exotic channels survive, and what actually gets built on the day.</p>
+
+  <div class="r2threads">
+    <div class="thread rv"><div class="tn">Thread 01</div><div class="tt">Wire format &amp; cross-framework interop</div></div>
+    <div class="thread rv"><div class="tn">Thread 02</div><div class="tt">Exotic-channel shortlist</div></div>
+    <div class="thread rv"><div class="tn">Thread 03</div><div class="tt">Build plan &amp; scope cut</div></div>
+  </div>
+</section>
+
+<!-- ============================ 08 STARBURSTING ============================ -->
+<section class="sec" id="t8">
+  <div class="sec-head rv">
+    <div class="sec-num">08</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Starbursting — the wire format</h2>
+      <p class="sec-sub">Twenty questions fired at one artifact along six axes, answers deliberately withheld until the burst was complete.
+      Then ten resolutions, taken in one pass.</p>
+    </div>
+    <span class="count">20 questions → 10 resolutions</span>
+  </div>
+
+  <div class="burstwrap rv">
+    <svg viewBox="0 0 560 300" width="100%" style="max-width:560px" role="img" aria-label="Starburst: six question axes radiating from the wire format">
+      <g stroke="#26344a" stroke-width="1.2" stroke-dasharray="4 5">
+        <line x1="336" y1="150" x2="380" y2="150"/>
+        <line x1="308" y1="198" x2="330" y2="237"/>
+        <line x1="252" y1="198" x2="230" y2="237"/>
+        <line x1="224" y1="150" x2="180" y2="150"/>
+        <line x1="252" y1="102" x2="230" y2="63"/>
+        <line x1="308" y1="102" x2="330" y2="63"/>
+      </g>
+      <circle cx="280" cy="150" r="56" fill="#0b1117" stroke="#34e5c4" stroke-opacity=".55"/>
+      <text x="280" y="146" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#34e5c4" letter-spacing="1.6">WIRE</text>
+      <text x="280" y="162" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#34e5c4" letter-spacing="1.6">FORMAT</text>
+      <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" letter-spacing="1.8" text-anchor="middle">
+        <g><rect x="380" y="136" width="86" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="423" y="154" fill="#b48cff">WHAT ×5</text></g>
+        <g><rect x="300" y="237" width="90" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="345" y="255" fill="#b48cff">WHERE ×2</text></g>
+        <g><rect x="172" y="237" width="88" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="216" y="255" fill="#b48cff">WHEN ×2</text></g>
+        <g><rect x="98" y="136" width="82" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="139" y="154" fill="#b48cff">WHY ×2</text></g>
+        <g><rect x="172" y="35" width="88" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="216" y="53" fill="#b48cff">HOW ×4</text></g>
+        <g><rect x="300" y="35" width="86" height="28" rx="7" fill="#100c1a" stroke="#b48cff" stroke-opacity=".5"/><text x="343" y="53" fill="#b48cff">WHO ×5</text></g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="movement-label rv"><span class="idx">Movement I</span><span>the burst · questions only</span><span class="bar"></span></div>
+
+  <div class="qgroups">
+    <div class="qgroup rv">
+      <div class="gh">Who <span>5</span></div>
+      <ul>
+        <li>Who signs a note — the device key, a user identity key, or a per-note ephemeral key?</li>
+        <li>Does the endorsement chain need a root of trust, or is it self-anchored from the mint?</li>
+        <li>Who resolves a conflict when two endorsement branches meet — the holder, the network, or nobody?</li>
+        <li>Who owns the wire-spec repo when neither app project may depend on the other?</li>
+        <li>Can either app ship a wire-format change unilaterally, or is a version bump a two-project release?</li>
+      </ul>
+    </div>
+    <div class="qgroup rv">
+      <div class="gh">What <span>5</span></div>
+      <ul>
+        <li>What is actually on the wire — full endorsement history, or a delta plus a hash commitment to prior history?</li>
+        <li>What encoding is equally cheap in Dart AND JS and still compact — CBOR, protobuf, flatbuffers, or hand-rolled bytes?</li>
+        <li>What is the hard size ceiling, given BLE legacy adverts are ~31 bytes, extended ~255, NFC APDUs ~255, QR frames ~2900?</li>
+        <li>What distinguishes app identity from transport identifier now that both apps live on one phone?</li>
+        <li>What is the canonical serialization rule — two implementations must byte-match or every signature fails?</li>
+      </ul>
+    </div>
+    <div class="qgroup rv">
+      <div class="gh">Where <span>2</span></div>
+      <ul>
+        <li>Where does the spec live so that "no build system spans the boundary" still holds?</li>
+        <li>Where is the conformance test executed — on device, in CI, or both?</li>
+      </ul>
+    </div>
+    <div class="qgroup rv">
+      <div class="gh">When <span>2</span></div>
+      <ul>
+        <li>When is a transfer final — at handshake, at first gossip echo, or never (probabilistic)?</li>
+        <li>When does an unreconciled note expire, and who enforces the clock offline?</li>
+      </ul>
+    </div>
+    <div class="qgroup rv">
+      <div class="gh">Why <span>2</span></div>
+      <ul>
+        <li>Why version the format at all in a one-day build — what would v2 ever buy us?</li>
+        <li>Why sign the whole chain rather than just the tip?</li>
+      </ul>
+    </div>
+    <div class="qgroup rv">
+      <div class="gh">How <span>4</span></div>
+      <ul>
+        <li>How do we prove both builds implement the same SPEC rather than the same BUG?</li>
+        <li>How does a receiver validate a note whose mint it has never seen?</li>
+        <li>How do we test interop before both apps exist?</li>
+        <li>How does the wire format degrade when the channel is 31 bytes instead of 2900?</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="movement-label rv" style="margin-top:40px"><span class="idx">Movement II</span><span>resolutions</span><span class="bar"></span></div>
+
+  <div class="resgrid">
+    <div class="res wide rv"><div class="rn2">Resolution 01 · encoding</div><div class="rt2"><b>Hand-roll a deterministic length-prefixed byte layout, specified byte-by-byte in prose — not a schema library.</b> Canonical-form mismatches between Dart and JS libraries are the single most likely cause of a failed cross-framework demo.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 02 · note shape</div><div class="rt2">A note is a fixed <b>96-byte TIP</b> (note id, value, holder pubkey, tip signature) plus an optional history blob. The tip alone fits every channel including a BLE extended advert; history gossips separately.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 03 · profiles</div><div class="rt2">Define <b>three wire profiles</b> — TINY, SMALL, FULL. Every channel declares its profile and the app picks the richest one it supports. This turns "any byte channel is a transfer method" from aspiration into a concrete interface.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 04 · conformance</div><div class="rt2">Conformance is a set of <b>frozen test vectors</b> — input bytes to expected parse/signature result — committed in <span class="mono">spec/</span> and run by both projects' unit tests. Hand-authored from the prose spec, never generated by either implementation, so same-bug-not-same-spec is caught.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 05 · the arbiter</div><div class="rt2">A tiny <b>Python reference implementation</b> inside <span class="mono">spec/</span>, depended on by neither app, purely to generate and verify vectors. It settles RN-vs-Flutter arguments in seconds instead of hours.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 06 · identity</div><div class="rt2">The note carries <b>no app identity at all</b>. The transport layer carries the framework tag in its BLE service UUID and NFC AID. Notes are framework-blind by design — which is precisely what makes cross-framework payment work.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 07 · keys</div><div class="rt2">A <b>hardware device key signs</b>; a separate long-lived <b>user identity key certifies device keys</b> — so losing a phone revokes one device, not the whole wallet.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 08 · conflict</div><div class="rt2"><b>Nobody resolves a conflict.</b> Both branches are marked poisoned and the forger's own signature is the evidence. Value is destroyed, not reassigned — brutal, simple, offline-compatible, and highly demoable.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 09 · finality</div><div class="rt2">Finality is a visible <b>three-tier state machine</b> — Accepted (handshake), Corroborated (one gossip echo), Settled (N echoes or T elapsed). Rendering finality as a live state transition is itself an excellent animation benchmark.</div></div>
+    <div class="res rv"><div class="rn2">Resolution 10 · versioning</div><div class="rt2">Spec version is a <b>single byte at the head of every note</b>; either app refuses unknown majors. A version-skew demo — old app meets new app, degrades gracefully — is a cheap credibility win.</div></div>
+  </div>
+</section>
+
+<!-- ============================ WIRE PROFILES ============================ -->
+<section class="sec" id="profiles">
+  <div class="sec-head rv">
+    <div class="sec-num">≡</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Three wire profiles</h2>
+      <p class="sec-sub">The idea that turns the user's original constraint — <em>use every device capability</em> — from a wish into an
+      engineering interface. Each channel declares a profile; adding a channel becomes writing a driver, not redesigning the protocol.</p>
+    </div>
+    <span class="count">TINY · SMALL · FULL</span>
+  </div>
+
+  <div class="viz rv">
+    <h3>One protocol, three sizes</h3>
+    <p class="vsub">Channel ceilings from the Starburst question: BLE legacy adverts ~31 bytes, BLE extended ~255, NFC APDUs ~255, QR frames ~2900. The note format degrades to fit rather than failing.</p>
+    <div class="scrollx">
+      <div class="inner">
+      <svg viewBox="0 0 900 330" width="100%" role="img" aria-label="The three wire profiles, TINY, SMALL and FULL, drawn at relative size">
+        <defs>
+          <linearGradient id="fullfade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#34e5c4" stop-opacity=".85"/>
+            <stop offset="70%" stop-color="#34e5c4" stop-opacity=".45"/>
+            <stop offset="100%" stop-color="#34e5c4" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- TINY -->
+        <text x="20" y="58" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#b48cff" letter-spacing="2.4">TINY</text>
+        <text x="20" y="76" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">tip HASH as a pointer</text>
+        <rect x="190" y="36" width="70" height="34" rx="5" fill="#100c1a" stroke="#b48cff" stroke-opacity=".8"/>
+        <text x="200" y="58" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#b48cff">≤31 B</text>
+        <text x="278" y="52" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#aebbcb">a pointer, not the money</text>
+        <text x="278" y="68" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">CHANNEL: BLE LEGACY ADVERT</text>
+
+        <!-- SMALL -->
+        <text x="20" y="148" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#61dafb" letter-spacing="2.4">SMALL</text>
+        <text x="20" y="166" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">the full 96-byte tip</text>
+        <rect x="190" y="126" width="250" height="34" rx="5" fill="#0c1a22" stroke="#61dafb" stroke-opacity=".8"/>
+        <rect x="190" y="126" width="94" height="34" rx="5" fill="#61dafb" fill-opacity=".18"/>
+        <line x1="284" y1="118" x2="284" y2="170" stroke="#61dafb" stroke-dasharray="3 3" stroke-opacity=".8"/>
+        <text x="200" y="148" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#61dafb">96 B TIP</text>
+        <text x="434" y="148" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12" fill="#61dafb">≤255 B</text>
+        <text x="460" y="142" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#aebbcb">id · value · holder pubkey · tip signature</text>
+        <text x="460" y="158" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">CHANNELS: BLE EXTENDED ADVERT · NFC APDU</text>
+
+        <!-- FULL -->
+        <text x="20" y="248" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#34e5c4" letter-spacing="2.4">FULL</text>
+        <text x="20" y="266" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">tip + history</text>
+        <rect x="190" y="226" width="660" height="34" rx="5" fill="url(#fullfade)" fill-opacity=".22" stroke="#34e5c4" stroke-opacity=".55"/>
+        <rect x="190" y="226" width="94" height="34" rx="5" fill="#34e5c4" fill-opacity=".18"/>
+        <text x="200" y="248" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#34e5c4">TIP</text>
+        <text x="300" y="248" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#aebbcb">+ endorsement history …</text>
+        <text x="840" y="248" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="16" fill="#34e5c4">∞</text>
+        <text x="190" y="284" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.2">CHANNELS: QR FRAME ~2900 B · ANY STREAM</text>
+
+        <text x="880" y="312" text-anchor="end" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#3d4a5a" letter-spacing="1.6">BARS NOT DRAWN TO LINEAR SCALE</text>
+      </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 09 DECISION TREE MAPPING ============================ -->
+<section class="sec" id="t9">
+  <div class="sec-head rv">
+    <div class="sec-num">09</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Decision Tree Mapping</h2>
+      <p class="sec-sub">Every wire-format fork, the branch taken, and the price of taking it. Nothing here is free —
+      the point of mapping the tree is to write the cost down at the moment of choosing, not to discover it at 4pm.</p>
+    </div>
+    <span class="count">12 forks · 14 entries</span>
+  </div>
+
+  <div class="forks">
+    <div class="fork rv">
+      <div class="fq">Fork 01 · <b>data model</b></div>
+      <div class="fbranches">
+        <div class="b rej">account model</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>bearer note</div>
+      </div>
+      <div class="fcost"><span class="ck2">Cost</span>No cheap global balance query — the wallet must fold notes to display a total.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 02 · <b>double-spend</b></div>
+      <div class="fbranches">
+        <div class="b rej">prevent it</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>detect it</div>
+      </div>
+      <div class="fcost"><span class="ck2">Cost</span>Requires gossip and accepts a defined window of exposure — which must be stated on the threat-model screen.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 03 · <b>on conflict</b></div>
+      <div class="fbranches">
+        <div class="b rej">reassign the value</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>destroy the value</div>
+      </div>
+      <div class="fcost"><span class="ck2">Risk</span>A griefing vector — poison your own note to burn value someone else holds. Mitigation: poison the BRANCH, not the note lineage.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 04 · <b>denomination</b></div>
+      <div class="fbranches">
+        <div class="b rej">freely divisible notes</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>fixed denominations 1 / 5 / 20 / 100, splits produce child notes</div>
+      </div>
+      <div class="fcost"><span class="ck2">Cost</span>Exact payment needs change-making — a real algorithm, and a genuinely fun UI problem.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 05 · <b>who makes change</b></div>
+      <div class="fbranches">
+        <div class="b rej">receiver refunds</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>sender splits</div>
+      </div>
+      <div class="fcost"><span class="ck2">Because</span>A receiver refund needs a second round-trip that half the channels physically cannot do.</div>
+    </div>
+
+    <div class="fork keystone rv">
+      <div class="fq">Fork 06 · <b>channel direction</b> — the highest-leverage architectural constraint in the whole project</div>
+      <div class="fbranches">
+        <div class="b rej">two-way handshake</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#34e5c4" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>design the ENTIRE protocol to work ONE-WAY, fire and forget</div>
+      </div>
+      <div class="fcost"><span class="ck2">Forced by</span>QR, chirp, SMS and satellite. Two-way becomes an optimization, never an assumption.</div>
+      <div class="fcost"><span class="ck2">Consequence</span>One-way means no ACK — so the sender must be able to prove they sent, and the receiver must be able to claim without cooperation. <strong>The transferred note must therefore be a complete, self-contained, independently verifiable object.</strong></div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 07 · <b>confidentiality</b></div>
+      <div class="fbranches">
+        <div class="b rej">signed plaintext</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>encrypt to the recipient's key</div>
+      </div>
+      <div class="fcost"><span class="ck2">Because</span>A relay carrying it through the mesh must not be able to read value or identity.</div>
+      <div class="fcost"><span class="ck2">Tension → two modes</span>Broadcast channels (ultrasonic to a room, BLE advert) have no single recipient. Resolution: <strong>DIRECTED</strong> (encrypted to a key) and <strong>BEARER</strong> (anyone in earshot claims, first come). Bearer mode is the "throw money in the air" demo.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 08 · <b>key discovery</b></div>
+      <div class="fbranches">
+        <div class="b rej">pairing handshake</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>continuous broadcast of the public key over BLE</div>
+      </div>
+      <div class="fcost"><span class="ck2">Effect</span>"Being payable" becomes a passive ambient state rather than an action.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 09 · <b>replay protection</b></div>
+      <div class="fbranches">
+        <div class="b rej">per-transfer nonce</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>enclave monotonic counter</div>
+      </div>
+      <div class="fcost"><span class="ck2">Because</span>Nonces require remembering every nonce ever seen, which an offline device cannot bound.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 10 · <b>time</b></div>
+      <div class="fbranches">
+        <div class="b rej">device clock</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>logical clock — Lamport-style counters on the endorsement chain</div>
+      </div>
+      <div class="fcost"><span class="ck2">Because</span>Offline device clocks are trivially wrong and attacker-controlled.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 11 · <b>at-rest encryption</b></div>
+      <div class="fbranches">
+        <div class="b rej">encrypt the whole ledger DB</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>keys in the enclave, DB encrypted with an enclave-wrapped key</div>
+      </div>
+      <div class="fcost"><span class="ck2">Coupling</span>Full-DB encryption would destroy the 100k-row scroll benchmark — so the security choice and the benchmark choice are coupled.</div>
+    </div>
+
+    <div class="fork rv">
+      <div class="fq">Fork 12 · <b>DB schema across the two apps</b></div>
+      <div class="fbranches">
+        <div class="b rej">one shared schema</div>
+        <div class="split"><svg width="20" height="34" viewBox="0 0 20 34" aria-hidden="true"><path d="M2 4 C 10 4, 10 17, 18 17 M2 30 C 10 30, 10 17, 18 17" fill="none" stroke="#26344a" stroke-width="1.4"/></svg></div>
+        <div class="b cho"><span class="tick">✓</span>separate schemas, byte-identical EXPORT format</div>
+      </div>
+      <div class="fcost"><span class="ck2">Payoff</span>Segregation holds, and a wallet can migrate RN → Flutter — a second, quieter interop test.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 10 SOLUTION MATRIX ============================ -->
+<section class="sec" id="t10">
+  <div class="sec-head rv">
+    <div class="sec-num">10</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Solution Matrix — the channel scoring grid</h2>
+      <p class="sec-sub">Every candidate channel scored against the axes that actually decide the build: throughput, proximity proof,
+      plugin gap, build cost, demo wow, one-way capability, low power, iOS permission. Then the two empty cells that turned out to be architecture.</p>
+    </div>
+    <span class="count">9 channels scored</span>
+  </div>
+
+  <div class="viz rv">
+    <div class="scrollx">
+      <div class="inner" style="min-width:880px">
+        <table class="mtx">
+          <thead>
+            <tr>
+              <th>Channel</th><th>Throughput</th><th>Proximity proof</th><th>Plugin gap</th>
+              <th>Build cost</th><th>Demo wow</th><th>One-way</th><th>Low power</th><th>iOS</th><th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>NFC HCE</th>
+              <td class="na">—</td><td>MAXIMAL — physical contact</td><td>large, both sides</td>
+              <td>medium</td><td class="na">—</td><td>yes</td><td>yes</td><td>heavily restricted</td>
+              <td><span class="vd hero">Hero #1</span></td>
+            </tr>
+            <tr>
+              <th>Animated QR</th>
+              <td>best real throughput of any offline channel</td><td>weak</td><td>mature on both — but the frame-processing PIPELINE is where RN and Flutter diverge most</td>
+              <td class="na">—</td><td>high — visible on a projector</td><td>yes</td><td class="na">—</td><td class="na">—</td>
+              <td><span class="vd hero">Hero #2</span></td>
+            </tr>
+            <tr>
+              <th>BLE mesh relay</th>
+              <td>low</td><td>moderate range</td><td class="na">—</td>
+              <td class="na">—</td><td class="na">—</td><td>yes</td><td class="na">—</td><td>heavily restricted</td>
+              <td><span class="vd hero">Hero #3</span></td>
+            </tr>
+            <tr>
+              <th>Ultrasonic</th>
+              <td>100–500 bps</td><td>room-bounded — genuinely useful</td><td>none on either side</td>
+              <td>high — audio DSP</td><td class="na">—</td><td>yes</td><td class="na">—</td><td class="na">—</td>
+              <td><span class="vd cond">High value / high cost</span></td>
+            </tr>
+            <tr>
+              <th>UWB</th>
+              <td class="na">—</td><td>unmatched precision</td><td>essentially no cross-platform plugin</td>
+              <td class="na">—</td><td class="na">—</td><td class="na">—</td><td class="na">—</td><td>hardware rare</td>
+              <td><span class="vd cond">Conditional</span></td>
+            </tr>
+            <tr>
+              <th>Flashlight VLC</th>
+              <td>10–50 bps</td><td>line of sight</td><td>none anywhere</td>
+              <td>trivially cheap — torch toggle + camera luminance</td><td>enormous</td><td>yes</td><td class="na">—</td><td class="na">—</td>
+              <td><span class="vd sleeper">Sleeper pick</span></td>
+            </tr>
+            <tr>
+              <th>SMS</th>
+              <td>works on 2G</td><td>zero</td><td class="na">—</td>
+              <td class="na">—</td><td class="na">—</td><td>yes</td><td class="na">—</td><td>programmatic send forbidden</td>
+              <td><span class="vd ast">Android-only asterisk</span></td>
+            </tr>
+            <tr>
+              <th>Satellite</th>
+              <td>near-zero</td><td class="na">—</td><td>no third-party API on either platform</td>
+              <td class="na">—</td><td>enormous narrative wow</td><td class="na">—</td><td class="na">—</td><td>no API</td>
+              <td><span class="vd cut">CUT</span></td>
+            </tr>
+            <tr>
+              <th>MST</th>
+              <td class="na">—</td><td class="na">—</td><td class="na">—</td>
+              <td class="na">—</td><td class="na">—</td><td class="na">—</td><td class="na">—</td><td>hardware effectively dead</td>
+              <td><span class="vd cut">CUT</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="legend">
+      <span>Hero #2 chosen <em>because</em> the plugin is mature — the divergence is in the pipeline</span>
+      <span>Hero #3 chosen for background-execution reliability — the long-tail cost the Five Whys named</span>
+      <span>Satellite: say it out loud rather than fake it</span>
+    </div>
+  </div>
+
+  <div class="emptycell rv">
+    <div class="ek">Empty cell 01 · this is an architecture, not a gap</div>
+    <h4>No channel scores high on BOTH throughput and proximity-proof strength.</h4>
+    <p>Therefore <b>every real transfer is a PAIR of channels</b> — a proximity channel to establish trust, a throughput channel to carry the bytes. That pairing IS the architecture.</p>
+    <div class="pairviz">
+      <span class="pbox a">Pairing channel — establishes trust</span>
+      <span class="plus">+</span>
+      <span class="pbox b">Payment channel — carries the bytes</span>
+      <span class="plus">=</span>
+      <span class="pbox a">one transfer</span>
+    </div>
+    <p>Bump/accelerometer scored near-zero on throughput — but that was the wrong axis. It is a <b>pairing</b> channel, not a payment channel.
+    Splitting the grid along that line dissolves half the arguments about which channel to build.</p>
+  </div>
+
+  <div class="emptycell rv" style="border-color:rgba(255,157,61,.4); background:linear-gradient(180deg, rgba(255,157,61,.09), transparent 70%), var(--bg2)">
+    <div class="ek" style="color:var(--hot)">Empty cell 02 · the most consequential platform gap</div>
+    <h4>Nothing works with the screen off and the app backgrounded — except NFC HCE.</h4>
+    <p>That is precisely why HCE is the crown jewel, and precisely why <b>iOS restricting it is the single most consequential platform gap in the comparison</b>.</p>
+  </div>
+</section>
+
+<!-- ============================ 11 KILL THE CROWN JEWEL ============================ -->
+<section class="sec" id="t11">
+  <div class="sec-head rv">
+    <div class="sec-num">11</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Kill the Crown Jewel</h2>
+      <p class="sec-sub">Delete NFC entirely — the best channel in the matrix, the one thing that works backgrounded with the screen off —
+      and redesign to win without it. It produced the most counterintuitive finding of both rounds.</p>
+    </div>
+    <span class="count">Deleted, then rebuilt</span>
+  </div>
+
+  <div class="killhead rv">
+    <svg width="150" height="86" viewBox="0 0 150 86" aria-hidden="true">
+      <rect x="6" y="14" width="138" height="58" rx="10" fill="#140a0d" stroke="#ff6f7d" stroke-opacity=".55"/>
+      <text x="75" y="52" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="24" fill="#ff6f7d" letter-spacing="3" opacity=".55">NFC</text>
+      <line x1="14" y1="70" x2="136" y2="16" stroke="#ff6f7d" stroke-width="2.2"/>
+      <line x1="14" y1="16" x2="136" y2="70" stroke="#ff6f7d" stroke-width="2.2"/>
+    </svg>
+    <div>
+      <div class="kt">Without NFC the offline tap demo dies.</div>
+      <div class="kb">Whatever survives must work camera-to-screen or radio-to-radio. Two things died honestly with it:
+      proximity proof had to come from elsewhere — <strong>ultrasonic time-of-arrival and bump detection are promoted from novelty to load-bearing infrastructure</strong> —
+      and there is no low-power path at all, so <strong>the dead-battery vendor scenario genuinely dies and gets cut rather than faked</strong>.</div>
+    </div>
+  </div>
+
+  <div class="reveal2 rv">
+    <div class="rk2">What killing it revealed</div>
+    <div class="rbig">NFC is <span class="fl">invisible on a stage.</span><br>Nobody in the audience can see a tap work.</div>
+    <p class="rp">Redesigned without it, animated QR becomes hero #1 and the demo becomes two phones held face to face —
+    <b>visually better on a projector than a tap</b>, because the audience can watch the frames flicker and the bytes land.</p>
+    <div class="rbig" style="margin-top:26px">And <span class="sg">iOS parity improves dramatically</span> without it.</div>
+    <p class="rp">HCE was the single biggest iOS blocker. <b>Deleting the crown jewel makes the cross-platform story stronger</b> — a real, counterintuitive finding.</p>
+  </div>
+
+  <div class="chansplit rv">
+    <div class="cs prod">
+      <div class="csk">The product channel</div>
+      <div class="csv">NFC</div>
+      <p>Works backgrounded, screen off, at 5% battery. The right thing to actually ship.</p>
+    </div>
+    <div class="cs demo">
+      <div class="csk">The demo channel</div>
+      <div class="csv">Optical</div>
+      <p>Frames flickering between two phones, watchable from the back of the room. The right thing to put on a stage.</p>
+    </div>
+  </div>
+
+  <div class="payoffs">
+    <div class="payoff rv" style="--hue:#34e5c4">
+      <div class="pk">Strongest architectural consequence of the whole exercise</div>
+      <h4>Build the entire system NFC-OPTIONAL from day one</h4>
+      <p>NFC is <strong>a driver, not a foundation</strong>.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#b48cff">
+      <div class="pk">Consequence for the headline demo</div>
+      <h4>Perform "RN pays Flutter" optically, not by tap</h4>
+      <p>So the audience can actually <strong>see the bytes move between frameworks</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 12 BACKCASTING ============================ -->
+<section class="sec" id="t12">
+  <div class="sec-head rv">
+    <div class="sec-num">12</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Backcasting</h2>
+      <p class="sec-sub">Fix the finished demo in vivid detail first, then walk backwards one step at a time until you hit
+      something you could start this afternoon.</p>
+    </div>
+    <span class="count">Finished state → first move</span>
+  </div>
+
+  <div class="finished rv">
+    <div class="fh">The finished state</div>
+    <div class="fb">
+      <p>On stage, <b>wifi off, airplane mode on</b>. Two phones held up — one React Native, one Flutter.
+      Money moves between them <b>visibly</b>. A third phone relays it to a fourth across the room.
+      A deliberate double-spend is attempted and <b>detected live</b>. A telemetry screen shows the frame-time difference.
+      A one-page decision table closes it.</p>
+    </div>
+  </div>
+
+  <div class="backarrow rv">
+    <svg width="34" height="56" viewBox="0 0 34 56" aria-hidden="true">
+      <line x1="17" y1="56" x2="17" y2="14" stroke="#26344a" stroke-width="2" stroke-dasharray="4 5"/>
+      <path d="M17 0 L9 16 L25 16 Z" fill="#ffb457"/>
+    </svg>
+    <div class="lbl">Now walk it backwards</div>
+  </div>
+
+  <div class="bsteps">
+    <div class="bstep rv"><div class="bn">← STEP 1</div><div class="bt">Both apps pass <b>the same E2E suite AND the same frozen wire vectors</b>.</div></div>
+    <div class="bstep rv"><div class="bn">← STEP 2</div><div class="bt">The <b>Python reference implementation exists</b> and the vectors are frozen.</div></div>
+    <div class="bstep rv"><div class="bn">← STEP 3</div><div class="bt">The <b>wire spec PROSE is written</b> and both devs have read it.</div></div>
+    <div class="bstep rv"><div class="bn">← STEP 4</div><div class="bt">The <b>three wire profiles and the fixed-denomination note format</b> are decided.</div></div>
+    <div class="bstep rv"><div class="bn">← STEP 5</div><div class="bt">The <b>fork decisions from Decision Tree Mapping</b> are made and written down.</div></div>
+  </div>
+
+  <div class="root rv" style="margin-top:20px">
+    <div class="rhd"><span>◆</span><span>Backcasting conclusion</span></div>
+    <div class="rbody">
+      <p>The true first move is to write two files.</p>
+      <div class="punch"><em>spec/wire.md</em><br>and <em>spec/vectors.json</em></div>
+      <p style="margin-top:18px">Not a project scaffold. Not a plugin spike. Not a UI.
+      <b>Everything else in the plan is downstream of those two files.</b></p>
+    </div>
+  </div>
+
+  <div class="payoffs" style="margin-top:16px">
+    <div class="payoff rv" style="--hue:#61dafb">
+      <div class="pk">Parallel first move</div>
+      <h4>A strictly timeboxed one-hour plugin-availability spike per capability, in BOTH ecosystems</h4>
+      <p>Recorded straight into the decision table — because <strong>"does a usable plugin exist" changes the plan more than any other single fact</strong>.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#ffb457">
+      <div class="pk">Logistics, day one</div>
+      <h4>The demo needs FOUR phones</h4>
+      <p>Sourcing them is a <strong>day-one task with a named owner</strong>, not an afterthought discovered at 4pm.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#b48cff">
+      <div class="pk">Rehearsal risk</div>
+      <h4>You cannot hot-reload with the radios off</h4>
+      <p>An airplane-mode demo means the <strong>dev-client reload workflow must be solved and rehearsed BEFORE the demo</strong>, not during it.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#ff6f7d">
+      <div class="pk">Insurance</div>
+      <h4>Build the FRAUD BUTTON before the fraud detection</h4>
+      <p>A scripted deterministic path guarantees <strong>you always have something to show</strong> even if detection is half-finished.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#34e5c4">
+      <div class="pk">Compounding</div>
+      <h4>Build the telemetry screen early</h4>
+      <p>Once it exists <strong>every later measurement is free</strong>. Built late, every measurement is manual and most never get taken.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 13 SHIP IN 60 MINUTES ============================ -->
+<section class="sec" id="t13">
+  <div class="sec-head rv">
+    <div class="sec-num">13</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Ship in 60 Minutes</h2>
+      <p class="sec-sub">You launch in one hour with what is on hand. Name what you cut, what you fake, what you borrow,
+      and the two things you refuse to give up.</p>
+    </div>
+    <span class="count">Cut · Fake · Borrow · Keep</span>
+  </div>
+
+  <div class="ledger4 rv">
+    <div class="lcol" style="--hue:#ff6f7d">
+      <div class="lk">Cut</div>
+      <ul>
+        <li>Everything down to <b>one channel: animated QR</b>. It needs only a camera and a screen — no pairing, no radios, no permissions theatre, no second-device pairing dance.</li>
+      </ul>
+    </div>
+    <div class="lcol" style="--hue:#ffb457">
+      <div class="lk">Fake</div>
+      <ul>
+        <li><b>The mint</b> — every wallet starts with 100 notes preloaded; pedometer and geofence minting become a slide.</li>
+        <li><b>The mesh</b> — two phones only; multi-hop relay is a clearly labelled simulation.</li>
+        <li><b>The hardware keystore</b> — software key with a visible TODO, said out loud in the pitch rather than implied otherwise.</li>
+      </ul>
+    </div>
+    <div class="lcol" style="--hue:#61dafb">
+      <div class="lk">Borrow</div>
+      <ul>
+        <li>The <b>QR encode/decode libraries</b> that already exist in both ecosystems. Do not hand-roll fountain codes in hour one.</li>
+      </ul>
+    </div>
+    <div class="lcol" style="--hue:#34e5c4">
+      <div class="lk">Keep</div>
+      <ul>
+        <li><b>The wire vectors.</b> Twenty minutes, and the only thing that makes the cross-framework claim credible.</li>
+        <li><b>The telemetry screen.</b> Not a nice-to-have — it IS the deliverable.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hardrule rv" style="margin-top:16px">
+    <span class="hk">The finding</span>
+    The 60-minute version <b>IS the demo spine</b>. Everything else is an upgrade to a spine that already works —
+    so build strictly in that order and never invert it.
+  </div>
+
+  <div class="movement-label rv" style="margin-top:44px"><span class="idx">Scope ladder</span><span>eight rungs, climbed in order</span><span class="bar"></span></div>
+
+  <div class="ladder">
+    <div class="rung rv"><div class="rnum">1</div><div class="rtx">One-phone loopback QR transfer <span>in both apps</span></div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">2</div><div class="rtx">RN → RN, and Flutter → Flutter</div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung risk rv"><div class="rnum">3</div><div class="rtx">RN → Flutter — cross-framework <span>The riskiest rung. De-risk it early: a bytes-only interop test on day one, hardcoded notes, no UI at all, before either app is built.</span></div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">4</div><div class="rtx">NFC as a second driver</div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">5</div><div class="rtx">BLE mesh relay</div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">6</div><div class="rtx">One exotic channel — flashlight VLC <span>cheapest wow per hour of build</span></div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">7</div><div class="rtx">The fraud demo</div></div>
+    <div class="gate rv"><span>Airplane-mode gate</span><span class="gl"></span><span>real hardware, radios off</span></div>
+    <div class="rung rv"><div class="rnum">8</div><div class="rtx">Exotic channel #2 <span>only if time remains</span></div></div>
+  </div>
+
+  <div class="hardrule rv">
+    <span class="hk">Hard rule</span>
+    Never start rung N+1 until rung N <b>works on real hardware with the radios off</b>.
+    Airplane mode is the acceptance criterion for every rung, not a final test.
+  </div>
+</section>
+
+<!-- ============================ ROUND TWO SYNTHESIS ============================ -->
+<section class="synth" id="synthesis2">
+  <p class="kicker rv" style="text-align:center">Round two synthesis · six insights and a direction</p>
+
+  <div class="reframe rv">
+    <div class="rk">The keystone</div>
+    <div class="neg">Four separate design decisions</div>
+    <div class="pos">The <span class="hl">one-way constraint</span><br>is the keystone.</div>
+    <p class="tail">Because QR, chirp, SMS and satellite <b>cannot ACK</b>, the protocol must be fire-and-forget —
+    which forces the note to be a complete, self-contained, verifiable object — which is exactly what makes bearer notes right —
+    which is exactly what makes cross-framework payment possible. <b>Four separate decisions collapse into one constraint.</b></p>
+
+    <div class="keychain">
+      <span class="kn hot">cannot ACK</span><span class="ka">→</span>
+      <span class="kn">fire-and-forget protocol</span><span class="ka">→</span>
+      <span class="kn">self-contained verifiable note</span><span class="ka">→</span>
+      <span class="kn">bearer notes are right</span><span class="ka">→</span>
+      <span class="kn hot">cross-framework payment possible</span>
+    </div>
+    <div class="collapse-note">Four decisions · one constraint</div>
+
+    <div class="scrollx" style="margin-top:22px">
+      <div class="inner">
+        <svg viewBox="0 0 900 300" width="100%" role="img" aria-label="Four decisions resting on the one-way constraint as a keystone">
+          <g font-family="ui-monospace, Menlo, Consolas, monospace" font-size="11" fill="#aebbcb" text-anchor="middle">
+            <g><rect x="20" y="18" width="196" height="62" rx="9" fill="#0c1118" stroke="#26344a"/><text x="118" y="46">fire-and-forget</text><text x="118" y="64">protocol</text></g>
+            <g><rect x="240" y="18" width="196" height="62" rx="9" fill="#0c1118" stroke="#26344a"/><text x="338" y="46">self-contained</text><text x="338" y="64">verifiable notes</text></g>
+            <g><rect x="460" y="18" width="196" height="62" rx="9" fill="#0c1118" stroke="#26344a"/><text x="558" y="46">bearer-note</text><text x="558" y="64">data model</text></g>
+            <g><rect x="680" y="18" width="196" height="62" rx="9" fill="#0c1118" stroke="#26344a"/><text x="778" y="46">cross-framework</text><text x="778" y="64">payment</text></g>
+          </g>
+          <g stroke="#34e5c4" stroke-opacity=".5" stroke-width="1.3" stroke-dasharray="4 5">
+            <line x1="118" y1="80" x2="330" y2="196"/>
+            <line x1="338" y1="80" x2="420" y2="196"/>
+            <line x1="558" y1="80" x2="480" y2="196"/>
+            <line x1="778" y1="80" x2="570" y2="196"/>
+          </g>
+          <polygon points="300,198 600,198 680,278 220,278" fill="#0b1a1a" stroke="#34e5c4" stroke-opacity=".7" stroke-width="1.6"/>
+          <text x="450" y="230" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="13" fill="#34e5c4" letter-spacing="2.6">THE ONE-WAY CONSTRAINT</text>
+          <text x="450" y="252" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92" letter-spacing="1.8">QR · CHIRP · SMS · SATELLITE CANNOT ACK</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="synthgrid">
+    <div class="scard wide rv">
+      <div class="sn"><span>R2 Synthesis 02</span><span class="from">Starbursting</span></div>
+      <h4>The three wire profiles are what make the user's original constraint tractable</h4>
+      <p>TINY / SMALL / FULL turn "use every device capability" from a wish into an engineering interface.
+      Each channel declares a profile; <strong>adding a channel becomes writing a driver, not redesigning the protocol</strong>.</p>
+      <div class="merge"><span class="chip">TINY ≤31 B</span><span class="chip">SMALL ≤255 B</span><span class="chip">FULL unbounded</span><span class="chip sig">one protocol, N drivers</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R2 Synthesis 03</span><span class="from">Kill the Crown Jewel</span></div>
+      <h4>The most counterintuitive finding of both rounds</h4>
+      <p>Deleting NFC makes the iOS story <strong>better</strong> and the stage demo <strong>more visible</strong>.
+      NFC is the product channel; optical is the demo channel. Build NFC-optional from day one and demo optically.</p>
+      <div class="merge"><span class="chip">NFC-optional</span><span class="chip sig">demo optically</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R2 Synthesis 04</span><span class="from">Solution Matrix</span></div>
+      <h4>The empty cell is an architecture, not a gap</h4>
+      <p>No channel is strong on both throughput and proximity proof, so <strong>every transfer is a PAIR</strong> —
+      a pairing channel plus a payment channel. Splitting the channel list along that axis dissolves most of the build-order argument.</p>
+      <div class="merge"><span class="chip">Pairing</span><span class="chip">Payment</span><span class="chip sig">every transfer is a pair</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R2 Synthesis 05</span><span class="from">Backcasting × Ship in 60</span></div>
+      <h4>Two techniques landed on the same plan independently</h4>
+      <p>Strong evidence the plan is right: both say <strong>write the wire spec and vectors FIRST</strong>, then a bytes-only
+      cross-framework interop test with no UI, then one optical channel, then everything else as drivers on a spine that already works.</p>
+      <div class="merge"><span class="chip">Spec first</span><span class="chip">Bytes-only interop</span><span class="chip">One optical channel</span><span class="chip sig">then drivers</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R2 Synthesis 06</span><span class="from">The quiet hero</span></div>
+      <h4>The Python reference implementation in spec/</h4>
+      <p>It costs almost nothing, it is the arbiter when two segregated teams disagree, and it is the only structure that keeps
+      <strong>"segregate implementations, share contracts" honest rather than aspirational</strong>.</p>
+      <div class="merge"><span class="chip">Third language</span><span class="chip">Depended on by neither app</span><span class="chip sig">the arbiter</span></div>
+    </div>
+  </div>
+
+  <div class="direction rv">
+    <div class="dhd">
+      <div><div class="dk">Round two direction</div><h3>Day-one order of work</h3></div>
+      <div class="mut mono" style="font-size:11px; letter-spacing:.16em; text-transform:uppercase">Four phones sourced by a named owner, day one</div>
+    </div>
+    <div class="dsteps d7">
+      <div class="dstep"><div class="dn">01</div><div class="dt">Fork decisions written down</div><div class="dd">All twelve, on paper, before any code.</div></div>
+      <div class="dstep"><div class="dn">02</div><div class="dt">spec/wire.md prose</div><div class="dd">Byte-by-byte, in prose, not a schema library.</div></div>
+      <div class="dstep"><div class="dn">03</div><div class="dt">spec/vectors.json + Python reference impl</div><div class="dd">Hand-authored vectors, generated by neither app.</div></div>
+      <div class="dstep"><div class="dn">04</div><div class="dt">Bytes-only RN↔Flutter interop test</div><div class="dd">No UI. De-risks the riskiest rung on day one.</div></div>
+      <div class="dstep"><div class="dn">05</div><div class="dt">Timeboxed plugin-availability spike</div><div class="dd">One hour per capability, both ecosystems, straight into the decision table.</div></div>
+      <div class="dstep"><div class="dn">06</div><div class="dt">Telemetry screen in both apps</div><div class="dd">Early, so every later measurement is free.</div></div>
+      <div class="dstep"><div class="dn">07</div><div class="dt">Then the scope ladder</div><div class="dd">Rung by rung, airplane mode as the gate.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ROUND THREE ============================ -->
+<section class="r2mast r3" id="r3">
+  <div class="r2k rv">Two new inputs · five more techniques</div>
+  <div class="r2t rv">ROUND THREE</div>
+  <p class="r2sub rv">The user changes the brief twice: same-app transfer becomes a hard requirement, and a whole new
+  comparison dimension arrives — <em>agentic integration</em>. The hackathon base is also identified, and it turns out to be a loaded die.</p>
+
+  <div class="inputs2">
+    <div class="input2 rv">
+      <span class="ik">New hard requirement</span>
+      <h4>Each framework must transfer to devices running the SAME application</h4>
+      <p><b>RN-to-RN and Flutter-to-Flutter are required.</b> Cross-framework — the headline demo of round two — is now the bonus on top.</p>
+    </div>
+    <div class="input2 rv">
+      <span class="ik">New comparison dimension</span>
+      <h4>Agentic integration, alongside device capability and rendering</h4>
+      <p>A third axis for the whole benchmark: <b>how well each framework hosts an on-device agent</b> — and what it costs to bind one.</p>
+    </div>
+  </div>
+
+  <div class="basestrip rv">
+    <div class="bk2">Hackathon base identified · this repo</div>
+    <h4>echo-hackathon — Expo 57 / RN 0.86.2</h4>
+    <div class="pills">
+      <span class="pill on">react-native-executorch 0.9.2</span>
+      <span class="pill on">useLLM</span>
+      <span class="pill on">useOCR</span>
+      <span class="pill on">useObjectDetection</span>
+      <span class="pill on">expo-nearby-connections</span>
+      <span class="pill on">react-native-keychain</span>
+      <span class="pill">expo-camera</span>
+      <span class="pill">expo-haptics</span>
+      <span class="pill">expo-speech</span>
+      <span class="pill">react-native-nitro-modules</span>
+      <span class="pill warn">arm64 only</span>
+      <span class="pill warn">physical device only</span>
+    </div>
+  </div>
+
+  <div class="consequence red rv" style="margin-top:14px">
+    <div class="chd"><span>◆</span><span>Bias alert</span></div>
+    <div class="cbody">
+      <div class="cbox">
+        <div class="ck">The problem</div>
+        <p>The RN base <b>already has a working on-device LLM and a working mesh transport</b>. Time-to-first-working-anything
+        is therefore not comparable from this repo.</p>
+      </div>
+      <div class="cbox">
+        <div class="ck">The mitigation</div>
+        <p>Any agentic or transport timing must be measured from a <b>clean scaffold in both frameworks</b>, with the head start
+        <b>stated explicitly in the write-up</b> — disclosed, not hidden.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SAME-APP TRANSFER ============================ -->
+<section class="sec" id="sameapp">
+  <div class="sec-head rv">
+    <div class="sec-num">◫</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">What same-app transfer changes</h2>
+      <p class="sec-sub">Less than you would expect in the protocol, and more than you would expect in the demo.
+      Scope-ladder rung 2 is promoted from milestone to hard requirement.</p>
+    </div>
+    <span class="count">4 cells, not 3</span>
+  </div>
+
+  <div class="payoffs">
+    <div class="payoff rv" style="--hue:#34e5c4">
+      <div class="pk">The protocol</div>
+      <h4>The wire format is unchanged</h4>
+      <p>Notes are <strong>framework-blind by design</strong>. Only DISCOVERY changes: the transport advertises a framework tag,
+      and the app chooses whether to filter on it.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#b48cff">
+      <div class="pk">The demo</div>
+      <h4>That filter becomes the best demo beat in the project</h4>
+      <p>Same-app transfer first — then <strong>FLIP A SWITCH</strong> to accept any framework, and the RN phone pays the Flutter phone.
+      One toggle turns a normal feature into the headline.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#ffb457">
+      <div class="pk">The logistics</div>
+      <h4>Four phones means 2 RN + 2 Flutter</h4>
+      <p>Not four identical phones — <strong>the split is the requirement</strong>.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#7ff0a8">
+      <div class="pk">The insurance</div>
+      <h4>Intra-framework transfer de-risks the whole demo</h4>
+      <p>If cross-framework breaks on stage, same-app transfer still works and <strong>the story survives</strong>. Build it first for exactly that reason.</p>
+    </div>
+  </div>
+
+  <div class="cell2 rv">
+    <div class="cell">
+      <div class="cpair"><span class="a">RN</span> <span class="ar">→</span> <span class="a">RN</span></div>
+      <span class="ctag req">Required</span>
+      <div class="cnote">Same application, both ends</div>
+    </div>
+    <div class="cell">
+      <div class="cpair"><span class="b">FL</span> <span class="ar">→</span> <span class="b">FL</span></div>
+      <span class="ctag req">Required</span>
+      <div class="cnote">Same application, both ends</div>
+    </div>
+    <div class="cell">
+      <div class="cpair"><span class="a">RN</span> <span class="ar">→</span> <span class="b">FL</span></div>
+      <span class="ctag bonus">Bonus</span>
+      <div class="cnote">RN encodes, Flutter decodes</div>
+    </div>
+    <div class="cell">
+      <div class="cpair"><span class="b">FL</span> <span class="ar">→</span> <span class="a">RN</span></div>
+      <span class="ctag bonus">Bonus</span>
+      <div class="cnote">Flutter encodes, RN decodes</div>
+    </div>
+  </div>
+  <div class="seg-bound-note rv">The last two are directionally distinct — encode and decode are different code paths.
+  Test both, or you have proven only half the interop.</div>
+</section>
+
+<!-- ============================ 14 HOW MIGHT WE ============================ -->
+<section class="sec" id="t14">
+  <div class="sec-head rv">
+    <div class="sec-num">14</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">How Might We</h2>
+      <p class="sec-sub">Agentic integration reframed as ten opportunity questions — then one of them selected as the sharpest,
+      because it is the only framing that produces something other than a chatbot.</p>
+    </div>
+    <span class="count">10 questions → 1 selected</span>
+  </div>
+
+  <div class="hmws">
+    <div class="hmw rv"><span class="hn2">HMW 01</span><span class="ht2">…make the agent do something only possible OFFLINE, so it is not just a chatbot with extra steps?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 02</span><span class="ht2">…let an agent act on money without it being terrifying?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 03</span><span class="ht2">…measure agentic integration quality as a NUMBER rather than a vibe?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 04</span><span class="ht2">…make the agent's work visible enough that it actually stresses the framework's rendering?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 05</span><span class="ht2">…give the agent tools that are identical in both frameworks, so we compare the BINDING and not the tools?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 06</span><span class="ht2">…run an agent loop while the phone is asleep and offline?</span></div>
+    <div class="hmw sel rv">
+      <span class="hn2">HMW 07 · selected</span>
+      <span class="ht2">…use the agent to make the MESH smarter rather than the UI chattier?
+        <span class="why">Every other framing produces a chatbot. This one produces something that only exists because the app is offline and peer-to-peer.</span>
+      </span>
+    </div>
+    <div class="hmw rv"><span class="hn2">HMW 08</span><span class="ht2">…test the agent deterministically in CI when the model needs arm64 hardware?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 09</span><span class="ht2">…stop the agent leaking wallet contents to the sidequest GPU?</span></div>
+    <div class="hmw rv"><span class="hn2">HMW 10</span><span class="ht2">…make the agent genuinely useful with a 1B model instead of a frontier one?</span></div>
+  </div>
+
+  <div class="movement-label rv" style="margin-top:40px"><span class="idx">From the selected question</span><span>nine agents for the mesh</span><span class="bar"></span></div>
+
+  <div class="agentgrid">
+    <div class="agentcard rv"><div class="ak">Routing oracle</div><div class="at">Given the peers currently in range and a destination, <b>decide which peer to hand a note to</b>. An on-device LLM making relay decisions is genuinely novel and impossible online-free.</div></div>
+    <div class="agentcard rv"><div class="ak">Stuck-transfer explainer</div><div class="at">"This note's last endorsement was three hops ago and forty minutes stale" — <b>turning an opaque protocol state into a sentence</b>.</div></div>
+    <div class="agentcard rv"><div class="ak">Fraud narrator</div><div class="at">When a double-spend is detected it explains the conflict in plain language, <b>turning a hash comparison into a story</b>. Demo gold, costs almost nothing.</div></div>
+    <div class="agentcard rv"><div class="ak">Gossip triage</div><div class="at">Under bandwidth scarcity, decide <b>which of 200 pending notes to relay first</b> when the channel carries 31 bytes at a time.</div></div>
+    <div class="agentcard rv"><div class="ak">Change-making</div><div class="at">You owe 37, you hold 20+20, they hold 5+1+1 — <b>it proposes the split and the counter-split</b>.</div></div>
+    <div class="agentcard rv"><div class="ak">Receipts</div><div class="at">Writes the <b>human-readable receipt</b> from a raw endorsement chain.</div></div>
+    <div class="agentcard rv"><div class="ak">Anomaly detection</div><div class="at">Detects anomalous spending patterns <b>entirely on-device — no cloud, no telemetry</b>, a claim almost no fintech can make.</div></div>
+    <div class="agentcard rv"><div class="ak">Voice pay</div><div class="at">"Pay Marco twenty" — offline speech recognition plus offline LLM plus offline transfer. <b>The entire stack demonstrated with airplane mode on.</b></div></div>
+    <div class="agentcard rv"><div class="ak">Accessibility narrator</div><div class="at">Describes wallet state aloud to a blind user — <b>closing the loop back to Echo's original blind-navigation mission</b>.</div></div>
+  </div>
+</section>
+
+<!-- ============================ 15 JOB TO BE DONE ============================ -->
+<section class="sec" id="t15">
+  <div class="sec-head rv">
+    <div class="sec-num">15</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Job to Be Done</h2>
+      <p class="sec-sub">What is the agent actually hired to do? Answering it honestly overturns the obvious agentic UI —
+      and changes which number is the headline metric.</p>
+    </div>
+    <span class="count">5 jobs · 3 consequences</span>
+  </div>
+
+  <div class="hired">
+    <div class="hire neg rv"><div class="hl2">Not hired to</div><div class="hr2"><b>Chat.</b></div></div>
+    <div class="hire rv"><div class="hl2">Hired to 01</div><div class="hr2"><b>Remove the need to understand the protocol</b> — the user should never have to learn what an endorsement chain is.</div></div>
+    <div class="hire rv"><div class="hl2">Hired to 02</div><div class="hr2">Answer <b>"can I trust this note?"</b> — it is a trust oracle, not an assistant.</div></div>
+    <div class="hire rv"><div class="hl2">Hired to 03</div><div class="hr2"><b>Compress.</b> A mesh generates a large volume of low-value events; the agent's job is to surface the three that matter.</div></div>
+    <div class="hire rv"><div class="hl2">Hired to 04</div><div class="hr2"><b>Act when you are not looking.</b> The agentic part, as opposed to the chatbot part, is the background loop.</div></div>
+    <div class="hire rv"><div class="hl2">Hired to 05</div><div class="hr2"><b>Translate intent into protocol</b> — "split the bill" is many notes, many splits and many channels.</div></div>
+  </div>
+
+  <div class="payoffs" style="margin-top:18px">
+    <div class="payoff rv" style="--hue:#b48cff">
+      <div class="pk">Consequence 01 · the surface</div>
+      <h4>The primary agentic surface is NOT a chat box</h4>
+      <p>It is a single <strong>"what should I do?" affordance plus background actions</strong> — which reframes the entire UI comparison.</p>
+    </div>
+    <div class="payoff rv" style="--hue:#34e5c4">
+      <div class="pk">Consequence 02 · the metric</div>
+      <h4>TOOL-CALL LATENCY becomes the headline agentic metric</h4>
+      <p>If it is not a chat box, streaming-token throughput is less central. <strong>Different dimension, different measurement.</strong></p>
+    </div>
+    <div class="payoff rv" style="--hue:#61dafb">
+      <div class="pk">Consequence 03 · the chat surface survives</div>
+      <h4>Keep it — purely as the streaming benchmark harness</h4>
+      <p>Shipped and <strong>labelled as a benchmark, not sold as a feature</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 16 SIX THINKING HATS ============================ -->
+<section class="sec" id="t16">
+  <div class="sec-head rv">
+    <div class="sec-num">16</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Six Thinking Hats — the agentic dimension</h2>
+      <p class="sec-sub">One dimension, six deliberately separated modes of thought. The facts are more structural than expected,
+      the risks include the confound that would silently invalidate the whole dimension, and the green hat contains the fix.</p>
+    </div>
+    <span class="count">6 hats · 24 entries</span>
+  </div>
+
+  <div class="hats">
+    <div class="hat rv" style="--hue:#e8eef6">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#e8eef6" stroke-width="1.5"/></svg>
+        <span class="hname">White</span><span class="hcount">facts · 6</span>
+      </div>
+      <ul>
+        <li>The RN base already ships <b>react-native-executorch 0.9.2</b> with useLLM, useOCR and useObjectDetection wired. ExecuTorch is arm64-only and does not run on emulators.</li>
+        <li>Flutter's on-device LLM options are <b>FFI-based</b> — llama.cpp bindings, MediaPipe GenAI, flutter_gemma — rather than one blessed runtime.</li>
+        <li><b>Dart FFI is a first-class language feature</b>; RN's JSI/Nitro path requires C++ glue plus codegen. A structural difference, not an ecosystem accident.</li>
+        <li><b>Flutter isolates are a first-class concurrency primitive</b>; RN needs worklets, threads or native threading to keep inference off the UI thread.</li>
+        <li><b>Agent SDKs and the MCP SDK are TypeScript-first</b> — a genuine RN ecosystem advantage rather than a preference.</li>
+        <li>The remote-GPU sidequest needs no native code in either framework, so it sits on <b>perfectly equal footing</b>.</li>
+      </ul>
+    </div>
+
+    <div class="hat rv" style="--hue:#ff6f7d">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#ff6f7d" stroke-width="1.5"/></svg>
+        <span class="hname">Red</span><span class="hcount">feelings · 3</span>
+      </div>
+      <ul>
+        <li>The RN head start <b>feels like cheating</b>, and will undermine the result's credibility more than any other single factor in the project.</li>
+        <li>Engineers will simply <b>enjoy Dart FFI more than JSI</b>. Enjoyment is not a metric but it drives velocity — and velocity shows up in the numbers wearing a disguise.</li>
+        <li>Needing a wifi model download before an offline demo <b>feels fragile</b>, and everyone will be quietly nervous about it all day.</li>
+      </ul>
+    </div>
+
+    <div class="hat rv" style="--hue:#8b98a6">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#8b98a6" stroke-width="1.5"/></svg>
+        <span class="hname">Black</span><span class="hcount">risks · 5</span>
+      </div>
+      <ul>
+        <li>The head start means <b>time-to-first-working-agent is not comparable from this repo</b>. Mitigation: measure from a clean scaffold in BOTH frameworks and state the head start explicitly.</li>
+        <li>ExecuTorch being arm64-only with no emulator support means <b>CI cannot exercise the agent path at all</b> — a real, reportable constraint that belongs in the decision table.</li>
+        <li>Model files distort APK and download comparisons, so <b>app size must be reported both with and without models</b>.</li>
+        <li class="big"><b>THE BIGGEST CONFOUND IN THIS DIMENSION</b> — using ExecuTorch on one side and llama.cpp on the other means you are comparing <b>RUNTIMES, not frameworks</b>.</li>
+        <li>Background agent loops <b>will be killed by Doze on both platforms</b>, so this sub-test may produce a null result. Plan to report a null honestly rather than chasing it all day.</li>
+      </ul>
+    </div>
+
+    <div class="hat rv" style="--hue:#ffd166">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#ffd166" stroke-width="1.5"/></svg>
+        <span class="hname">Yellow</span><span class="hcount">benefits · 3</span>
+      </div>
+      <ul>
+        <li>Agentic integration is the one dimension where a TypeScript-first ecosystem has a clear structural edge — so it may turn out to be <b>the most decisive dimension in the whole comparison</b>.</li>
+        <li>Streaming tokens into a scrolling list is a <b>perfect, cheap, endlessly repeatable rendering benchmark</b>.</li>
+        <li>Tool calling is a clean latency benchmark — <b>a JS function invoked from native versus a Dart function invoked from native</b>, measured in microseconds.</li>
+      </ul>
+    </div>
+
+    <div class="hat wide rv" style="--hue:#7ff0a8">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#7ff0a8" stroke-width="1.5"/></svg>
+        <span class="hname">Green</span><span class="hcount">new ideas · 4 · the fix lives here</span>
+      </div>
+      <ul>
+        <li class="big">Control the runtime confound by running <b>the SAME GGUF model via llama.cpp in BOTH frameworks</b> — Dart FFI on one side, a Nitro module on the other. Runtime constant, binding variable. <b>This is the agentic-dimension equivalent of write-native-once-bridge-twice.</b></li>
+        <li>Run a <b>second configuration using each framework's blessed path</b> (ExecuTorch for RN, MediaPipe or flutter_gemma for Flutter) to measure ecosystem convenience rather than binding cost. Report both — they answer different questions.</li>
+        <li>Use the <b>remote-GPU sidequest as the CONTROL</b> — identical HTTP streaming in both, zero native code, isolating pure UI streaming performance from everything else.</li>
+        <li class="big"><b>THREE-TIER AGENT TEST</b> — (a) remote GPU, pure UI streaming; (b) blessed local runtime, ecosystem convenience; (c) same llama.cpp both sides, pure binding cost. Three numbers answering three genuinely different questions.</li>
+      </ul>
+    </div>
+
+    <div class="hat rv" style="--hue:#61dafb">
+      <div class="hh">
+        <svg width="26" height="20" viewBox="0 0 26 20" aria-hidden="true"><path d="M2 16 h22 M6 16 c0-9 2-13 7-13 s7 4 7 13" fill="none" stroke="#61dafb" stroke-width="1.5"/></svg>
+        <span class="hname">Blue</span><span class="hcount">process · 3</span>
+      </div>
+      <ul>
+        <li>Agentic integration gets <b>its own section in the decision table with its own rubric</b> — not a row bolted onto the capability table.</li>
+        <li><b>Timebox the agentic spike separately</b> from the channel spikes; it has a different failure mode — model download and memory, not permissions.</li>
+        <li><b>Decide the model up front, freeze it, checksum it.</b> One small quantised model used identically everywhere, or the numbers mean nothing.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ THREE-TIER AGENT TEST ============================ -->
+<section class="sec" id="tier3">
+  <div class="sec-head rv">
+    <div class="sec-num">⧗</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">The three-tier agent test</h2>
+      <p class="sec-sub">The green hat's answer to the black hat's biggest risk. Three configurations, three genuinely different
+      questions, three numbers that must never be collapsed into one.</p>
+    </div>
+    <span class="count">3 tiers · 3 numbers</span>
+  </div>
+
+  <div class="consequence red rv">
+    <div class="chd"><span>◆</span><span>The confound it kills</span></div>
+    <div class="cbody">
+      <div class="cbox">
+        <div class="ck">Without it</div>
+        <p><b>ExecuTorch on one side and llama.cpp on the other compares RUNTIMES, not frameworks</b> — and would silently invalidate the entire agentic dimension.</p>
+      </div>
+      <div class="cbox">
+        <div class="ck">With it</div>
+        <p>Runtime held constant, binding varied. <b>The fix mirrors the project's founding methodology exactly</b>: same artifact, two bridges, stopwatch the bridge.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tiers">
+    <div class="tier rv" style="--hue:#b48cff">
+      <div class="th"><span class="tl">a</span><span class="tn2">Remote GPU</span></div>
+      <div class="tb">
+        <div class="trow"><span class="tk2">Setup</span><span class="tv">Identical HTTP streaming in both. <b>Zero native code either side.</b></span></div>
+        <div class="trow"><span class="tk2">Constant</span><span class="tv">Everything below the UI</span></div>
+        <div class="trow"><span class="tk2">Variable</span><span class="tv"><b>Pure UI streaming performance</b></span></div>
+        <div class="trow"><span class="tk2">Answers</span><span class="tv">How well does each framework render a token stream?</span></div>
+      </div>
+    </div>
+    <div class="tier rv" style="--hue:#ffb457">
+      <div class="th"><span class="tl">b</span><span class="tn2">Blessed runtime each side</span></div>
+      <div class="tb">
+        <div class="trow"><span class="tk2">Setup</span><span class="tv"><b>ExecuTorch</b> for RN, <b>MediaPipe or flutter_gemma</b> for Flutter</span></div>
+        <div class="trow"><span class="tk2">Constant</span><span class="tv">Nothing — each ecosystem plays its own best card</span></div>
+        <div class="trow"><span class="tk2">Variable</span><span class="tv"><b>Ecosystem convenience</b></span></div>
+        <div class="trow"><span class="tk2">Answers</span><span class="tv">What do you get if you just use what the ecosystem hands you?</span></div>
+      </div>
+    </div>
+    <div class="tier rv" style="--hue:#34e5c4">
+      <div class="th"><span class="tl">c</span><span class="tn2">Same GGUF, same llama.cpp</span></div>
+      <div class="tb">
+        <div class="trow"><span class="tk2">Setup</span><span class="tv"><b>Dart FFI</b> on one side, a <b>Nitro module</b> on the other</span></div>
+        <div class="trow"><span class="tk2">Constant</span><span class="tv">The model file and the runtime</span></div>
+        <div class="trow"><span class="tk2">Variable</span><span class="tv"><b>Pure binding cost</b></span></div>
+        <div class="trow"><span class="tk2">Answers</span><span class="tv">What does the bridge itself cost, with nothing else moving?</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="neveravg rv">
+    <span>Three numbers</span>
+    <span class="strike">one average</span>
+    <span>three different questions</span>
+  </div>
+</section>
+
+<!-- ============================ 17 CRANK THE DIAL TO 11 ============================ -->
+<section class="sec" id="t17">
+  <div class="sec-head rv">
+    <div class="sec-num">17</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Crank the Dial to 11</h2>
+      <p class="sec-sub">Maximum agent autonomy, escalated until it becomes absurd — which is the point. Two of the extremes
+      left behind something genuinely buildable.</p>
+    </div>
+    <span class="count">7 entries · autonomy → 11</span>
+  </div>
+
+  <div class="dialwrap">
+    <div class="gauge rv">
+      <svg width="200" height="150" viewBox="0 0 200 150" role="img" aria-label="A dial turned past ten to eleven">
+        <path d="M20 112 A 80 80 0 0 1 180 112" fill="none" stroke="#1b2533" stroke-width="10" stroke-linecap="round"/>
+        <path d="M20 112 A 80 80 0 0 1 180 112" fill="none" stroke="url(#dg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="248 300"/>
+        <defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#34e5c4"/><stop offset="100%" stop-color="#ff9d3d"/></linearGradient></defs>
+        <g stroke="#39485c" stroke-width="1.4">
+          <line x1="24" y1="96" x2="34" y2="94"/>
+          <line x1="100" y1="30" x2="100" y2="40"/>
+          <line x1="176" y1="96" x2="166" y2="94"/>
+        </g>
+        <line x1="100" y1="112" x2="178" y2="103" stroke="#ff9d3d" stroke-width="3.4" stroke-linecap="round"/>
+        <circle cx="100" cy="112" r="7" fill="#0b0d12" stroke="#ff9d3d" stroke-width="2"/>
+        <text x="26" y="132" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92">0</text>
+        <text x="96" y="24" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="10" fill="#6f7f92">5</text>
+        <text x="168" y="132" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="15" fill="#ff9d3d" font-weight="bold">11</text>
+        <text x="100" y="146" text-anchor="middle" font-family="ui-monospace, Menlo, Consolas, monospace" font-size="9" fill="#6f7f92" letter-spacing="2.4">AUTONOMY</text>
+      </svg>
+    </div>
+
+    <div class="dialrows">
+      <div class="drow rv">
+        <div class="dhead"><span class="dlv">6</span><span class="dtx">The agent spends money without asking.</span></div>
+        <div class="dsub">Immediately reveals the need for a <strong>hard spending policy enforced in the ENCLAVE</strong> — outside anything the agent can influence.</div>
+        <div class="dmeter"><i style="--w:55%"></i></div>
+      </div>
+      <div class="drow rv">
+        <div class="dhead"><span class="dlv">7</span><span class="dtx">The agent runs continuously and the UI is only ever a summary of what it did.</span></div>
+        <div class="dsub">An agent-first UI. Extreme — but <strong>an excellent contrast screen for the rendering comparison</strong>.</div>
+        <div class="dmeter"><i style="--w:64%"></i></div>
+      </div>
+      <div class="drow rv">
+        <div class="dhead"><span class="dlv">8</span><span class="dtx">Agents negotiate exchange rates between two different currencies circulating on the same mesh.</span></div>
+        <div class="dmeter"><i style="--w:73%"></i></div>
+      </div>
+      <div class="drow rv">
+        <div class="dhead"><span class="dlv">9</span><span class="dtx">The agent writes its own transfer-channel driver at runtime.</span></div>
+        <div class="dsub">Absurd — but the useful residue is a <strong>declarative channel descriptor</strong> the agent can reason over and select from.</div>
+        <div class="dmeter"><i style="--w:82%"></i></div>
+      </div>
+      <div class="drow rv">
+        <div class="dhead"><span class="dlv">10</span><span class="dtx">A hundred agents on a hundred phones, all gossiping.</span></div>
+        <div class="dsub">Untestable at a hackathon — but <strong>simulate it against the deterministic fake-radio mode</strong> and let the agent loop run over simulated peers, which incidentally <strong>solves the problem that CI cannot test the agent path</strong>.</div>
+        <div class="dmeter"><i style="--w:91%"></i></div>
+      </div>
+      <div class="drow max rv">
+        <div class="dhead"><span class="dlv">11</span><span class="dtx">Every phone runs an agent that autonomously routes and relays for strangers — the mesh becomes a swarm of negotiating agents.</span></div>
+        <div class="dsub">The single best possible showcase of <strong>on-device AI plus peer-to-peer in one demo</strong>.</div>
+        <div class="dmeter"><i style="--w:100%"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="residue rv">
+    <div class="rk3">The useful residue · pays for itself with no AI involved</div>
+    <h4>A declarative channel descriptor</h4>
+    <p>If channels are described declaratively, then <b>an agent can pick the channel — and so can a plain policy function</b>.
+    Build the descriptor either way.</p>
+    <div class="descriptor">
+      <span class="df">wire profile</span><span class="df">throughput</span><span class="df">proximity strength</span><span class="df">power cost</span><span class="df">availability</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 18 WORST POSSIBLE IDEA + TRAIT TRANSFER ============================ -->
+<section class="sec" id="t18">
+  <div class="sec-head rv">
+    <div class="sec-num">18</div>
+    <div class="sec-titles">
+      <h2 class="sec-title">Worst Possible Idea, then Trait Transfer</h2>
+      <p class="sec-sub">Two techniques, one section. First deliberately design the worst agentic integration imaginable and flip each one.
+      Then graft traits from agentic products that already work.</p>
+    </div>
+    <span class="count">8 flips · 6 grafts</span>
+  </div>
+
+  <div class="movement-label rv"><span class="idx">Movement I</span><span>worst possible idea</span><span class="bar"></span></div>
+
+  <div class="flips">
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">A chatbot bolted on that answers "what is my balance".</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx">The agent should only ever surface things you <strong>could NOT have read off the screen yourself</strong>.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Ship the whole wallet to a cloud LLM for insights.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx">This is precisely the sidequest's end-to-end-encryption conflict — <strong>make consent explicit and scope it to a single thread the user is already looking at</strong>.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Let the LLM parse the wire format.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx"><strong>Never let a model touch bytes that require verification.</strong> The agent operates strictly on already-parsed, already-verified objects — a clean and defensible architectural boundary.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">The agent silently retries a failed transfer and double-sends.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx">Agents may <strong>PROPOSE</strong> transfers and never <strong>EXECUTE</strong> them. Execution is always a deterministic function behind a biometric gate.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Measure agentic quality by output quality.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx">Measure <strong>INTEGRATION, not intelligence</strong> — tokens per second, tool-call latency, time to first token, UI jank during inference, thermal impact, binding LOC. With the same model on both sides, output quality is constant by construction.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Use a different model in each framework because it was easier.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx"><strong>Freeze one model file, checksum it</strong>, and refuse to report any number produced by a different one.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Benchmark inference with the screen off.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx">Benchmark it exactly where it hurts — <strong>during a 60fps scroll</strong> — because "does inference jank the UI" IS the question.</div></div>
+    </div>
+    <div class="flip rv">
+      <div class="side fail"><div class="lab">Worst</div><div class="tx">Hide the agent's tool calls.</div></div>
+      <div class="pivot"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 6 h10 l-3 -3 M16 12 h-10 l3 3" stroke="#6f7f92" stroke-width="1.4" fill="none" stroke-linecap="round"/></svg></div>
+      <div class="side inv"><div class="lab">Flip</div><div class="tx"><strong>Render every tool call visibly as it happens.</strong> Good for trust — and itself a rendering workload worth measuring.</div></div>
+    </div>
+  </div>
+
+  <div class="movement-label rv" style="margin-top:44px"><span class="idx">Movement II</span><span>trait transfer · grafts from agentic products that already work</span><span class="bar"></span></div>
+
+  <div class="grafts">
+    <div class="graft rv">
+      <div class="gsrc">From · inline code completion</div>
+      <div class="gbody">
+        <div class="gtrait">The agent appears where you already are, not in a separate surface.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">Agent suggestions <b>inline in the transfer sheet</b>, never in a chat tab.</div>
+      </div>
+    </div>
+    <div class="graft rv">
+      <div class="gsrc">From · a spam filter</div>
+      <div class="gbody">
+        <div class="gtrait">The best agent is invisible and surfaces only exceptions.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">The agent evaluates every incoming note and <b>speaks up only about suspicious ones</b>.</div>
+      </div>
+    </div>
+    <div class="graft rv">
+      <div class="gsrc">From · lane-keep assist</div>
+      <div class="gbody">
+        <div class="gtrait">Continuous small corrections, hard limits, instant human override.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">The agent <b>nudges routing continuously</b> — but a physical control always overrides it.</div>
+      </div>
+    </div>
+    <div class="graft rv">
+      <div class="gsrc">From · keyboard autocomplete</div>
+      <div class="gbody">
+        <div class="gtrait">Offline, sub-100ms, tiny model.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">The bar here is a <b>small fast model doing narrow things</b>, not a big model doing everything. This settles the model-size decision.</div>
+      </div>
+    </div>
+    <div class="graft rv">
+      <div class="gsrc">From · a screen reader</div>
+      <div class="gbody">
+        <div class="gtrait">It narrates state changes as they happen.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">The agent as <b>narrator for blind users</b> — closing the loop back to Echo's original mission.</div>
+      </div>
+    </div>
+    <div class="graft rv">
+      <div class="gsrc">From · a git merge tool</div>
+      <div class="gbody">
+        <div class="gtrait">Shows the conflict, proposes a resolution, never auto-commits.</div>
+        <div class="garrow">graft →</div>
+        <div class="ggraft">Exactly the right interaction model for <b>double-spend conflicts</b>.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ROUND THREE SYNTHESIS ============================ -->
+<section class="synth" id="synthesis3">
+  <p class="kicker rv" style="text-align:center">Round three synthesis · eight insights and a direction</p>
+
+  <div class="reframe rv">
+    <div class="rk">Why agentic integration may decide the whole comparison</div>
+    <div class="neg">One framework is simply better at hosting an agent</div>
+    <div class="pos">The two structural advantages<br>point in <span class="hl">opposite directions.</span></div>
+    <p class="tail">Agentic integration may be <b>the most decisive dimension in the comparison</b> — because it is the one place where
+    each framework's advantage is <b>structural rather than incidental</b>, and the two advantages pull against each other.
+    That is exactly what makes it worth measuring.</p>
+
+    <div class="opposite">
+      <div class="oside rn2s">
+        <div class="ok">React Native · the ecosystem</div>
+        <div class="ov">Agent SDKs and the MCP SDK are TypeScript-first
+          <span>A genuine structural advantage, not a preference.</span>
+        </div>
+      </div>
+      <div class="omid" aria-hidden="true">
+        <svg width="44" height="64" viewBox="0 0 44 64">
+          <line x1="40" y1="20" x2="10" y2="20" stroke="#61dafb" stroke-width="1.8"/>
+          <path d="M6 20 L15 15 M6 20 L15 25" stroke="#61dafb" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <line x1="4" y1="44" x2="34" y2="44" stroke="#ffb457" stroke-width="1.8"/>
+          <path d="M38 44 L29 39 M38 44 L29 49" stroke="#ffb457" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="oside fl2s">
+        <div class="ok">Flutter · the binding</div>
+        <div class="ov">First-class FFI and first-class isolates
+          <span>Structural too — a language feature, not an ecosystem accident.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="synthgrid">
+    <div class="scard wide rv">
+      <div class="sn"><span>R3 Synthesis 01</span><span class="from">Six Thinking Hats · black × green</span></div>
+      <h4>The runtime confound is the whole ballgame</h4>
+      <p>ExecuTorch vs llama.cpp compares <strong>RUNTIMES, not frameworks</strong>, and would silently invalidate the agentic dimension.
+      The fix mirrors the project's founding methodology exactly: <strong>same GGUF model, same llama.cpp, Dart FFI on one side and a Nitro module on the other</strong>.
+      Runtime constant, binding variable.</p>
+      <div class="merge"><span class="chip">Same model</span><span class="chip">Same runtime</span><span class="chip">Two bindings</span><span class="chip sig">write-native-once, bridge-twice</span></div>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 02</span><span class="from">The measurement</span></div>
+      <h4>Three tiers, three numbers, never averaged</h4>
+      <p>(a) remote GPU — no native either side, isolates <strong>pure UI streaming</strong>; (b) each framework's blessed runtime — <strong>ecosystem convenience</strong>;
+      (c) same llama.cpp both sides — <strong>pure binding cost</strong>. Three genuinely different questions.</p>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 03</span><span class="from">Bias</span></div>
+      <h4>The hackathon base is a loaded die</h4>
+      <p>RN already has a working on-device LLM AND a working mesh transport, so <strong>any time-to-first-working measurement taken from this repo is meaningless</strong>.
+      Measure from clean scaffolds in both, and print the head start in the write-up rather than hiding it.</p>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 04</span><span class="from">Job to Be Done</span></div>
+      <h4>The obvious agentic UI was wrong</h4>
+      <p>The agent is not a chat box — it is a <strong>trust oracle and a background compressor</strong>. Therefore <strong>tool-call latency is the headline agentic metric</strong>
+      and streaming throughput is secondary; keep a chat surface only as an explicitly labelled benchmark harness.</p>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 05</span><span class="from">Worst Possible Idea</span></div>
+      <h4>The safety boundary and the testability boundary are the same line</h4>
+      <p><strong>Agents PROPOSE, deterministic code EXECUTES behind a biometric gate</strong>, and the model never touches unverified bytes.
+      That makes the agent safe — and it makes the executing half deterministic enough to unit-test.</p>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 06</span><span class="from">Crank the Dial · the sleeper</span></div>
+      <h4>The declarative channel descriptor</h4>
+      <p>Describe each channel by wire profile, throughput, proximity strength, power cost and availability, and <strong>both an LLM and a plain policy function can select channels</strong>.
+      It pays for itself with no AI involved — and it is what finally <strong>unifies the pairing/payment split from round two</strong>.</p>
+    </div>
+
+    <div class="scard rv">
+      <div class="sn"><span>R3 Synthesis 07</span><span class="from">Same-app transfer</span></div>
+      <h4>The hard requirement de-risks the whole demo</h4>
+      <p>RN-to-RN and Flutter-to-Flutter must work, and cross-framework then becomes <strong>a switch you flip on stage</strong>.
+      If the switch fails the story still stands. And it is <strong>four cells to test, not three</strong> — RN-to-FL and FL-to-RN are different code paths.</p>
+    </div>
+  </div>
+
+  <div class="direction rv">
+    <div class="dhd">
+      <div><div class="dk">Round three direction</div><h3>Agentic additions to the plan</h3></div>
+      <div class="mut mono" style="font-size:11px; letter-spacing:.16em; text-transform:uppercase">Its own decision-table section, its own rubric</div>
+    </div>
+    <div class="dsteps">
+      <div class="dstep"><div class="dn">01</div><div class="dt">Freeze one small quantised model</div><div class="dd">Checksum it. No number counts if it came from a different file.</div></div>
+      <div class="dstep"><div class="dn">02</div><div class="dt">Build the three-tier test harness</div><div class="dd">Remote GPU, blessed runtime, same llama.cpp both sides.</div></div>
+      <div class="dstep"><div class="dn">03</div><div class="dt">Timebox the agentic spike separately</div><div class="dd">Different failure mode from the channel spikes — model download and memory, not permissions.</div></div>
+      <div class="dstep"><div class="dn">04</div><div class="dt">Give agentic its own decision-table section</div><div class="dd">tokens/sec · time-to-first-token · tool-call latency · UI jank during inference · thermal delta · binding LOC.</div></div>
+      <div class="dstep"><div class="dn">05</div><div class="dt">Simulate a peer swarm against the fake-radio mode</div><div class="dd">Makes the agent path CI-testable despite arm64-only hardware.</div></div>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="frow">
     <span>BMad brainstorming · autonomous mode</span>
-    <span>7 techniques · 142 entries · 1 adopted decision</span>
+    <span>3 rounds · 19 techniques · 343 entries</span>
     <span>2026-08-01</span>
   </div>
 </footer>
