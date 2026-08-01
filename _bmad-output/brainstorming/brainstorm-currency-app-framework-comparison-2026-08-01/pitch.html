@@ -119,7 +119,7 @@
   /* ---------- channels ---------- */
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 14px}
   .legend span{display:inline-flex;align-items:center;gap:7px}
-  .swatch{width:10px;height:10px;border-radius:2px;flex:none}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:2px;flex:none}
   .chgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
   .ch{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:14px;display:flex;gap:12px;align-items:flex-start}
   .ch.hero{border-color:rgba(0,229,176,.45);background:linear-gradient(180deg,rgba(0,229,176,.06),transparent), var(--panel)}
@@ -164,6 +164,53 @@
          display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;
          font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
 
+  /* ---------- optical demo ---------- */
+  .airplane{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;
+            text-transform:uppercase;color:var(--warn);border:1px solid rgba(255,209,102,.38);border-radius:999px;padding:4px 11px}
+  .qrmark{display:block;margin:0 auto}
+  .bstrip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:20px;
+          border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:12px 14px}
+  .bnum{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-3);flex:none}
+  .pairs{display:flex;gap:8px;flex-wrap:wrap}
+  .pp{font-family:var(--mono);font-size:12px;letter-spacing:.06em;padding:4px 10px;border-radius:5px;white-space:nowrap}
+  .pp.rn{color:var(--cool);border:1px solid rgba(77,163,255,.45);background:rgba(77,163,255,.08)}
+  .pp.fl{color:var(--hot);border:1px solid rgba(255,122,69,.45);background:rgba(255,122,69,.08)}
+  .bcap{font-size:.88rem;color:var(--ink-3);flex:1 1 190px}
+  .flipbar{display:flex;align-items:center;gap:10px;margin:12px 0 2px;padding-left:2px;
+           font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--sig)}
+  .knob{width:34px;height:17px;border-radius:999px;border:1px solid var(--sig);position:relative;flex:none;background:rgba(0,229,176,.14)}
+  .knob::after{content:"";position:absolute;top:2px;right:2px;width:11px;height:11px;border-radius:50%;background:var(--sig)}
+  .oppose{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:14px}
+  .op{border:1px solid var(--line);border-radius:9px;padding:13px 15px;background:var(--panel)}
+  .op.fl{border-color:rgba(255,122,69,.42)} .op.rn{border-color:rgba(77,163,255,.42)}
+  .op b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:5px}
+  .op.fl b{color:var(--hot)} .op.rn b{color:var(--cool)}
+  .op span{font-size:.9rem;color:var(--ink-2)}
+  .opvs{font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-3);text-align:center;white-space:nowrap}
+  .card h3{margin:0 0 10px;font-size:1.08rem;letter-spacing:-.015em;line-height:1.25}
+  .mini{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--sig);margin-bottom:10px}
+  .tiers{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+  .tiers li{display:flex;gap:10px;font-size:.9rem;color:var(--ink-3)}
+  .tiers li:first-child{color:var(--ink-2)}
+  .tiers .t{font-family:var(--mono);font-size:11px;color:var(--ink-3);border:1px solid var(--line);
+            border-radius:4px;width:20px;height:20px;display:grid;place-items:center;flex:none;margin-top:1px}
+  .tiers .t.on{color:#04120e;background:var(--sig);border-color:var(--sig);font-weight:700}
+  .finding{margin-top:16px;border:1px solid rgba(255,122,69,.4);border-radius:10px;padding:16px 18px;
+           background:linear-gradient(90deg,rgba(255,122,69,.09),transparent), var(--panel)}
+  .finding b{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--hot);margin-bottom:7px}
+  .finding.cool{border-color:rgba(77,163,255,.4);background:linear-gradient(90deg,rgba(77,163,255,.09),transparent), var(--panel)}
+  .finding.cool b{color:var(--cool)}
+  .isocap{font-size:.88rem;color:var(--ink-3);margin:8px 0 0}
+  .finding p{margin:0;font-size:.97rem;color:var(--ink-2)}
+  .finding p strong{color:var(--ink)}
+  .split{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .split div{flex:1 1 220px;border:1px solid var(--line);border-radius:8px;padding:11px 13px;background:var(--panel-2);font-size:.9rem;color:var(--ink-2)}
+  .split div b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+  .ch.cut{opacity:.58;border-style:dashed}
+  .ch.cut h4 span.name{text-decoration:line-through;text-decoration-color:var(--ink-3)}
+  .pill.c{background:transparent;color:var(--ink-3);border:1px solid var(--line)}
+  .pill.s{background:rgba(77,163,255,.13);color:var(--cool);border:1px solid rgba(77,163,255,.38)}
+
   /* ---------- responsive ---------- */
   @media (max-width:900px){
     .thesis{grid-template-columns:1fr}
@@ -173,7 +220,8 @@
   }
   @media (max-width:640px){
     .beats,.chgrid,.method,.demo-points{grid-template-columns:1fr}
-    .xfer{grid-template-columns:1fr;gap:10px}
+    .xfer,.oppose{grid-template-columns:1fr;gap:10px}
+    .opvs{transform:rotate(90deg)}
     .arrowbox svg{transform:rotate(90deg)}
     th,td{padding:10px 14px}
   }
@@ -182,8 +230,11 @@
   @media print{
     body{background:#fff;color:#000;background-image:none}
     .wrap{max-width:none;padding:0}
-    .card,.beat,.ch,.m,.ship,.h3c,.demo,.phone,.isolate,.not{
+    .card,.beat,.ch,.m,.ship,.h3c,.demo,.phone,.isolate,.not,.finding,.split div,.airplane,.bstrip,.op,.pp{
       background:#fff !important;border-color:#bbb !important;box-shadow:none !important}
+    .qrmark rect{stroke:#0a7a5e;fill:#0a7a5e}
+    .qrmark rect[fill="none"]{fill:none}
+    .finding b,.airplane{color:#a33c00 !important}
     h1,h2,h3,h4,.big-quote{color:#000}
     .sub,.lede,.beat p,.m span,.h3c p,td:last-child,.longtail li{color:#333}
     .ch p,.phone .note,.foot,footer,th{color:#555}
@@ -217,7 +268,7 @@
   <header class="hook">
     <p class="kicker">The hook</p>
     <h1>Money that moves phone&#8209;to&#8209;phone with <span class="em">nothing in the middle</span> — built <span class="em2">twice</span>.</h1>
-    <p class="sub">A peer-to-peer currency that transfers between devices with no cell, no wifi, no server and no accounts. We shipped it once in React Native and once in Flutter as a controlled experiment — same spec, same tests, same phone.</p>
+    <p class="sub">A peer-to-peer currency that transfers between devices with no cell, no wifi, no server and no accounts. We shipped it once in React Native and once in Flutter as a controlled experiment — same spec, same tests, same hardware.</p>
     <div class="nots">
       <span class="not">NO CELL</span>
       <span class="not">NO WIFI</span>
@@ -236,9 +287,8 @@
       </div>
       <div class="card">
         <ul class="longtail">
-          <li><span class="dot"></span><span>So the app is <b>deliberately weighted toward capabilities with no mature plugin in either ecosystem</b> — that is where the answer lives.</span></li>
-          <li><span class="dot"></span><span><b>UWB ranging. Ultrasonic data. Satellite messaging. Flashlight visible-light comms.</b></span></li>
-          <li><span class="dot"></span><span>We stopwatch <b>time-to-first-working-bridge</b> for capabilities neither developer has attempted before. Honestly.</span></li>
+          <li><span class="dot"></span><span>So the product is <b>deliberately shaped around capabilities with no mature plugin in either ecosystem</b> — every transport is a driver behind one interface, and that is where the answer lives.</span></li>
+          <li><span class="dot"></span><span>One day buys the <b>spine and one channel</b>, measured properly. The exotic drivers are a named continuation, not a claim — and this page marks which is which.</span></li>
         </ul>
       </div>
     </div>
@@ -247,32 +297,49 @@
   <!-- KILLER DEMO -->
   <section>
     <div class="demo">
-      <p class="stamp">The killer demo</p>
-      <h2>The React Native app pays the Flutter app.</h2>
-      <p class="lede" style="margin-top:10px">Cross-framework transfer over NFC. In this room. Offline. It is simultaneously the best demo and the strictest conformance test in the project.</p>
+      <p class="stamp">The killer demo · two beats</p>
+      <h2>Flip one switch, and the React Native phone pays the <span style="color:var(--hot)">Flutter</span> phone.</h2>
+      <p class="lede" style="margin-top:10px">Four phones on stage — two React Native, two Flutter. Airplane mode on. One phone renders a QR code, the other scans it, and the note moves. The whole 96-byte tip fits in a single static QR: no frame streaming, no fountain codes, nothing to go wrong.</p>
+
+      <div class="bstrip">
+        <span class="bnum">Beat 01</span>
+        <div class="pairs"><span class="pp rn">RN&nbsp;→&nbsp;RN</span><span class="pp fl">Flutter&nbsp;→&nbsp;Flutter</span></div>
+        <span class="bcap">Same app pays same app. The hard requirement — and it works on its own.</span>
+      </div>
+
+      <div class="flipbar"><span class="knob" aria-hidden="true"></span> Flip the framework filter off</div>
 
       <div class="xfer">
         <div class="phone rn">
           <div class="fw">React Native</div>
-          <div class="note">holds the note</div>
+          <div class="note">renders the note as a QR</div>
         </div>
         <div class="arrowbox">
-          <svg width="104" height="34" viewBox="0 0 104 34" aria-hidden="true">
-            <path d="M4 17h78" stroke="#00e5b0" stroke-width="2" stroke-dasharray="6 5"/>
-            <path d="M80 9l14 8-14 8z" fill="#00e5b0"/>
-            <path d="M22 6c4 4 4 18 0 22M38 3c6 6 6 22 0 28" fill="none" stroke="#00e5b0" stroke-opacity=".45" stroke-width="1.5"/>
+          <svg class="qrmark" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+            <rect x="2" y="2" width="13" height="13" fill="none" stroke="#00e5b0" stroke-width="2.4"/>
+            <rect x="31" y="2" width="13" height="13" fill="none" stroke="#00e5b0" stroke-width="2.4"/>
+            <rect x="2" y="31" width="13" height="13" fill="none" stroke="#00e5b0" stroke-width="2.4"/>
+            <rect x="6.5" y="6.5" width="4" height="4" fill="#00e5b0"/><rect x="35.5" y="6.5" width="4" height="4" fill="#00e5b0"/><rect x="6.5" y="35.5" width="4" height="4" fill="#00e5b0"/>
+            <g fill="#00e5b0"><rect x="20" y="2" width="4" height="4"/><rect x="20" y="10" width="4" height="4"/><rect x="24" y="18" width="4" height="4"/><rect x="20" y="26" width="4" height="4"/><rect x="2" y="20" width="4" height="4"/><rect x="10" y="20" width="4" height="4"/><rect x="31" y="20" width="4" height="4"/><rect x="40" y="24" width="4" height="4"/><rect x="24" y="34" width="4" height="4"/><rect x="32" y="31" width="4" height="4"/><rect x="40" y="38" width="4" height="4"/><rect x="31" y="40" width="4" height="4"/><rect x="20" y="40" width="4" height="4"/></g>
           </svg>
-          <div class="lbl">NFC tap</div>
+          <div class="lbl">Beat 02 · one static QR</div>
         </div>
         <div class="phone fl">
           <div class="fw">Flutter</div>
-          <div class="note">claims the note</div>
+          <div class="note">scans it and claims it</div>
         </div>
       </div>
 
-      <div class="demo-points">
-        <div class="dp"><b>Why it is the strictest test</b>It proves both builds implement the same wire format, rather than merely looking alike.</div>
-        <div class="dp"><b>Why it is even possible</b>Full project segregation forces distinct app identities — so both apps install on one phone and interoperate as strangers.</div>
+      <div style="margin-top:6px"><span class="airplane">✈ Airplane mode · no cell · no wifi · no server</span></div>
+
+      <div class="demo-points" style="margin-top:18px">
+        <div class="dp"><b>Why one toggle</b>Notes are framework-blind by design; only discovery filters on a framework tag. Turning that filter off converts an ordinary feature into the headline — and if the switch fails on stage, beat one still works and the story survives.</div>
+        <div class="dp"><b>Why optical, not NFC</b>A tap is invisible to an audience — a QR on a screen is not. So we split the two: <b style="display:inline;text-transform:none;letter-spacing:0;font-family:inherit;font-size:inherit">NFC is the product channel, optical is the demo channel.</b> Crossing frameworks proves both builds implement the same wire format rather than merely looking alike.</div>
+      </div>
+
+      <div class="finding">
+        <b>The counterintuitive finding</b>
+        <p>We deleted our own crown jewel to see what survived — and <strong>removing NFC made the iOS story dramatically better</strong>, because host card emulation was the single biggest iOS blocker. The system is now NFC-<em>optional</em> from day one: NFC is a driver, not a foundation.</p>
       </div>
     </div>
   </section>
@@ -284,22 +351,22 @@
       <div class="beat">
         <div class="n">BEAT 01</div>
         <h3>Bearer notes, not balances</h3>
-        <p>The atom is a signed note of roughly <code>200 bytes</code> carrying a value and a chain of endorsements. Transfer = append your signature and hand it over. No global ledger. Your wallet is a set of objects you can split and merge, not a number.</p>
+        <p>The atom is a note: a fixed <code>96-byte tip</code> — id, value, holder key, signature — plus optional history. Transfer = append your signature and hand it over. No global ledger. Wallets start preloaded; on the day the signing key is software, with a visible TODO where the enclave goes.</p>
       </div>
       <div class="beat">
         <div class="n">BEAT 02</div>
-        <h3>Any channel that moves bytes</h3>
-        <p>A note is just bytes, so every transport is the same abstraction with a different driver behind it. The minimum viable channel is ~200 bytes, one-way — which is exactly why QR, chirp, SMS and a BLE advert all qualify.</p>
+        <h3>One-way, fire and forget</h3>
+        <p>A QR code cannot acknowledge anything — so the entire protocol works with <b>no ACK at all</b>. That forces every note to be a complete, self-contained, independently verifiable object. It is the highest-leverage constraint in the project.</p>
       </div>
       <div class="beat">
         <div class="n">BEAT 03</div>
-        <h3>Double-spend is detected, not prevented</h3>
-        <p>Two conflicting endorsements on one note <b>provably identify the forger by their own signature</b>. Devices gossip note histories over every radio they have — so the mesh is not a feature, the mesh <b>IS</b> the fraud detector.</p>
+        <h3>Three wire profiles</h3>
+        <p><code>TINY</code> 31 bytes, <code>SMALL</code> 255 bytes, <code>FULL</code> unbounded. Every channel declares what it can carry — so adding a capability is writing a driver, not redesigning the protocol. The 96-byte tip sits in <code>SMALL</code>, which is why one static QR is enough.</p>
       </div>
       <div class="beat">
         <div class="n">BEAT 04</div>
-        <h3>Keys never leave the hardware</h3>
-        <p>Signing lives in the secure enclave — StrongBox on Android, Secure Enclave on iOS — which also makes keystore bridging part of the comparison. Trust bootstraps from a physical meeting: every pairing is a key exchange plus a proximity proof.</p>
+        <h3>Double-spend is detected, not prevented</h3>
+        <p>Two conflicting endorsements <b>provably identify the forger by their own signature</b>, and the branch is poisoned rather than reassigned. A fraud button double-spends on purpose and detection fires live. Gossip across a multi-hop mesh is how that scales — on stage it is two phones, and we say so.</p>
       </div>
     </div>
   </section>
@@ -307,80 +374,104 @@
   <!-- CHANNELS -->
   <section>
     <div class="sec-h"><span class="sec-n">03</span><h2>The channel spread</h2></div>
-    <p class="lede" style="margin-bottom:16px">Three channels must be bulletproof. The rest are demo-grade novelties, and we label them as such.</p>
+    <p class="lede" style="margin-bottom:16px"><strong>One channel ships on the day.</strong> Every other channel is a driver behind the same interface — which is exactly the point, and exactly why we can say honestly which ones we did not write.</p>
     <div class="legend">
-      <span><i class="swatch" style="background:#00e5b0"></i> Hero channel — must never fail</span>
-      <span><i class="swatch" style="background:#ffd166"></i> Novelty — demo-grade, labelled</span>
+      <span><i class="swatch" style="background:#00e5b0"></i> Ships on stage</span>
+      <span><i class="swatch" style="background:#4da3ff"></i> Next driver up</span>
+      <span><i class="swatch" style="background:#6e7f92"></i> Designed, not built</span>
     </div>
     <div class="chgrid">
 
       <div class="ch hero">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 3c3.2 3 3.2 9 0 12M8.5 1.5c4.5 4 4.5 11 0 15" fill="none" stroke="#00e5b0" stroke-width="1.6"/><circle cx="14" cy="9" r="1.6" fill="#00e5b0"/></svg></div>
-        <div><h4>NFC tap <span class="pill h">Hero</span></h4><p>Host Card Emulation, phone to phone. A note jumps devices on contact. Also works written to a physical tag — a cash drop on a table.</p></div>
-      </div>
-
-      <div class="ch hero">
         <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="2" width="5" height="5" fill="none" stroke="#00e5b0" stroke-width="1.5"/><rect x="11" y="2" width="5" height="5" fill="none" stroke="#00e5b0" stroke-width="1.5"/><rect x="2" y="11" width="5" height="5" fill="none" stroke="#00e5b0" stroke-width="1.5"/><rect x="11.5" y="11.5" width="2" height="2" fill="#00e5b0"/><rect x="14.5" y="14.5" width="2" height="2" fill="#00e5b0"/></svg></div>
-        <div><h4>Animated QR <span class="pill h">Hero</span></h4><p>A rotating series of fountain-coded frames streamed optically at ~10&nbsp;fps. No handshake — it completes when enough frames land. Works phone-to-screen, so you can pay over a video call.</p></div>
-      </div>
-
-      <div class="ch hero">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="4" cy="9" r="2" fill="#00e5b0"/><circle cx="14" cy="4" r="2" fill="#00e5b0"/><circle cx="14" cy="14" r="2" fill="#00e5b0"/><path d="M5.6 8L12.4 4.8M5.6 10l6.8 3.2" stroke="#00e5b0" stroke-width="1.3"/></svg></div>
-        <div><h4>BLE mesh relay <span class="pill h">Hero</span></h4><p>Phones forward signed transfers for strangers with TTL and dedupe, so currency hops across a festival. Micro-transfers can ride in the advertisement packet itself — broadcast, no connection.</p></div>
+        <div><h4><span class="name">Static QR</span> <span class="pill h">Ships</span> <span class="pill h">Demo channel</span></h4><p>The 96-byte tip fits in one code. Render it, scan it, the note moves — no handshake, no streaming, no fountain codes. Animated QR is the stretch upgrade for the <code style="font-family:var(--mono);color:var(--sig)">FULL</code> profile carrying history, not the foundation.</p></div>
       </div>
 
       <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M1 9h2l2-5 2.5 10L10 6l2 6 1.5-3H17" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
-        <div><h4>Ultrasonic chirp <span class="pill n">Novelty</span></h4><p>The payload goes out as sound the mic decodes — in the dark, or with the camera busy. One payer pays a whole room at once. Chirps carry a nonce and a short expiry so a recording cannot be replayed.</p></div>
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M4 3c3.2 3 3.2 9 0 12M8.5 1.5c4.5 4 4.5 11 0 15" fill="none" stroke="#4da3ff" stroke-width="1.6"/><circle cx="14" cy="9" r="1.6" fill="#4da3ff"/></svg></div>
+        <div><h4><span class="name">NFC tap</span> <span class="pill s">Next driver</span> <span class="pill s">Product channel</span></h4><p>Maximal proximity proof, and the only channel that works with the screen off and the app backgrounded — which is why iOS restricting host card emulation is the most consequential platform gap we found.</p></div>
       </div>
 
       <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="3" y="6" width="5" height="9" rx="1" fill="none" stroke="#ffd166" stroke-width="1.5"/><rect x="10" y="6" width="5" height="9" rx="1" fill="none" stroke="#ffd166" stroke-width="1.5"/><path d="M9 4v-2M6.5 3.5L5.5 2M11.5 3.5L12.5 2" stroke="#ffd166" stroke-width="1.4"/></svg></div>
-        <div><h4>Bump to pay <span class="pill n">Novelty</span></h4><p>Both accelerometers spike within 50&nbsp;ms. The bump waveform itself becomes the jointly-derived session secret — never self-reported, so it cannot be spoofed. The most accessible transfer method there is: no aiming, no hunting for a code.</p></div>
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="#4da3ff" stroke-width="1.5"/><path d="M9 1v2M2 8h2M14 8h2M4 3l1.4 1.4M14 3l-1.4 1.4M7 14h4M7.5 16h3" stroke="#4da3ff" stroke-width="1.4"/></svg></div>
+        <div><h4><span class="name">Flashlight VLC</span> <span class="pill s">Next driver</span></h4><p>The torch strobes the payload as visible light; the camera samples luminance. No plugin exists anywhere, yet it is trivially cheap — the best exotic channel per unit of wow, and it scores on the metric that matters.</p></div>
       </div>
 
       <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="1.8" fill="#ffd166"/><circle cx="9" cy="9" r="5" fill="none" stroke="#ffd166" stroke-opacity=".6" stroke-width="1.3"/><path d="M2 9h1.5M14.5 9H16M9 2v1.5M9 14.5V16" stroke="#ffd166" stroke-width="1.3"/></svg></div>
-        <div><h4>UWB ranging <span class="pill n">Novelty</span></h4><p>Pins the counterparty to ~10&nbsp;cm. Physical presence becomes a settlement rule, not a courtesy.</p></div>
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="4" cy="9" r="2" fill="#4da3ff"/><circle cx="14" cy="4" r="2" fill="#4da3ff"/><circle cx="14" cy="14" r="2" fill="#4da3ff"/><path d="M5.6 8L12.4 4.8M5.6 10l6.8 3.2" stroke="#4da3ff" stroke-width="1.3"/></svg></div>
+        <div><h4><span class="name">BLE mesh relay</span> <span class="pill s">Next driver</span></h4><p>Phones forward signed notes for strangers with TTL and dedupe. The one we most want next, because <em>background execution reliability</em> is precisely the long-tail cost that decides a framework.</p></div>
       </div>
 
-      <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2" y="4" width="14" height="10" rx="2" fill="none" stroke="#ffd166" stroke-width="1.5"/><path d="M3 6l6 4.5L15 6" fill="none" stroke="#ffd166" stroke-width="1.4"/></svg></div>
-        <div><h4>SMS on 2G <span class="pill n">Novelty</span></h4><p>The transfer encodes as a base64 payload in a plain text message. No data connection required at all.</p></div>
+      <div class="ch cut">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="1.8" fill="#6e7f92"/><circle cx="9" cy="9" r="5" fill="none" stroke="#6e7f92" stroke-opacity=".7" stroke-width="1.3"/><path d="M2 9h1.5M14.5 9H16M9 2v1.5M9 14.5V16" stroke="#6e7f92" stroke-width="1.3"/></svg></div>
+        <div><h4><span class="name">Bump · UWB</span> <span class="pill c">Designed, not built</span></h4><p>The pairing half of the architecture: a jointly-derived bump secret, or UWB pinning a counterparty to ~10&nbsp;cm. Specified, scored, and left unwritten — UWB hardware is rare and neither fits a day.</p></div>
       </div>
 
-      <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 16l5-5M6 6l6 6 3-3-6-6z" fill="none" stroke="#ffd166" stroke-width="1.5" stroke-linejoin="round"/><path d="M12.5 2.5c1.6.4 2.6 1.4 3 3" fill="none" stroke="#ffd166" stroke-opacity=".7" stroke-width="1.3"/></svg></div>
-        <div><h4>Satellite <span class="pill n">Novelty</span></h4><p>Carries an emergency transfer out of a dead zone on satellite-messaging hardware. No tower, no cloud.</p></div>
-      </div>
-
-      <div class="ch">
-        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="#ffd166" stroke-width="1.5"/><path d="M9 1v2M2 8h2M14 8h2M4 3l1.4 1.4M14 3l-1.4 1.4M7 14h4M7.5 16h3" stroke="#ffd166" stroke-width="1.4"/></svg></div>
-        <div><h4>Flashlight VLC <span class="pill n">Novelty</span></h4><p>The torch strobes the payload as visible light. Pay across a room, or through a window.</p></div>
+      <div class="ch cut">
+        <div class="ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="6.5" fill="none" stroke="#6e7f92" stroke-width="1.5"/><path d="M4.4 4.4l9.2 9.2" stroke="#6e7f92" stroke-width="1.5"/></svg></div>
+        <div><h4><span class="name">Ultrasonic · SMS · Satellite · MST</span> <span class="pill c">Cut</span></h4><p>Ultrasonic DSP is a real build. SMS is Android-only — iOS forbids programmatic send. Satellite has no third-party API on either platform, and MST hardware is dead. Slides, not features, and we say so.</p></div>
       </div>
 
     </div>
   </section>
 
+  <!-- AGENTIC -->
+  <section>
+    <div class="sec-h"><span class="sec-n">04</span><h2>The third dimension: agentic integration</h2></div>
+    <p class="lede" style="margin-bottom:14px">On-device LLM, tool calling, background agent loops — possibly the <strong>most decisive dimension of all</strong>, because the two frameworks have structural advantages pointing in opposite directions.</p>
+
+    <div class="oppose">
+      <div class="op fl"><b>Flutter</b><span>First-class FFI and first-class isolates. The structural edge is in the <em>binding</em>.</span></div>
+      <div class="opvs">→&nbsp;&nbsp;←</div>
+      <div class="op rn"><b>React Native</b><span>The agent SDKs and the MCP SDK are TypeScript-first. The structural edge is in the <em>ecosystem</em>.</span></div>
+    </div>
+
+    <div class="thesis">
+      <div class="card">
+        <h3>The agent is not a chatbot. It is a trust oracle for the mesh.</h3>
+        <ul class="longtail">
+          <li><span class="dot"></span><span>It decides <b>which peer to relay a note to</b>.</span></li>
+          <li><span class="dot"></span><span>It explains <b>in plain language why a transfer is stuck</b>.</span></li>
+          <li><span class="dot"></span><span>It narrates a detected double-spend as <b>a story instead of a hash comparison</b>.</span></li>
+        </ul>
+        <p class="foot">Agents <b>propose</b>; deterministic code <b>executes</b>, behind a biometric gate, and the model never touches unverified bytes. That is the safety boundary — and the same line makes the executing half unit-testable. It is the role we designed for; the day only buys us the Tier A number.</p>
+      </div>
+      <div class="card">
+        <span class="mini">The three-tier test — one tier ran</span>
+        <ol class="tiers">
+          <li><span class="t on">a</span><span><b>Ran on the day.</b> Remote GPU, no native code on either side — isolates pure UI streaming. One real, comparable number.</span></li>
+          <li><span class="t">b</span><span>Each framework's blessed runtime — ecosystem convenience. About a day per side. <b>Not built.</b></span></li>
+          <li><span class="t">c</span><span>The same model via the same <b>llama.cpp</b> both sides, Dart FFI versus a Nitro module — pure binding cost. About a week. <b>Not built.</b></span></li>
+        </ol>
+        <p class="foot">Tier A is explicitly online, and the currency itself never needs a network. B and C are the post-hackathon continuation — but the design matters now, because it kills the confound that would have quietly invalidated the dimension: ExecuTorch versus llama.cpp compares <em>runtimes</em>, not frameworks.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- HONEST EXPERIMENT -->
   <section>
-    <div class="sec-h"><span class="sec-n">04</span><h2>Why the experiment is honest</h2></div>
+    <div class="sec-h"><span class="sec-n">05</span><h2>Why the experiment is honest</h2></div>
     <p class="lede" style="margin-bottom:16px">A framework comparison is only meaningful if both builds do identical work. So we engineered the framework into being the <strong>only</strong> variable.</p>
 
-    <div class="isolate">
-      <span class="c">// the methodology that isolates the variable</span><br>
+    <div class="finding cool">
+      <b>Segregation is also the time strategy</b>
+      <p>Total separation is not only what makes the comparison honest — it is what makes it <strong>fit in one day</strong>. Two devs, one frozen spec, two independent projects, no shared build, no merge conflicts. Perfect parallelism is the only reason building twice was ever feasible.</p>
+    </div>
+
+    <div class="isolate" style="margin-top:14px">
+      <span class="c">// the rule every capability follows</span><br>
       native capability &nbsp;<span class="k">→</span>&nbsp; written <span class="k">ONCE</span> per platform (Kotlin / Swift)<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">→</span>&nbsp; bridged <span class="k">TWICE</span> (RN &nbsp;|&nbsp; Flutter)<br>
       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">→</span>&nbsp; <span class="k">stopwatched</span> &nbsp;<span class="c">// the bridge is the measurement</span>
     </div>
+    <p class="isocap">Day one writes <b>no</b> native code at all — a static QR needs none. This is the rule the drivers follow the moment one is written.</p>
 
     <div class="method" style="margin-top:14px">
-      <div class="m"><b>One shared spec, one shared E2E suite</b><span>Both builds must pass the same wire-format spec and the same end-to-end tests, identically. Contracts are shared as documents — never as code.</span></div>
-      <div class="m"><b>Completely segregated projects</b><span>No shared code, no shared build, no shared dependency tree. Native sources are duplicated as byte-identical, checksum-verified copies — same isolation of the variable, zero coupling.</span></div>
+      <div class="m"><b>One frozen spec, read by both devs</b><span>The wire format is prose, byte-by-byte, frozen before either app starts. Contracts cross the boundary as documents — never as code.</span></div>
+      <div class="m"><b>A neutral arbiter, not a handshake</b><span>Hand-authored test vectors, committed before either app exists and generated by neither. When the two builds disagree the vectors settle it — proving they implement the same <em>spec</em>, not the same <em>bug</em>.</span></div>
+      <div class="m"><b>Completely segregated projects</b><span>No shared code, build or dependency tree — which is also what makes bridge cost auditable the moment native drivers exist: subtract the byte-identical files.</span></div>
       <div class="m"><b>Both apps on one phone, interleaved</b><span>Segregation forces distinct app identities, so both install simultaneously and run back-to-back on identical hardware and identical thermal state.</span></div>
-      <div class="m"><b>A null-app baseline for calibration</b><span>An empty scroll list ships in both builds, so we can tell a framework difference from our own code.</span></div>
-      <div class="m"><b>Release builds, cold, after reboot</b><span>Every timing comes from a release build launched cold following a reboot. Hot reload never touches a number we report.</span></div>
-      <div class="m"><b>No home-field advantage</b><span>A deliberately custom design — neither Material nor Cupertino — so neither framework gets to win on its own defaults. Bridge cost is audited by subtracting the checksum-identical native files.</span></div>
+      <div class="m"><b>Cold, and no home-field advantage</b><span>Every timing comes from a release build launched cold after a reboot, and the UI is deliberately neither Material nor Cupertino.</span></div>
     </div>
   </section>
 
@@ -388,7 +479,7 @@
   <section>
     <div class="ship">
       <div class="ship-top">
-        <span class="sec-n">05</span>
+        <span class="sec-n">06</span>
         <h2 style="margin-top:8px">What we ship is not a winner. It is a decision table.</h2>
         <p class="lede">Judges asked for one readable verdict, not forty metrics. The deliverable answers a single shape of question: <strong>if your product needs X, pick Y.</strong></p>
       </div>
@@ -396,10 +487,10 @@
         <table>
           <thead><tr><th>If your product needs…</th><th>The evidence we produce</th></tr></thead>
           <tbody>
-            <tr><td>A capability the ecosystem has not wrapped yet</td><td>Measured time-to-first-working-bridge and glue-LOC, per capability, per framework</td></tr>
-            <tr><td>Heavy, physical, animated UI</td><td>Notes-as-objects rendering and the split gesture — the workload that separates the two rendering engines</td></tr>
-            <tr><td>Large-list and cold-start performance</td><td>A live in-app telemetry screen: cold start, frame drops, memory, APK size — measured on device, same schema in both builds</td></tr>
-            <tr><td>Cross-platform reach for restricted radios</td><td>The platform capability gap, documented as a finding rather than hidden as a caveat</td></tr>
+            <tr><td>Fast cold start and smooth animated UI</td><td>A live telemetry screen in both builds — cold start, frame time, APK size — same schema, same phone, back to back</td></tr>
+            <tr><td>Two teams implementing one protocol</td><td>A frozen spec plus vectors, and a working cross-framework transfer as proof that both builds read the same bytes</td></tr>
+            <tr><td>A streaming agent surface</td><td>The Tier A number — pure UI streaming, zero native code either side. Tiers B and C are designed, costed and named as the continuation</td></tr>
+            <tr><td>Restricted radios and platform reach</td><td>The capability gap — NFC HCE, background BLE, programmatic SMS — documented as a finding rather than hidden as a caveat</td></tr>
           </tbody>
         </table>
       </div>
@@ -408,17 +499,28 @@
 
   <!-- HONESTY -->
   <section>
-    <div class="sec-h"><span class="sec-n">06</span><h2>What we are honest about</h2></div>
+    <div class="sec-h"><span class="sec-n">07</span><h2>What we are honest about</h2></div>
+    <p class="lede" style="margin-bottom:16px">We scored every channel on two axes — throughput and strength of proximity proof — and <strong>no channel is strong on both</strong>. So every real transfer is a pair: a pairing channel to establish trust, a payment channel to carry the bytes. That is the architecture, not a hand-wave.</p>
     <div class="honest">
       <div class="h3c"><b>Play currency, not real money</b><p>A hard, loud, this-is-not-real-money boundary. The demo currency is visually unmistakable as fake, which keeps the project clear of e-money licensing and app-store rejection.</p></div>
       <div class="h3c"><b>A security demonstrator, not a bank</b><p>Someone will call it a security toy, so we say it first. The threat model is a first-class screen inside the app — and a fraud-demo button deliberately double-spends on stage to show detection firing.</p></div>
       <div class="h3c"><b>iOS forbids what Android allows</b><p>NFC HCE, background BLE and raw wifi are restricted on one platform and open on the other. That gap is a headline finding, not a blocker.</p></div>
     </div>
+
+    <div class="finding cool">
+      <b>What we did not build</b>
+      <p>Agentic Tiers B and C. Ultrasonic, UWB, satellite, SMS. Hardware-backed keys — the day ships a software key with a visible TODO. Sensor-based minting — wallets start preloaded. Multi-hop relay — two phones, labelled as two phones. Named here so you do not have to find them.</p>
+    </div>
+
+    <div class="finding">
+      <b>The loaded die, disclosed</b>
+      <p>Our React Native base <strong>already had a working on-device LLM and a working mesh transport</strong>. React Native starts this experiment with a head start. So every timing is measured from clean scaffolds in both frameworks — and the head start is printed in the results rather than hidden in them.</p>
+    </div>
   </section>
 
   <footer>
-    <span>Bearer notes · gossip mesh · hardware keys</span>
-    <span>React Native × Flutter · one phone · one spec</span>
+    <span>Bearer notes · static QR · frozen spec · one honest number</span>
+    <span>React Native × Flutter · four phones · one spec</span>
   </footer>
 
 </div>

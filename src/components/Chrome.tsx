@@ -87,35 +87,51 @@ export function AppBar({
   );
 }
 
-export type Tab = 'reach' | 'wallet' | 'tap';
+export type Tab = 'reach' | 'wallet' | 'tap' | 'read';
 
-export function BottomNav({ tab, onTab }: { tab: Tab; onTab: (t: Tab) => void }) {
+export function BottomNav({
+  tab,
+  onTab,
+  disabled = false,
+}: {
+  tab: Tab;
+  onTab: (t: Tab) => void;
+  /** Set while a screen is doing work that must not be interrupted by unmount. */
+  disabled?: boolean;
+}) {
   const { c } = useTheme();
   const items: { id: Tab; glyph: string; label: string }[] = [
     { id: 'reach', glyph: '◎', label: 'REACH' },
     { id: 'wallet', glyph: '◍', label: 'WALLET' },
     { id: 'tap', glyph: '⌁', label: 'MEET' },
+    { id: 'read', glyph: '⌾', label: 'READ' },
   ];
   return (
     <View style={[s.nav, { backgroundColor: c.card, borderTopColor: c.hair2 }]}>
       {items.map((it) => {
         const on = it.id === tab;
+        // The active tab stays pressable so a lock never looks like a freeze.
+        const locked = disabled && !on;
         return (
           <Pressable
-            key={it.id}
-            onPress={() => onTab(it.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={it.label}
-            style={[s.navItem, { borderTopColor: on ? c.direct : 'transparent' }]}
-          >
-            <Display size={16} color={on ? c.ink : c.ink3}>
-              {it.glyph}
-            </Display>
-            <Mono size={8.5} color={on ? c.ink : c.ink3}>
-              {it.label}
-            </Mono>
-          </Pressable>
+              key={it.id}
+              onPress={() => onTab(it.id)}
+              disabled={locked}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on, disabled: locked }}
+              accessibilityLabel={it.label}
+              style={[
+                s.navItem,
+                { borderTopColor: on ? c.direct : 'transparent', opacity: locked ? 0.4 : 1 },
+              ]}
+            >
+              <Display size={16} color={on ? c.ink : c.ink3}>
+                {it.glyph}
+              </Display>
+              <Mono size={8.5} color={on ? c.ink : c.ink3}>
+                {it.label}
+              </Mono>
+            </Pressable>
         );
       })}
     </View>

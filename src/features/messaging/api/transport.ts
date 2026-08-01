@@ -23,7 +23,7 @@ import {
   isPlayServicesAvailable,
   type Unsubscribe,
 } from 'expo-nearby-connections';
-import { decode, encode, type Envelope } from '../../../utils/relay';
+import { decode, encode, splitBody, type Envelope } from '../../../utils/relay';
 
 /** Nearby only carries a display name, so identity rides along inside it. */
 export const packName = (deviceId: string, display: string) => `${deviceId}~${display}`;
@@ -187,12 +187,36 @@ export class MeshTransport {
     return { ok: true };
   }
 
-  /** Send to every connected peer except the one that handed it to us. */
+  /**
+   * Send to every connected peer except the one that handed it to us.
+   *
+   * Nearby's BYTES payload is capped at 32 KiB, so anything bigger goes as
+   * parts. Each part is a normal envelope with its own id, which means relays
+   * forward them without knowing they belong together — reassembly is purely
+   * the recipient's problem.
+   */
   async broadcast(envelope: Envelope, excludePeerId?: string): Promise<number> {
-    const text = encode(envelope);
+    const bodies = splitBody(envelope.body);
+    const outgoing: Envelope[] =
+      bodies.length === 1
+        ? [envelope]
+        : bodies.map((body, i) => ({
+            ...envelope,
+            id: `${envelope.id}#${i}`,
+            gid: envelope.gid ?? envelope.id,
+            part: { i, n: bodies.length },
+            body,
+          }));
+
     const targets = this.connectedPeers.filter((p) => p.peerId !== excludePeerId);
-    const results = await Promise.allSettled(targets.map((p) => sendText(p.peerId, text)));
-    return results.filter((r) => r.status === 'fulfilled').length;
+    let delivered = 0;
+    for (const part of outgoing) {
+      const text = encode(part);
+      const results = await Promise.allSettled(targets.map((p) => sendText(p.peerId, text)));
+      // Count peers reached, not parts sent.
+      delivered = Math.max(delivered, results.filter((r) => r.status === 'fulfilled').length);
+    }
+    return delivered;
   }
 
   async stop(): Promise<void> {

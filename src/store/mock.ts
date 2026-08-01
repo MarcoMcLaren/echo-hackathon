@@ -30,6 +30,11 @@ export type Msg = {
   hops: Hops;
   via?: string;
   state?: 'delivered' | 'queued' | 'sent';
+  /** Held locally during the cancel window — not on the air yet. */
+  pending?: boolean;
+  /** Sent, then taken back. The row stays visible; money that vanishes
+   *  silently is worse than money you can see was returned. */
+  reverted?: boolean;
 };
 
 export type Thread = {
@@ -43,6 +48,8 @@ export type Thread = {
   hops: Hops;
   via?: string;
   messages: Msg[];
+  /** Arrived since you last opened the thread. Drives the summary offer. */
+  unread?: number;
 };
 
 export const threads: Thread[] = [
@@ -55,11 +62,21 @@ export const threads: Thread[] = [
     preview: 'Naledi: someone bring tongs',
     at: '2m',
     hops: 0,
+    // Enough real backlog that the on-device summary has something to work
+    // with — a summary of four messages proves nothing.
+    unread: 11,
     messages: [
       { id: 'g1', from: 'lerato', text: 'Moving it to Saturday 14:00, my place', at: '09:12', hops: 0 },
       { id: 'g2', from: 'thabo', text: 'I’ve got the wood. Nobody has claimed meat.', at: '09:20', hops: 0 },
       { id: 'g3', from: 'me', text: 'Meat is on me. Sending Lerato my share now.', at: '09:35', hops: 0, state: 'sent' },
-      { id: 'g4', from: 'naledi', text: 'Are you actually coming this time?', at: '09:41', hops: 1, via: 'Thabo' },
+      { id: 'g4', from: 'lerato', text: 'Gate code is 4417, the buzzer is broken', at: '09:38', hops: 0 },
+      { id: 'g5', from: 'naledi', text: 'Are you actually coming this time?', at: '09:41', hops: 1, via: 'Thabo' },
+      { id: 'g6', from: 'thabo', text: 'Can someone bring a second grid? Mine warped.', at: '09:44', hops: 0 },
+      { id: 'g7', from: 'lerato', text: 'I have a spare grid', at: '09:45', hops: 0 },
+      { id: 'g8', from: 'naledi', text: 'Nobody has said anything about drinks', at: '09:47', hops: 1, via: 'Thabo' },
+      { id: 'g9', from: 'thabo', text: 'Parking is tight, rather share a lift', at: '09:50', hops: 0 },
+      { id: 'g10', from: 'lerato', text: 'Starting the fire at 13:30 so we eat at 14:00 sharp', at: '09:52', hops: 0 },
+      { id: 'g11', from: 'naledi', text: 'Someone bring tongs, Lerato only has one pair', at: '09:55', hops: 1, via: 'Thabo' },
     ],
   },
   {
