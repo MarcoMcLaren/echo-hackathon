@@ -9,6 +9,12 @@ import WalletScreen from './screens/WalletScreen';
 import TapScreen from './screens/TapScreen';
 import SendCoinScreen from './screens/SendCoinScreen';
 import LockScreen from './screens/LockScreen';
+import ReadScreen from './screens/ReadScreen';
+// Side-effect import: this module calls initExecutorch(), which is the only
+// thing that registers the ExecuTorch resource fetcher. Without it every model
+// load fails with ResourceFetcherAdapterNotInitialized — an error the library
+// logs but never surfaces through the hook, so the UI would hang on 0% forever.
+import './services/models';
 
 // Hand-rolled navigation: three tabs and a one-deep stack. react-navigation would
 // pull in react-native-screens + safe-area-context, which means a new dev-client
@@ -25,6 +31,9 @@ export default function App() {
   // Once past the door it stays open for the life of the launch — re-prompting
   // every time you glance at another app would make the mesh unusable.
   const [unlocked, setUnlocked] = useState(false);
+  // Switching tabs mid-read unmounts ReadScreen, and executorch's cleanup
+  // throws ModelGenerating if inference is still running. Lock the nav instead.
+  const [readBusy, setReadBusy] = useState(false);
 
   const isDark = mode === 'system' ? system === 'dark' : mode === 'dark';
 
@@ -85,12 +94,14 @@ export default function App() {
               onSend={() => setRoute({ name: 'send', id: 'naledi' })}
               onTap={() => setTab('tap')}
             />
-          ) : (
+          ) : tab === 'tap' ? (
             <TapScreen />
-          )}
+          ) : tab === 'read' ? (
+            <ReadScreen onBusyChange={setReadBusy} />
+          ) : null}
         </View>
 
-        {route ? null : <BottomNav tab={tab} onTab={setTab} />}
+        {route ? null : <BottomNav tab={tab} onTab={setTab} disabled={readBusy} />}
       </Screen>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </ThemeContext.Provider>
