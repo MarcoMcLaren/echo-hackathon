@@ -9,8 +9,8 @@ import 'package:provider/provider.dart';
 
 import '../components/type.dart';
 import '../features/ai/summarize.dart';
-import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
+import '../store/types.dart';
 import '../styles/theme.dart' as tokens;
 
 class CatchMeUpSheet extends StatefulWidget {
@@ -21,7 +21,7 @@ class CatchMeUpSheet extends StatefulWidget {
     required this.onClose,
   });
 
-  final mock.Thread thread;
+  final Thread thread;
   final int unread;
   final VoidCallback onClose;
 

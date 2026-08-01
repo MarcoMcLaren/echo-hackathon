@@ -7,7 +7,6 @@ import '../components/chip.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/type.dart';
 import '../store/mesh_store.dart';
-import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
 import '../styles/theme.dart' as tokens;
 
@@ -44,30 +43,26 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
+    final mesh = context.watch<MeshStore>();
+    final wallet = walletFrom(mesh.threads);
 
-    final contact = mock.byId(widget.contactId);
-    mock.Thread? thread;
-    for (final t in mock.threads) {
-      if (t.id == widget.contactId) {
-        thread = t;
-        break;
-      }
-    }
-    final name = contact?.name ?? thread?.title ?? 'Contact';
-    final initials = contact?.initials ?? thread?.initials ?? '··';
-    // Mirrors the RN source's fallback chain exactly: `contact?.hops ??
-    // thread?.hops ?? 0` collapses a genuine null (no route) on both sides to
-    // the 0 default, so `hops` can never actually be null here — same as in
-    // the original, whose `hops === null` branches are equally unreachable.
-    final hops = contact?.hops ?? thread?.hops ?? 0;
-    final via = contact?.via ?? thread?.via;
+    final matches = mesh.threads.where((t) => t.id == widget.contactId);
+    final thread = matches.isEmpty ? null : matches.first;
+    final name = thread?.title ?? 'Contact';
+    final initials = thread?.initials ?? '··';
+    final hops = thread?.hops;
+    final via = thread?.via;
 
-    final routeNote = hops == 0 ? 'SIGNED HERE · GOES DIRECT' : 'SIGNED HERE · RELAY CAN’T READ IT';
+    final routeNote = hops == null
+        ? 'QUEUES UNTIL A ROUTE OPENS'
+        : hops == 0
+        ? 'SIGNED HERE · GOES DIRECT'
+        : 'SIGNED HERE · RELAY CAN’T READ IT';
 
     return Column(
       children: [
         const MeshStatus(),
-        EchoAppBar(title: 'Send echocoin', sub: 'Balance ${mock.balance.toStringAsFixed(2)}', onBack: widget.onBack),
+        EchoAppBar(title: 'Send echocoin', sub: 'Balance ${wallet.balance.toStringAsFixed(2)}', onBack: widget.onBack),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
@@ -92,13 +87,17 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
                           children: [
                             Display(name, size: 14),
                             Mono(
-                              hops == 0 ? 'IN BLUETOOTH RANGE' : 'REACHABLE VIA ${via?.toUpperCase()}',
+                              hops == null
+                                  ? 'NO ROUTE YET'
+                                  : hops == 0
+                                  ? 'IN BLUETOOTH RANGE'
+                                  : 'REACHABLE VIA ${via?.toUpperCase()}',
                               size: 8.5,
                             ),
                           ],
                         ),
                       ),
-                      HopChip(hops: hops, via: via, label: hops != 0 ? '$hops hop' : null),
+                      HopChip(hops: hops, via: via, label: (hops != null && hops != 0) ? '$hops hop' : null),
                     ],
                   ),
                 ),

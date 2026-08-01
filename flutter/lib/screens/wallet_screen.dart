@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/route_strip.dart';
 import '../components/type.dart';
-import '../store/mock.dart' as mock;
+import '../store/mesh_store.dart';
 import '../store/theme_store.dart';
+import '../store/types.dart';
 import '../styles/theme.dart' as tokens;
 
 class WalletScreen extends StatelessWidget {
@@ -18,6 +19,9 @@ class WalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
+    final mesh = context.watch<MeshStore>();
+    final wallet = walletFrom(mesh.threads);
+    final peerCount = mesh.peers.length;
 
     return Column(
       children: [
@@ -47,7 +51,7 @@ class WalletScreen extends StatelessWidget {
                           CoinMark(size: 34, color: c.coin),
                           const SizedBox(width: 9),
                           Display(
-                            mock.balance.toStringAsFixed(2),
+                            wallet.balance.toStringAsFixed(2),
                             size: 44,
                             color: c.coin,
                             style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
@@ -55,7 +59,11 @@ class WalletScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Mono('ECHOCOIN · LAST SYNCED WITH 3 PEERS 2M AGO', size: 8.5),
+                    Mono(
+                      'ECHOCOIN · OPENED AT ${openingBalance.toStringAsFixed(2)} · '
+                      '$peerCount PEER${peerCount == 1 ? '' : 'S'} IN RANGE',
+                      size: 8.5,
+                    ),
                   ],
                 ),
               ),
@@ -84,8 +92,23 @@ class WalletScreen extends StatelessWidget {
               const SizedBox(height: 12),
               const Mono('ACTIVITY', size: 10),
               const SizedBox(height: 12),
-              for (var i = 0; i < mock.ledger.length; i++)
-                _LedgerRow(entry: mock.ledger[i], isLast: i == mock.ledger.length - 1, colors: c),
+              if (wallet.entries.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: c.hair2),
+                    borderRadius: BorderRadius.circular(tokens.AppRadius.card),
+                  ),
+                  child: Body(
+                    'Nothing has moved yet. Send echocoin from a conversation and it will show up '
+                    'here with the route it took.',
+                    size: 13,
+                    dim: 2,
+                  ),
+                )
+              else
+                for (var i = 0; i < wallet.entries.length; i++)
+                  _LedgerRow(entry: wallet.entries[i], isLast: i == wallet.entries.length - 1, colors: c),
             ],
           ),
         ),
@@ -136,7 +159,7 @@ class _ActionButton extends StatelessWidget {
 class _LedgerRow extends StatelessWidget {
   const _LedgerRow({required this.entry, required this.isLast, required this.colors});
 
-  final mock.Entry entry;
+  final Entry entry;
   final bool isLast;
   final tokens.Palette colors;
 
@@ -147,39 +170,45 @@ class _LedgerRow extends StatelessWidget {
     final positive = e.amount > 0;
     final relayed = e.hops != null && e.hops != 0;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: c.hair2)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 74,
-            child: Display(
-              '${positive ? '+' : '−'}${e.amount.abs().toStringAsFixed(2)}',
-              size: 15,
-              color: positive ? c.coin : c.ink,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontFeatures: [FontFeature.tabularFigures()]),
+    return Opacity(
+      opacity: e.reverted ? 0.55 : 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: isLast ? BorderSide.none : BorderSide(color: c.hair2)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 74,
+              child: Display(
+                '${positive ? '+' : '−'}${e.amount.abs().toStringAsFixed(2)}',
+                size: 15,
+                color: e.reverted ? c.ink3 : (positive ? c.coin : c.ink),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  decoration: e.reverted ? TextDecoration.lineThrough : null,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Body(e.who, size: 12),
-                const SizedBox(height: 3),
-                relayed
-                    ? RouteStrip(hops: e.hops, via: e.via, label: 'VIA ${e.via?.toUpperCase()} · ${e.note}')
-                    : Mono(e.note, size: 8.5),
-              ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Body(e.who, size: 12),
+                  const SizedBox(height: 3),
+                  relayed
+                      ? RouteStrip(hops: e.hops, via: e.via, label: 'VIA ${e.via?.toUpperCase()} · ${e.note}')
+                      : Mono(e.reverted ? 'TAKEN BACK · ${e.note}' : e.note, size: 8.5),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

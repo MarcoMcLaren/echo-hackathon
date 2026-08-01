@@ -9,8 +9,8 @@ import 'package:provider/provider.dart';
 
 import '../../components/type.dart';
 import '../../components/route_strip.dart';
-import '../../store/mock.dart' as mock;
 import '../../store/theme_store.dart';
+import '../../store/types.dart';
 import '../../styles/theme.dart' as tokens;
 import 'events.dart' show MeshEvent, formatWhen;
 
@@ -27,8 +27,8 @@ Uint8List? _photoBytes(String dataUri) {
 }
 
 /// Outgoing only. Incoming messages get a route strip instead.
-String _stateLine(mock.Msg m) {
-  if (m.state == mock.MsgState.queued) return 'QUEUED · NO ROUTE YET';
+String _stateLine(Msg m) {
+  if (m.state == MsgState.queued) return 'QUEUED · NO ROUTE YET';
   // hops counts relays, so 0 relays is a direct hand-off and saying "1 HOP"
   // about it just reads as noise.
   final via = (m.hops != null && m.hops! > 0) ? ' · ${m.hops! + 1} HOPS' : '';
@@ -45,7 +45,7 @@ class MessageBubble extends StatelessWidget {
     this.onSaveEvent,
   });
 
-  final mock.Msg msg;
+  final Msg msg;
   final String? senderName;
   final bool animate;
   final ValueChanged<MeshEvent>? onSaveEvent;
@@ -148,7 +148,7 @@ class MessageBubble extends StatelessWidget {
         badge = 'TAKEN BACK';
       } else if (msg.pending) {
         badge = 'SENDING';
-      } else if (msg.state == mock.MsgState.queued) {
+      } else if (msg.state == MsgState.queued) {
         badge = 'WAITING FOR A ROUTE';
       } else {
         badge = mine ? 'SENT' : 'RECEIVED';
@@ -221,7 +221,7 @@ class MessageBubble extends StatelessWidget {
           ),
         ),
         child: Opacity(
-          opacity: msg.state == mock.MsgState.queued ? 0.55 : 1,
+          opacity: msg.state == MsgState.queued ? 0.55 : 1,
           child: Body(msg.text ?? '', size: 12.5, color: mine ? c.bubbleOutInk : c.ink),
         ),
       );

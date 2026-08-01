@@ -13,7 +13,6 @@ import '../features/messaging/events.dart';
 import '../features/messaging/message_bubble.dart';
 import '../services/shake_service.dart';
 import '../store/mesh_store.dart';
-import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
 import '../styles/theme.dart' as tokens;
 import '../utils/relay.dart' show EnvelopeKind;
@@ -222,7 +221,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       key: ValueKey(thread.messages[i].id),
                       msg: thread.messages[i],
                       senderName: thread.group
-                          ? mock.byId(thread.messages[i].from)?.name.split(' ').first ??
+                          ? thread.messages[i].fromName?.split(' ').first ??
+                                mesh.contacts[thread.messages[i].from]?.name.split(' ').first ??
                                 _peerName(mesh, thread.messages[i].from)
                           : null,
                       animate: i >= _baseline,

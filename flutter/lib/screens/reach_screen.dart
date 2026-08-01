@@ -9,8 +9,8 @@ import '../components/type.dart';
 import '../features/messaging/reach_map.dart';
 import '../features/messaging/types.dart' as transport;
 import '../store/mesh_store.dart';
-import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
+import '../store/types.dart' as types;
 import '../styles/theme.dart' as tokens;
 
 MeshState _chromeState(transport.MeshStatus status) => switch (status) {
@@ -44,18 +44,13 @@ class ReachScreen extends StatelessWidget {
       transport.MeshStatus.off => 'MESH OFF · TAP TO START',
     };
 
-    // Real peers when the mesh is up; the seeded demo when it isn't, so a
-    // single phone still shows what the screen is for.
-    final nodes =
-        (mesh.status == transport.MeshStatus.live && mesh.peers.isNotEmpty)
-        ? [
-            for (final entry in mesh.peers.entries)
-              MapNode(id: entry.key, name: entry.value.display, hops: 0),
-          ]
-        : [
-            for (final contact in mock.contacts)
-              MapNode(id: contact.id, name: contact.name, hops: contact.hops),
-          ];
+    // Everything in range goes on the map, but only people you have met are
+    // named. Off the mesh, or with nobody in range, there is nothing to show
+    // — no seeded demo standing in for it.
+    final nodes = [
+      for (final entry in mesh.peers.entries)
+        MapNode(id: entry.key, name: mesh.contacts[entry.key]?.name ?? entry.value.display, hops: 0),
+    ];
 
     final VoidCallback? onPress = switch (mesh.status) {
       transport.MeshStatus.live => mesh.stop,
@@ -74,7 +69,7 @@ class ReachScreen extends StatelessWidget {
           title: 'Reach',
           sub: mesh.status == transport.MeshStatus.live
               ? '$live reachable · ${mesh.stats.relayed} relayed for others'
-              : 'Mesh off · showing the demo set',
+              : 'Mesh off · nothing in range',
           right: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -141,7 +136,7 @@ class _ConvRow extends StatelessWidget {
     required this.onTap,
   });
 
-  final mock.Thread thread;
+  final types.Thread thread;
   final bool isLast;
   final tokens.Palette colors;
   final VoidCallback onTap;
