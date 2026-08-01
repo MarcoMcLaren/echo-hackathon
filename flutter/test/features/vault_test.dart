@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/features/vault/vault.dart';
 
+import 'vault_fakes.dart';
+
 void main() {
   group('MockSecureVault', () {
     test('starts locked and unlocks after setUp', () async {

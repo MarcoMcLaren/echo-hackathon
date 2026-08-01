@@ -57,8 +57,8 @@ class EchoApp extends StatelessWidget {
           create: (_) =>
               MeshStore(transport: MockTransport(), notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey)),
         ),
-        Provider<SecureVault>(create: (_) => MockSecureVault()),
-        Provider<AppLock>(create: (_) => MockAppLock()),
+        Provider<SecureVault>(create: (_) => SecureStorageVault()),
+        Provider<AppLock>(create: (_) => BiometricAppLock()),
         Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
         Provider<OcrReader>(
           create: (_) => MlkitOcrReader(),
@@ -114,10 +114,7 @@ class _EchoMaterialAppState extends State<_EchoMaterialApp> {
     return ThemeData(
       brightness: brightness,
       scaffoldBackgroundColor: c.paper,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: c.direct,
-        brightness: brightness,
-      ),
+      colorScheme: ColorScheme.fromSeed(seedColor: c.direct, brightness: brightness),
       useMaterial3: true,
     );
   }
@@ -156,8 +153,7 @@ class _AppShellState extends State<AppShell> {
       (_RouteName.chat, _) => ChatScreen(
         threadId: route!.id,
         onBack: _back,
-        onSendCoin: (id) =>
-            setState(() => _route = _Route(_RouteName.send, id)),
+        onSendCoin: (id) => setState(() => _route = _Route(_RouteName.send, id)),
       ),
       (_RouteName.send, _) => SendCoinScreen(
         contactId: route!.id,
@@ -173,8 +169,7 @@ class _AppShellState extends State<AppShell> {
         onNewGroup: () => setState(() => _route = const _Route(_RouteName.newGroup)),
       ),
       (null, AppTab.wallet) => WalletScreen(
-        onSend: () =>
-            setState(() => _route = const _Route(_RouteName.send, 'naledi')),
+        onSend: () => setState(() => _route = const _Route(_RouteName.send, 'naledi')),
         onTap: () => setState(() => _tab = AppTab.tap),
       ),
       (null, AppTab.tap) => const TapScreen(),

@@ -34,6 +34,8 @@ import 'support/demo_data.dart';
 
 import 'support/fakes.dart';
 
+import 'features/vault_fakes.dart';
+
 Widget harness(Widget child, {MeshStore? mesh}) {
   return MultiProvider(
     providers: [
@@ -230,7 +232,10 @@ void main() {
       String? created;
 
       await tester.pumpWidget(
-        harness(NewGroupScreen(onBack: () {}, onCreated: (id) => created = id), mesh: mesh),
+        harness(
+          NewGroupScreen(onBack: () {}, onCreated: (id) => created = id),
+          mesh: mesh,
+        ),
       );
       await tester.pump();
 

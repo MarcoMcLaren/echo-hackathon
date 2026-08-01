@@ -3,12 +3,21 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+<<<<<<< HEAD
   file_selector_windows
   flutter_tts
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
   flutter_local_notifications_windows
+=======
+  flutter_secure_storage_windows
+  local_auth_windows
+)
+
+list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  jni
+>>>>>>> 2ef58f0077ac9afdde4f59f2c8d2e17f0459f1b3
 )
 
 set(PLUGIN_BUNDLED_LIBRARIES)

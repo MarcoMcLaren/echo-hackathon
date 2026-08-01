@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/features/vault/lock.dart';
 
+import 'vault_fakes.dart';
+
 void main() {
   group('MockAppLock', () {
     test('starts disabled and reports biometric hardware presence', () async {
