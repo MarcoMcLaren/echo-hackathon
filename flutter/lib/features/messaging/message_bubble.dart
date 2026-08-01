@@ -1,5 +1,9 @@
-// A single chat message: text, or money as a first-class message rather than
-// an attachment. Port of src/features/messaging/components/MessageBubble.tsx.
+// A single chat message: text, a photo, a calendar event, or money as a
+// first-class message rather than an attachment. Port of
+// src/features/messaging/components/MessageBubble.tsx.
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +12,19 @@ import '../../components/route_strip.dart';
 import '../../store/mock.dart' as mock;
 import '../../store/theme_store.dart';
 import '../../styles/theme.dart' as tokens;
+import 'events.dart' show MeshEvent, formatWhen;
+
+/// The data URI's payload, or null if it isn't one this device can decode —
+/// a photo from a build this one doesn't understand must not crash the thread.
+Uint8List? _photoBytes(String dataUri) {
+  final comma = dataUri.indexOf(',');
+  if (comma < 0) return null;
+  try {
+    return base64Decode(dataUri.substring(comma + 1));
+  } catch (_) {
+    return null;
+  }
+}
 
 /// Outgoing only. Incoming messages get a route strip instead.
 String _stateLine(mock.Msg m) {
@@ -20,11 +37,18 @@ String _stateLine(mock.Msg m) {
 }
 
 class MessageBubble extends StatelessWidget {
-  const MessageBubble({super.key, required this.msg, this.senderName, this.animate = false});
+  const MessageBubble({
+    super.key,
+    required this.msg,
+    this.senderName,
+    this.animate = false,
+    this.onSaveEvent,
+  });
 
   final mock.Msg msg;
   final String? senderName;
   final bool animate;
+  final ValueChanged<MeshEvent>? onSaveEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +72,75 @@ class MessageBubble extends StatelessWidget {
           );
 
     Widget content;
-    if (msg.coin != null) {
+    // A photo carries its own frame; a bubble around it would be noise.
+    if (msg.image != null) {
+      final bytes = _photoBytes(msg.image!);
+      content = Container(
+        width: 220,
+        height: 220,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(tokens.AppRadius.bubble),
+          border: Border.all(color: c.hair2),
+        ),
+        child: Semantics(
+          image: true,
+          label: 'Photo',
+          child: bytes == null
+              ? ColoredBox(color: c.sunk)
+              : Image.memory(
+                  bytes,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => ColoredBox(color: c.sunk),
+                ),
+        ),
+      );
+    } else if (msg.event != null) {
+      // An event you can act on. Saving it to the phone's calendar is a
+      // separate tap — a received message should never write to someone's
+      // calendar itself.
+      final event = msg.event!;
+      content = Container(
+        constraints: const BoxConstraints(minWidth: 220),
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          border: Border.all(color: c.hair, width: 1.5),
+          borderRadius: BorderRadius.circular(tokens.AppRadius.card),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Mono('EVENT', size: 9, dim: 3),
+            Padding(padding: const EdgeInsets.only(top: 5), child: Display(event.title, size: 19)),
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Mono(formatWhen(event).toUpperCase(), size: 9, dim: 2),
+            ),
+            if (event.location != null)
+              Padding(padding: const EdgeInsets.only(top: 5), child: Body(event.location!, size: 12, dim: 2)),
+            Semantics(
+              button: true,
+              label: 'Add to calendar',
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: onSaveEvent == null ? null : () => onSaveEvent!(event),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: tokens.touchMin),
+                  margin: const EdgeInsets.only(top: 6),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: c.ink, width: 1.5),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: const Display('Add to calendar', size: 13),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (msg.coin != null) {
       final relayed = msg.hops != null && msg.hops! > 0;
       final tone = msg.reverted ? c.ink3 : c.coin;
       final String badge;

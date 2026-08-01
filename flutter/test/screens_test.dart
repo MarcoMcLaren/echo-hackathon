@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 import 'package:echo/features/ai/ocr_reader.dart';
 import 'package:echo/features/ai/summarize.dart';
 import 'package:echo/features/feedback/proximity_feedback.dart';
+import 'package:echo/features/messaging/attachments.dart';
+import 'package:echo/features/messaging/events.dart';
 import 'package:echo/features/messaging/mock_transport.dart';
 import 'package:echo/features/vault/lock.dart';
 import 'package:echo/features/vault/vault.dart';
@@ -17,6 +19,7 @@ import 'package:echo/screens/catch_me_up_sheet.dart';
 import 'package:echo/screens/chat_screen.dart';
 import 'package:echo/screens/model_preload_screen.dart';
 import 'package:echo/screens/lock_screen.dart';
+import 'package:echo/screens/new_group_screen.dart';
 import 'package:echo/screens/reach_screen.dart';
 import 'package:echo/screens/read_screen.dart';
 import 'package:echo/screens/send_coin_screen.dart';
@@ -27,15 +30,17 @@ import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/mock.dart' as mock;
 import 'package:echo/store/theme_store.dart';
 
-Widget harness(Widget child) {
+Widget harness(Widget child, {MeshStore? mesh}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => ThemeStore()),
-      ChangeNotifierProvider(create: (_) => MeshStore(transport: MockTransport())),
+      ChangeNotifierProvider(create: (_) => mesh ?? MeshStore(transport: MockTransport())),
       Provider<SecureVault>(create: (_) => MockSecureVault()),
       Provider<AppLock>(create: (_) => MockAppLock()),
       Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
       Provider<OcrReader>(create: (_) => MockOcrReader()),
+      Provider<ImageSource>(create: (_) => MockImageSource()),
+      Provider<CalendarWriter>(create: (_) => MockCalendarWriter()),
       Provider<ShakeService>(create: (_) => MockShakeService()),
       Provider<HapticOutput>(create: (_) => _NoOpHaptics()),
       Provider<SpeechOutput>(create: (_) => NoOpSpeechOutput()),
@@ -81,12 +86,25 @@ class _FlakyOnceSummarizer implements ThreadSummarizer {
 
 void main() {
   testWidgets('ReachScreen renders the demo threads and mesh status', (tester) async {
-    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {})));
+    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {})));
     await tester.pump();
 
     expect(find.text('Reach'), findsOneWidget);
     expect(find.text('MESH OFF · TAP TO START'), findsOneWidget);
     expect(find.text('Braai Crew'), findsOneWidget);
+  });
+
+  testWidgets('ReachScreen new-group button calls onNewGroup', (tester) async {
+    final handle = tester.ensureSemantics();
+    var tapped = false;
+    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () => tapped = true)));
+    await tester.pump();
+
+    final target = find.bySemanticsLabel('New group');
+    expect(target, findsOneWidget);
+    await tester.tap(target);
+    expect(tapped, isTrue);
+    handle.dispose();
   });
 
   testWidgets('ChatScreen renders thread title and messages', (tester) async {
@@ -129,6 +147,95 @@ void main() {
     await tester.pump(); // one frame: before the retried stream's first event lands
 
     expect(find.text('The summary did not finish. Every message is still in the thread above.'), findsNothing);
+  });
+
+  testWidgets('ChatScreen sends a picked photo as an image bubble', (tester) async {
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(harness(ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {})));
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('Attach a photo or an event'));
+    await tester.pump();
+    expect(find.text('Choose photo'), findsOneWidget);
+
+    await tester.tap(find.text('Choose photo'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SENDING PHOTO IN 1 PARTS'), findsOneWidget);
+    // The bubble it just sent — a widget-tree lookup rather than a semantics
+    // one, since it may land past the scroll viewport in this short thread.
+    expect(find.byType(Image), findsOneWidget);
+    handle.dispose();
+  });
+
+  testWidgets('ChatScreen composes and sends an event, then saves it to the calendar', (tester) async {
+    final handle = tester.ensureSemantics();
+    final calendar = MockCalendarWriter();
+    await tester.pumpWidget(
+      harness(
+        Provider<CalendarWriter>.value(
+          value: calendar,
+          child: ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {}),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('Attach a photo or an event'));
+    await tester.pump();
+    await tester.tap(find.text('Event'));
+    await tester.pump();
+
+    await tester.enterText(find.byType(TextField).first, 'Braai');
+    await tester.pump();
+    await tester.tap(find.text('Send event'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Braai'), findsOneWidget);
+    expect(find.text('Add to calendar'), findsOneWidget);
+
+    await tester.tap(find.text('Add to calendar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ADDED TO YOUR CALENDAR'), findsOneWidget);
+    expect(calendar.saved, hasLength(1));
+    expect(calendar.saved.single.title, 'Braai');
+    handle.dispose();
+  });
+
+  group('NewGroupScreen', () {
+    testWidgets('shows the empty state before the mesh is started', (tester) async {
+      await tester.pumpWidget(harness(NewGroupScreen(onBack: () {}, onCreated: (_) {})));
+      await tester.pump();
+
+      expect(find.text('New group'), findsOneWidget);
+      expect(find.text('NOBODY REACHABLE'), findsOneWidget);
+      expect(find.textContaining('Start the mesh from the Reach screen first'), findsOneWidget);
+    });
+
+    testWidgets('creates a group from picked peers and calls onCreated', (tester) async {
+      final mesh = MeshStore(transport: MockTransport(), deviceId: 'me');
+      mesh.peers = {'thabo': const MeshPeer(display: 'Thabo Mokoena', peerId: 'p-thabo')};
+      String? created;
+
+      await tester.pumpWidget(
+        harness(NewGroupScreen(onBack: () {}, onCreated: (id) => created = id), mesh: mesh),
+      );
+      await tester.pump();
+
+      expect(find.text('1 REACHABLE NOW'), findsOneWidget);
+      expect(find.text('Thabo Mokoena'), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Braai Crew');
+      await tester.tap(find.text('Thabo Mokoena'));
+      await tester.pump();
+
+      await tester.tap(find.textContaining('Create with 1'));
+      await tester.pumpAndSettle();
+
+      expect(created, isNotNull);
+      expect(mesh.threads.firstWhere((t) => t.id == created).title, 'Braai Crew');
+    });
   });
 
   testWidgets('WalletScreen renders balance and ledger', (tester) async {

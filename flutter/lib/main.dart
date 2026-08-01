@@ -9,6 +9,8 @@ import 'components/chrome.dart' show AppTab, BottomNav;
 import 'features/ai/ocr_reader.dart';
 import 'features/ai/summarize.dart';
 import 'features/feedback/proximity_feedback.dart';
+import 'features/messaging/attachments.dart';
+import 'features/messaging/events.dart';
 import 'features/messaging/mock_transport.dart';
 import 'features/messaging/notifier.dart';
 import 'features/sidequest/remote_gpu.dart';
@@ -17,6 +19,7 @@ import 'features/vault/vault.dart';
 import 'features/vision/obstacle_detector.dart';
 import 'screens/chat_screen.dart';
 import 'screens/lock_screen.dart';
+import 'screens/new_group_screen.dart';
 import 'screens/reach_screen.dart';
 import 'screens/read_screen.dart';
 import 'screens/send_coin_screen.dart';
@@ -52,6 +55,8 @@ class EchoApp extends StatelessWidget {
         Provider<AppLock>(create: (_) => MockAppLock()),
         Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
         Provider<OcrReader>(create: (_) => MockOcrReader()),
+        Provider<ImageSource>(create: (_) => MockImageSource()),
+        Provider<CalendarWriter>(create: (_) => MockCalendarWriter()),
         Provider<ShakeService>(create: (_) => MockShakeService()),
         Provider<ObstacleDetector>(create: (_) => MockObstacleDetector()),
         Provider<HapticOutput>(create: (_) => SystemHapticOutput()),
@@ -109,10 +114,10 @@ class _EchoMaterialAppState extends State<_EchoMaterialApp> {
   }
 }
 
-enum _RouteName { chat, send }
+enum _RouteName { chat, send, newGroup }
 
 class _Route {
-  const _Route(this.name, this.id);
+  const _Route(this.name, [this.id = '']);
   final _RouteName name;
   final String id;
 }
@@ -150,8 +155,13 @@ class _AppShellState extends State<AppShell> {
         onBack: _back,
         onQueued: (id) => setState(() => _route = _Route(_RouteName.chat, id)),
       ),
+      (_RouteName.newGroup, _) => NewGroupScreen(
+        onBack: _back,
+        onCreated: (id) => setState(() => _route = _Route(_RouteName.chat, id)),
+      ),
       (null, AppTab.reach) => ReachScreen(
         onOpen: (id) => setState(() => _route = _Route(_RouteName.chat, id)),
+        onNewGroup: () => setState(() => _route = const _Route(_RouteName.newGroup)),
       ),
       (null, AppTab.wallet) => WalletScreen(
         onSend: () =>

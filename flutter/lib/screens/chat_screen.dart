@@ -7,12 +7,16 @@ import 'package:provider/provider.dart';
 import '../components/chip.dart';
 import '../components/chrome.dart' show MeshStatus, EchoAppBar;
 import '../components/type.dart';
+import '../features/messaging/attachments.dart';
+import '../features/messaging/event_composer.dart';
+import '../features/messaging/events.dart';
 import '../features/messaging/message_bubble.dart';
 import '../services/shake_service.dart';
 import '../store/mesh_store.dart';
 import '../store/mock.dart' as mock;
 import '../store/theme_store.dart';
 import '../styles/theme.dart' as tokens;
+import '../utils/relay.dart' show EnvelopeKind;
 import 'catch_me_up_sheet.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -36,6 +40,8 @@ class _ChatScreenState extends State<ChatScreen> {
   Timer? _countdown;
   Timer? _noteTimer;
   String? _note;
+  bool _attaching = false;
+  bool _composingEvent = false;
 
   // Anything past this index arrived while the screen was open, so its route
   // strip draws itself rather than appearing already there.
@@ -123,6 +129,43 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd(animated: true));
   }
 
+  String _peerName(MeshStore mesh, String id) => mesh.peers[id]?.display ?? id;
+
+  Future<void> _attachPhoto(MeshStore mesh, String threadId, {required bool fromCamera}) async {
+    setState(() => _attaching = false);
+    final source = context.read<ImageSource>();
+    final picked = fromCamera ? await source.pickFromCamera() : await source.pickFromLibrary();
+    if (!mounted) return;
+    if (picked == null) return;
+    if (picked.bytes > maxImageChars) {
+      _showNote('That photo is too big to send over the mesh');
+      return;
+    }
+    _showNote('Sending photo in ${chunkCount(picked.bytes)} parts');
+    mesh.send(threadId, picked.dataUri, kind: EnvelopeKind.image);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd(animated: true));
+  }
+
+  void _sendEvent(MeshStore mesh, String threadId, MeshEvent event) {
+    setState(() => _composingEvent = false);
+    mesh.send(threadId, encodeEvent(event), kind: EnvelopeKind.event);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToEnd(animated: true));
+  }
+
+  Future<void> _addToCalendar(MeshEvent event) async {
+    final result = await context.read<CalendarWriter>().save(event);
+    if (!mounted) return;
+    _showNote(
+      result.ok
+          ? 'Added to your calendar'
+          : switch (result.reason!) {
+              SaveFailureReason.denied => 'Echo needs calendar permission to add it',
+              SaveFailureReason.noCalendar => 'No calendar on this phone can be written to',
+              SaveFailureReason.error => 'Could not add it to the calendar',
+            },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ThemeStore>().colors(context);
@@ -178,8 +221,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     MessageBubble(
                       key: ValueKey(thread.messages[i].id),
                       msg: thread.messages[i],
-                      senderName: thread.group ? mock.byId(thread.messages[i].from)?.name.split(' ').first : null,
+                      senderName: thread.group
+                          ? mock.byId(thread.messages[i].from)?.name.split(' ').first ??
+                                _peerName(mesh, thread.messages[i].from)
+                          : null,
                       animate: i >= _baseline,
+                      onSaveEvent: _addToCalendar,
                     ),
                   if (backlog >= summaryThreshold)
                     Center(
@@ -260,6 +307,46 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               ),
+            if (_composingEvent)
+              EventComposer(
+                onCancel: () => setState(() => _composingEvent = false),
+                onSend: (event) => _sendEvent(mesh, thread.id, event),
+              ),
+            if (_attaching)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: c.card, border: Border(top: BorderSide(color: c.hair2))),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _AttachOption(
+                        label: 'Take a photo',
+                        colors: c,
+                        onTap: () => _attachPhoto(mesh, thread.id, fromCamera: true),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: _AttachOption(
+                        label: 'Choose photo',
+                        colors: c,
+                        onTap: () => _attachPhoto(mesh, thread.id, fromCamera: false),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: _AttachOption(
+                        label: 'Event',
+                        colors: c,
+                        onTap: () => setState(() {
+                          _attaching = false;
+                          _composingEvent = true;
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               decoration: BoxDecoration(
@@ -269,6 +356,25 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  Semantics(
+                    button: true,
+                    label: 'Attach a photo or an event',
+                    excludeSemantics: true,
+                    child: GestureDetector(
+                      onTap: () => setState(() => _attaching = !_attaching),
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: c.hair, width: 1.5),
+                        ),
+                        child: Display(_attaching ? '×' : '+', size: 17, dim: 1),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Semantics(
                     button: true,
                     label: 'Send echocoin',
@@ -339,6 +445,36 @@ class _ChatScreenState extends State<ChatScreen> {
             onClose: () => setState(() => _summary = false),
           ),
       ],
+    );
+  }
+}
+
+/// One tile in the attach-photo/attach-event row.
+class _AttachOption extends StatelessWidget {
+  const _AttachOption({required this.label, required this.colors, required this.onTap});
+
+  final String label;
+  final tokens.Palette colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: tokens.touchMin),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border.all(color: colors.hair, width: 1.5),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Display(label, size: 13),
+        ),
+      ),
     );
   }
 }

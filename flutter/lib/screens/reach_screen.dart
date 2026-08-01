@@ -21,9 +21,10 @@ MeshState _chromeState(transport.MeshStatus status) => switch (status) {
 };
 
 class ReachScreen extends StatelessWidget {
-  const ReachScreen({super.key, required this.onOpen});
+  const ReachScreen({super.key, required this.onOpen, required this.onNewGroup});
 
   final ValueChanged<String> onOpen;
+  final VoidCallback onNewGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -74,14 +75,39 @@ class ReachScreen extends StatelessWidget {
           sub: mesh.status == transport.MeshStatus.live
               ? '$live reachable · ${mesh.stats.relayed} relayed for others'
               : 'Mesh off · showing the demo set',
-          right: Semantics(
-            button: true,
-            label: 'Theme: ${themeStore.mode.name}. Tap to change.',
-            excludeSemantics: true,
-            child: GestureDetector(
-              onTap: themeStore.cycle,
-              child: Mono(themeStore.mode.name.toUpperCase(), size: 9),
-            ),
+          right: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                button: true,
+                label: 'Theme: ${themeStore.mode.name}. Tap to change.',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: themeStore.cycle,
+                  child: Mono(themeStore.mode.name.toUpperCase(), size: 9),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Semantics(
+                button: true,
+                label: 'New group',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: onNewGroup,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: tokens.touchMin, minHeight: tokens.touchMin),
+                    alignment: Alignment.center,
+                    child: Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: c.hair, width: 1.5)),
+                      child: Display('+', size: 17, dim: 1),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
