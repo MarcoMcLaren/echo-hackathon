@@ -58,10 +58,6 @@ class EchoApp extends StatelessWidget {
         // pass consumes yet (vision/sidequest), so a later screen never has
         // to instantiate an adapter ad hoc inside a widget.
         ChangeNotifierProvider(
-<<<<<<< HEAD
-          create: (_) =>
-              MeshStore(transport: MockTransport(), notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey)),
-=======
           create: (_) {
             // NearbyTransport must advertise the exact device id MeshStore
             // resolves for itself, or a peer's message addressed to us never
@@ -73,10 +69,9 @@ class EchoApp extends StatelessWidget {
             final transport = useRealTransport
                 ? NearbyTransport(deviceId: () => store.me.deviceId, display: () => store.me.display)
                 : MockTransport();
-            store = MeshStore(transport: transport, notifier: BannerMeshNotifier(_scaffoldMessengerKey));
+            store = MeshStore(transport: transport, notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey));
             return store;
           },
->>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
         ),
         Provider<SecureVault>(create: (_) => SecureStorageVault()),
         Provider<AppLock>(create: (_) => BiometricAppLock()),
@@ -215,13 +210,9 @@ class _AppShellState extends State<AppShell> {
         onNewGroup: () => setState(() => _route = const _Route(_RouteName.newGroup)),
       ),
       (null, AppTab.wallet) => WalletScreen(
-<<<<<<< HEAD
-        onSend: () => setState(() => _route = const _Route(_RouteName.send, 'naledi')),
-=======
         // Money goes to a conversation, so send starts by choosing one.
         // Reach is that list; there is no separate contact picker.
         onSend: () => setState(() => _tab = AppTab.reach),
->>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
         onTap: () => setState(() => _tab = AppTab.tap),
       ),
       (null, AppTab.tap) => const TapScreen(),

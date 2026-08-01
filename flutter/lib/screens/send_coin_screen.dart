@@ -52,11 +52,8 @@ class _SendCoinScreenState extends State<SendCoinScreen> {
     final initials = thread?.initials ?? '··';
     final hops = thread?.hops;
     final via = thread?.via;
-<<<<<<< HEAD
-=======
     final amount = double.tryParse(_amount) ?? 0;
     final enough = amount > 0 && amount <= wallet.balance;
->>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 
     final routeNote = hops == null
         ? 'QUEUES UNTIL A ROUTE OPENS'

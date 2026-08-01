@@ -32,11 +32,6 @@ import 'package:echo/services/shake_service.dart';
 import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/theme_store.dart';
 import 'package:echo/store/types.dart';
-<<<<<<< HEAD
-=======
-
-import 'support/demo_data.dart';
->>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 
 import 'support/demo_data.dart';
 

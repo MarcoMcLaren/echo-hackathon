@@ -3,14 +3,11 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
-<<<<<<< HEAD
   file_selector_windows
   flutter_secure_storage_windows
   flutter_tts
   local_auth_windows
-=======
   permission_handler_windows
->>>>>>> 32f78fcf58440299edded6647836b26ce8c1e3bf
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
