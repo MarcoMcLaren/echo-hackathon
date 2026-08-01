@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { useTheme } from '../styles/theme';
 import { Mono } from './Type';
-import type { Hops } from '../store/mock';
+import type { Hops } from '../store/types';
 
 /** Hop state as a pill. Colour comes from the one signal scale. */
 export function HopChip({ hops, via, label }: { hops: Hops; via?: string; label?: string }) {

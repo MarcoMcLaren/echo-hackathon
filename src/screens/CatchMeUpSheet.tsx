@@ -3,7 +3,7 @@ import { View, Pressable, Animated, Easing, StyleSheet, ActivityIndicator } from
 import { useTheme, radius, TOUCH_MIN } from '../styles/theme';
 import { Display, Body, Mono } from '../components/Type';
 import { useThreadSummary, SUMMARY_MODEL } from '../features/ai/hooks/useThreadSummary';
-import type { Thread } from '../store/mock';
+import type { Thread } from '../store/types';
 
 /**
  * A small model, running here, summarising what arrived while you had no route.

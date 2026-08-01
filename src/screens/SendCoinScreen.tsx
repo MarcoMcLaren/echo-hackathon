@@ -5,8 +5,7 @@ import { Display, Body, Mono, CoinMark } from '../components/Type';
 import { MeshStatus, AppBar, bottomInset } from '../components/Chrome';
 import Avatar from '../components/Avatar';
 import { HopChip } from '../components/Chip';
-import { balance, byId, threads } from '../store/mock';
-import { useMesh } from '../store/mesh';
+import { useMesh, walletFrom } from '../store/mesh';
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', '⌫'];
 
@@ -23,14 +22,17 @@ export default function SendCoinScreen({
 }) {
   const { c } = useTheme();
   const queueCoin = useMesh((s) => s.queueCoin);
+  const threads = useMesh((s) => s.threads);
   const [amount, setAmount] = useState('20.00');
 
-  const contact = byId(contactId);
+  const { balance } = walletFrom(threads);
   const thread = threads.find((t) => t.id === contactId);
-  const name = contact?.name ?? thread?.title ?? 'Contact';
-  const initials = contact?.initials ?? thread?.initials ?? '··';
-  const hops = contact?.hops ?? thread?.hops ?? 0;
-  const via = contact?.via ?? thread?.via;
+  const name = thread?.title ?? 'Contact';
+  const initials = thread?.initials ?? '··';
+  const hops = thread?.hops ?? null;
+  const via = thread?.via;
+
+  const enough = Number(amount) > 0 && Number(amount) <= balance;
 
   const press = (k: string) => {
     setAmount((a) => {
@@ -91,14 +93,17 @@ export default function SendCoinScreen({
         <View style={s.foot}>
           <Pressable
             onPress={() => {
+              if (!enough) return;
               queueCoin(contactId, Number(amount) || 0);
               onQueued(contactId);
             }}
+            disabled={!enough}
             accessibilityRole="button"
-            style={[s.btn, { backgroundColor: c.coin }]}
+            accessibilityState={{ disabled: !enough }}
+            style={[s.btn, { backgroundColor: enough ? c.coin : c.sunk }]}
           >
-            <Display size={15} color="#fff">
-              Send {amount}
+            <Display size={15} color={enough ? '#fff' : c.ink3}>
+              {Number(amount) > balance ? 'More than you have' : `Send ${amount}`}
             </Display>
           </Pressable>
           <Pressable accessibilityRole="button" style={[s.btn, s.ghost, { borderColor: c.hair }]}>
