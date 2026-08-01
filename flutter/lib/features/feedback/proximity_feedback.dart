@@ -4,9 +4,9 @@
 // Port intent of src/features/feedback/hooks/useProximityFeedback.ts (a
 // placeholder upstream too — "nearest obstacle -> haptic pulse rate + spoken
 // label"). Haptics use Flutter's real HapticFeedback (no plugin needed, no
-// hardware assumptions beyond what every phone has); speech is a no-op stub
-// behind an interface until a TTS plugin (the expo-speech equivalent) is
-// added to pubspec.yaml.
+// hardware assumptions beyond what every phone has); speech is behind the
+// same kind of interface — see tts_speech_output.dart for the real
+// implementation.
 import 'package:flutter/services.dart';
 
 import '../vision/obstacle_detector.dart';
@@ -14,17 +14,6 @@ import '../vision/obstacle_detector.dart';
 abstract class SpeechOutput {
   Future<void> speak(String text);
   Future<void> stop();
-}
-
-/// No TTS plugin is wired into this build yet, so speech is silently
-/// swallowed rather than crashing the feedback pipeline. Swap for a real
-/// implementation (flutter_tts or similar) without touching call sites.
-class NoOpSpeechOutput implements SpeechOutput {
-  @override
-  Future<void> speak(String text) async {}
-
-  @override
-  Future<void> stop() async {}
 }
 
 abstract class HapticOutput {

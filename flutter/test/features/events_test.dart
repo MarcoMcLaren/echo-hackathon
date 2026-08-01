@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:echo/features/messaging/events.dart';
 
+import '../support/fakes.dart';
+
 void main() {
   group('encodeEvent / decodeEvent', () {
     test('round-trips a full event', () {

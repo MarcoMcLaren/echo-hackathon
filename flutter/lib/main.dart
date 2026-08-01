@@ -9,6 +9,7 @@ import 'components/chrome.dart' show AppTab, BottomNav;
 import 'features/ai/ocr_reader.dart';
 import 'features/ai/summarize.dart';
 import 'features/feedback/proximity_feedback.dart';
+import 'features/feedback/tts_speech_output.dart';
 import 'features/messaging/attachments.dart';
 import 'features/messaging/events.dart';
 import 'features/messaging/mock_transport.dart';
@@ -36,6 +37,10 @@ void main() {
 
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
+// Shared so the mesh's arrival narration and ReadScreen's "read that" output
+// hit the same TTS engine instance rather than each opening its own.
+final _ttsSpeechOutput = TtsSpeechOutput();
+
 class EchoApp extends StatelessWidget {
   const EchoApp({super.key});
 
@@ -49,20 +54,24 @@ class EchoApp extends StatelessWidget {
         // pass consumes yet (vision/sidequest), so a later screen never has
         // to instantiate an adapter ad hoc inside a widget.
         ChangeNotifierProvider(
-          create: (_) => MeshStore(transport: MockTransport(), notifier: BannerMeshNotifier(_scaffoldMessengerKey)),
+          create: (_) =>
+              MeshStore(transport: MockTransport(), notifier: LocalNotificationsMeshNotifier(_scaffoldMessengerKey)),
         ),
         Provider<SecureVault>(create: (_) => MockSecureVault()),
         Provider<AppLock>(create: (_) => MockAppLock()),
         Provider<ThreadSummarizer>(create: (_) => MockThreadSummarizer()),
-        Provider<OcrReader>(create: (_) => MockOcrReader()),
-        Provider<ImageSource>(create: (_) => MockImageSource()),
-        Provider<CalendarWriter>(create: (_) => MockCalendarWriter()),
+        Provider<OcrReader>(
+          create: (_) => MlkitOcrReader(),
+          dispose: (_, reader) => (reader as MlkitOcrReader).dispose(),
+        ),
+        Provider<ImageSource>(create: (_) => PickerImageSource()),
+        Provider<CalendarWriter>(create: (_) => DeviceCalendarWriter()),
         Provider<ShakeService>(create: (_) => MockShakeService()),
         Provider<ObstacleDetector>(create: (_) => MockObstacleDetector()),
         Provider<HapticOutput>(create: (_) => SystemHapticOutput()),
-        Provider<SpeechOutput>(create: (_) => NoOpSpeechOutput()),
+        Provider<SpeechOutput>(create: (_) => _ttsSpeechOutput),
         Provider<ProximityFeedback>(
-          create: (_) => ProximityFeedback(haptics: SystemHapticOutput(), speech: NoOpSpeechOutput()),
+          create: (_) => ProximityFeedback(haptics: SystemHapticOutput(), speech: _ttsSpeechOutput),
         ),
         Provider<RemoteGpuClient>(create: (_) => UnavailableRemoteGpuClient()),
       ],

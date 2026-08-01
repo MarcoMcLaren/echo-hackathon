@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:echo/features/messaging/attachments.dart';
 import 'package:echo/utils/relay.dart' show chunkChars;
 
+import '../support/fakes.dart';
+
 void main() {
   group('chunkCount', () {
     test('a single hop for anything that fits under the chunk size', () {

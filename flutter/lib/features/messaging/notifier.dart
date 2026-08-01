@@ -4,13 +4,14 @@
 // no FCM, because there is no internet. A message arrives over the mesh and
 // this posts a notification from the phone itself.
 //
-// Port intent of src/features/messaging/api/notify.ts. The real implementation
-// is a platform-notification plugin (flutter_local_notifications or
-// equivalent) that lands separately; this defines the contract MeshStore
-// drives, a fake that records calls so tests can assert on them without a
-// plugin channel, and an in-app [BannerMeshNotifier] that surfaces the same
-// event as a SnackBar — no plugin dependency needed for that.
+// Port intent of src/features/messaging/api/notify.ts. This defines the
+// contract MeshStore drives, a fake that records calls so tests can assert
+// on them without a plugin channel, an in-app [BannerMeshNotifier] that
+// surfaces the same event as a SnackBar, and the real
+// [LocalNotificationsMeshNotifier] that posts an actual Android notification
+// when the banner can't be seen.
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotifyPayload {
   const NotifyPayload({
@@ -77,5 +78,63 @@ class BannerMeshNotifier implements MeshNotifier {
           duration: const Duration(seconds: 3),
         ),
       );
+  }
+}
+
+/// Posts a real Android notification for a message that arrives while the
+/// app isn't in the foreground. When it is, delegates to [BannerMeshNotifier]
+/// instead — a resumed session shouldn't get a system-tray notification for
+/// something already visible on screen.
+///
+/// The only import site for package:flutter_local_notifications.
+class LocalNotificationsMeshNotifier implements MeshNotifier {
+  LocalNotificationsMeshNotifier(GlobalKey<ScaffoldMessengerState> messengerKey)
+    : _banner = BannerMeshNotifier(messengerKey);
+
+  static const _channelId = 'mesh_messages';
+  static const _channelName = 'Mesh messages';
+
+  final BannerMeshNotifier _banner;
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  bool _prepared = false;
+  int _nextId = 0;
+
+  @override
+  Future<void> prepare() async {
+    if (_prepared) return;
+    _prepared = true;
+    const settings = InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    );
+    await _plugin.initialize(settings: settings);
+    await _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+  }
+
+  @override
+  Future<void> notify(NotifyPayload payload) async {
+    final foregrounded = WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    if (foregrounded) {
+      await _banner.notify(payload);
+      return;
+    }
+
+    await prepare();
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: 'Messages arriving over the offline mesh',
+        importance: Importance.high,
+        priority: Priority.high,
+      ),
+    );
+    await _plugin.show(
+      id: _nextId++,
+      title: payload.from,
+      body: payload.body,
+      notificationDetails: details,
+    );
   }
 }

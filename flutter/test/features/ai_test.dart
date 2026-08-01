@@ -8,6 +8,8 @@ import 'package:echo/features/ai/types.dart';
 import 'package:echo/features/vision/obstacle_detector.dart';
 import 'package:echo/store/mock.dart' as mock;
 
+import '../support/fakes.dart';
+
 void main() {
   group('MockOcrReader', () {
     test(

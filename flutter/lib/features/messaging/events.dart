@@ -5,13 +5,12 @@
 // deliberate act, because writing to someone's calendar is not something a
 // received message should do on its own.
 //
-// Port intent of src/features/messaging/api/events.ts. The real
-// save-to-calendar implementation needs a calendar plugin (e.g.
-// device_calendar) that isn't wired up yet; this defines the contract
-// [CalendarWriter] it must satisfy and a fake that records what would have
-// been saved, so the "add to calendar" flow can be built and tested without
-// one.
+// Port intent of src/features/messaging/api/events.ts. This defines the
+// contract [CalendarWriter] a save-to-calendar implementation must satisfy
+// and the real [DeviceCalendarWriter] backed by add_2_calendar.
 import 'dart:convert';
+
+import 'package:add_2_calendar/add_2_calendar.dart' as add2cal;
 
 class MeshEvent {
   const MeshEvent({
@@ -94,19 +93,29 @@ abstract class CalendarWriter {
   Future<SaveOutcome> save(MeshEvent event);
 }
 
-/// Headless fake: records what would have been saved instead of touching a
-/// platform calendar, so tests can assert on it without a plugin channel.
-class MockCalendarWriter implements CalendarWriter {
-  MockCalendarWriter({this.nextOutcome = const SaveOutcome.ok()});
-
-  /// What [save] returns the next time it is called. Defaults to success.
-  SaveOutcome nextOutcome;
-
-  final List<MeshEvent> saved = [];
-
+/// Hands the event to the device's own calendar app rather than writing to
+/// it directly — no calendar permission needed, and the user gets a last
+/// look before it's saved.
+///
+/// The only import site for package:add_2_calendar.
+class DeviceCalendarWriter implements CalendarWriter {
   @override
   Future<SaveOutcome> save(MeshEvent event) async {
-    if (nextOutcome.ok) saved.add(event);
-    return nextOutcome;
+    try {
+      final ends = event.endsAt ?? event.startsAt + hourMs;
+      final added = await add2cal.Add2Calendar.addEvent2Cal(
+        add2cal.Event(
+          title: event.title,
+          location: event.location,
+          startDate: DateTime.fromMillisecondsSinceEpoch(event.startsAt),
+          endDate: DateTime.fromMillisecondsSinceEpoch(ends),
+        ),
+      );
+      return added
+          ? const SaveOutcome.ok()
+          : const SaveOutcome.failure(SaveFailureReason.error);
+    } catch (e) {
+      return SaveOutcome.failure(SaveFailureReason.error, message: '$e');
+    }
   }
 }

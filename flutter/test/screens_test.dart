@@ -30,6 +30,8 @@ import 'package:echo/store/mesh_store.dart';
 import 'package:echo/store/mock.dart' as mock;
 import 'package:echo/store/theme_store.dart';
 
+import 'support/fakes.dart';
+
 Widget harness(Widget child, {MeshStore? mesh}) {
   return MultiProvider(
     providers: [

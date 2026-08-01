@@ -4,10 +4,13 @@
 // utils/relay). That makes size the whole design problem: every extra
 // kilobyte is another hop-by-hop round trip.
 //
-// Port intent of src/features/messaging/api/attachments.ts. The real picker
-// implementation needs an image-picker plugin (e.g. image_picker) that isn't
-// wired up yet; this defines the contract [ImageSource] it must satisfy and a
-// fake with a canned image for headless use.
+// Port intent of src/features/messaging/api/attachments.ts. This defines the
+// contract [ImageSource] a picker must satisfy and the real
+// [PickerImageSource] implementation backed by image_picker.
+import 'dart:convert';
+
+import 'package:image_picker/image_picker.dart' as picker;
+
 import '../../utils/relay.dart' show chunkChars;
 
 /// Refuse anything that would take absurdly long to hop. ~40 chunks.
@@ -35,26 +38,38 @@ abstract class ImageSource {
   Future<PickedImage?> pickFromCamera();
 }
 
-/// Headless fake: hands back a canned image (or null, if scripted that way)
-/// instead of opening a native picker/camera, so the compose flow can be
-/// built and tested without one.
-class MockImageSource implements ImageSource {
-  MockImageSource({PickedImage? next}) : _next = next ?? _defaultImage;
-
-  static const _defaultImage = PickedImage(
-    dataUri: 'data:image/jpeg;base64,ZmFrZQ==',
-    bytes: 6,
-  );
-
-  /// What the next pick returns. Set to null to simulate the user backing
-  /// out or denying the camera.
-  PickedImage? _next;
-
-  set next(PickedImage? image) => _next = image;
+/// Real photo/camera picker, downscaled and compressed at pick time — the
+/// payload still has to hop the mesh in ~32 KiB chunks (see [chunkCount]), so
+/// a full-resolution photo would take absurdly many hops.
+///
+/// The only import site for package:image_picker.
+class PickerImageSource implements ImageSource {
+  final picker.ImagePicker _picker = picker.ImagePicker();
 
   @override
-  Future<PickedImage?> pickFromLibrary() async => _next;
+  Future<PickedImage?> pickFromLibrary() => _pick(picker.ImageSource.gallery);
 
   @override
-  Future<PickedImage?> pickFromCamera() async => _next;
+  Future<PickedImage?> pickFromCamera() => _pick(picker.ImageSource.camera);
+
+  Future<PickedImage?> _pick(picker.ImageSource source) async {
+    final file = await _picker.pickImage(
+      source: source,
+      maxWidth: 1280,
+      maxHeight: 1280,
+      imageQuality: 70,
+    );
+    if (file == null) return null;
+
+    final bytes = await file.readAsBytes();
+    final dataUri = 'data:${_mimeType(file.path)};base64,${base64Encode(bytes)}';
+    return PickedImage(dataUri: dataUri, bytes: bytes.length);
+  }
+
+  String _mimeType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    return 'image/jpeg';
+  }
 }

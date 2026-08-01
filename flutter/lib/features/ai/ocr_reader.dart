@@ -2,9 +2,12 @@
 //
 // Port intent of src/features/ai/hooks/useReadText.ts, which wraps
 // executorch's useOCR and composes the result with utils/ocr.ts's
-// composeSpeech. The real implementation runs a native OCR model over a
-// camera frame; this defines the contract [OcrReader] it must satisfy and a
-// fake with canned detections for headless use.
+// composeSpeech. This defines the contract [OcrReader] a reader must satisfy
+// and the real [MlkitOcrReader], which captures a camera frame and runs
+// on-device OCR over it.
+import 'package:camera/camera.dart' as cam;
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart' as mlkit;
+
 import '../../utils/ocr.dart';
 import 'types.dart';
 
@@ -42,42 +45,70 @@ abstract class OcrReader {
   Future<ReadOutcome> read(String uri);
 }
 
-/// Cycles through a few canned detection sets so a demo/test can see more
-/// than one outcome, including the "nothing legible" case.
-class MockOcrReader implements OcrReader {
-  MockOcrReader({List<List<TextBox>>? script})
-    : _script = script ?? _defaultScript;
+/// Captures a frame from the back camera and runs on-device text recognition
+/// over it. The camera is opened lazily on first read and kept warm for the
+/// next one, matching the "point and tap" flow ReadScreen drives.
+///
+/// The only import site for package:camera and
+/// package:google_mlkit_text_recognition — both fully offline, no model
+/// download.
+class MlkitOcrReader implements OcrReader {
+  final mlkit.TextRecognizer _recognizer = mlkit.TextRecognizer();
 
-  static final _defaultScript = <List<TextBox>>[
-    [
-      const TextBox(
-        bbox: Bbox(x1: 0, y1: 0, x2: 120, y2: 40),
-        text: 'EXIT',
-        score: 0.95,
-      ),
-    ],
-    [
-      const TextBox(
-        bbox: Bbox(x1: 0, y1: 0, x2: 200, y2: 30),
-        text: 'Platform 3',
-        score: 0.9,
-      ),
-      const TextBox(
-        bbox: Bbox(x1: 0, y1: 40, x2: 220, y2: 70),
-        text: 'Cape Town',
-        score: 0.9,
-      ),
-    ],
-    const <TextBox>[], // nothing legible
-  ];
+  cam.CameraController? _controller;
+  bool _busy = false;
 
-  final List<List<TextBox>> _script;
-  int _i = 0;
+  Future<cam.CameraController> _ensureController() async {
+    final existing = _controller;
+    if (existing != null && existing.value.isInitialized) return existing;
+
+    final cameras = await cam.availableCameras();
+    final back = cameras.firstWhere(
+      (c) => c.lensDirection == cam.CameraLensDirection.back,
+      orElse: () => cameras.first,
+    );
+    final controller = cam.CameraController(back, cam.ResolutionPreset.medium, enableAudio: false);
+    await controller.initialize();
+    _controller = controller;
+    return controller;
+  }
 
   @override
   Future<ReadOutcome> read(String uri) async {
-    final boxes = _script[_i % _script.length];
-    _i++;
-    return ReadOk(ReadResult(text: composeSpeech(boxes), boxes: boxes));
+    if (_busy) return const ReadSkipped();
+    _busy = true;
+    try {
+      final controller = await _ensureController();
+      final frame = await controller.takePicture();
+      final recognized = await _recognizer.processImage(mlkit.InputImage.fromFilePath(frame.path));
+
+      final boxes = [
+        for (final block in recognized.blocks)
+          for (final line in block.lines)
+            TextBox(
+              bbox: Bbox(
+                x1: line.boundingBox.left,
+                y1: line.boundingBox.top,
+                x2: line.boundingBox.right,
+                y2: line.boundingBox.bottom,
+              ),
+              text: line.text,
+              score: line.confidence ?? 1.0,
+            ),
+      ];
+      return ReadOk(ReadResult(text: composeSpeech(boxes), boxes: boxes));
+    } catch (_) {
+      return const ReadFailed();
+    } finally {
+      _busy = false;
+    }
+  }
+
+  /// Releases the camera and recognizer. Not part of [OcrReader] — called
+  /// via the provider's dispose hook in main.dart.
+  Future<void> dispose() async {
+    await _recognizer.close();
+    await _controller?.dispose();
+    _controller = null;
   }
 }
