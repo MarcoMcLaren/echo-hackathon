@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.echo.hackathon.welcome_app"
-    compileSdk = flutter.compileSdkVersion
+    // permission_handler_android requires compiling against API 37
+    // (flutter.compileSdkVersion currently resolves to 36).
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -45,6 +47,10 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // camera_android_camerax compiles against camera-core annotations that
+    // reference CallbackToFutureAdapter; without this the javac task fails with
+    // "class file for androidx.concurrent.futures.CallbackToFutureAdapter not found".
+    implementation("androidx.concurrent:concurrent-futures:1.2.0")
 }
 
 flutter {
