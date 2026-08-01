@@ -63,13 +63,20 @@ class MockSecureVault implements SecureVault {
 
   String? _publicKey;
 
+  /// Keys were minted from DateTime.now().microsecondsSinceEpoch, which is not
+  /// unique on platforms whose clock granularity is coarser than a microsecond
+  /// (Windows is ~1-15ms): vaults built in the same tick shared a key, and the
+  /// eavesdropper test then decrypted a payload it should not have. A counter
+  /// is unique regardless of clock resolution.
+  static int _nextKey = 0;
+
   @override
   Future<VaultStatus> status() async =>
       _publicKey == null ? VaultStatus.locked : VaultStatus.unlocked;
 
   @override
   Future<String> setUp() async {
-    _publicKey ??= 'mock-pk-${DateTime.now().microsecondsSinceEpoch}';
+    _publicKey ??= 'mock-pk-${_nextKey++}';
     return _publicKey!;
   }
 
