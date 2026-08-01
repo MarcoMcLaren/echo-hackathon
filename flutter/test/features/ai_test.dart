@@ -6,7 +6,8 @@ import 'package:echo/features/ai/read_text.dart';
 import 'package:echo/features/ai/summarize.dart';
 import 'package:echo/features/ai/types.dart';
 import 'package:echo/features/vision/obstacle_detector.dart';
-import 'package:echo/store/mock.dart' as mock;
+
+import '../support/demo_data.dart';
 
 import '../support/fakes.dart';
 
@@ -96,7 +97,7 @@ void main() {
         loadDelay: Duration.zero,
         lineDelay: Duration.zero,
       );
-      final thread = mock.threads.first;
+      final thread = demoThreads.first;
 
       final states = await summarizer.summarize(thread, thread.unread).toList();
 
@@ -114,7 +115,7 @@ void main() {
         loadDelay: Duration.zero,
         lineDelay: Duration.zero,
       );
-      final thread = mock.threads.first;
+      final thread = demoThreads.first;
 
       await summarizer.summarize(thread, thread.unread).toList();
       final states = await summarizer.summarize(thread, thread.unread).toList();

@@ -1,8 +1,9 @@
 // Unit tests for lib/store/mesh_store.dart: the send() state machine,
 // _upsertMessage's create-vs-append branches, _handlePeer's thread mutation,
 // the stats counters, unread/markRead, the coin cancel window, revertLastCoin,
-// notification triggers, groups/invites, image/event kinds, and persisted
-// device identity.
+// notification triggers, groups/invites, image/event kinds, persisted device
+// identity, and the pairing model (contacts gate who can message you, peers
+// alone never can).
 import 'dart:convert';
 
 import 'package:fake_async/fake_async.dart';
@@ -11,10 +12,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:echo/features/messaging/events.dart';
 import 'package:echo/features/messaging/notifier.dart';
 import 'package:echo/features/messaging/types.dart';
+import 'package:echo/features/vault/contacts.dart';
 import 'package:echo/features/vault/identity.dart';
 import 'package:echo/store/mesh_store.dart';
-import 'package:echo/store/mock.dart' as mock;
+import 'package:echo/store/types.dart';
 import 'package:echo/utils/relay.dart';
+
+import '../support/demo_data.dart';
 
 /// Hand-rolled [MeshTransport] double: start()/broadcast() results are fixed
 /// per test, and onPeer/onEnvelope are fired manually to drive MeshStore.
@@ -60,7 +64,7 @@ void main() {
 
         final thread = store.threads.firstWhere((t) => t.id == 'thabo');
         final msg = thread.messages.last;
-        expect(msg.state, mock.MsgState.queued);
+        expect(msg.state, MsgState.queued);
         expect(msg.hops, isNull);
       },
     );
@@ -84,7 +88,7 @@ void main() {
 
         final thread = store.threads.firstWhere((t) => t.id == 'thabo');
         final msg = thread.messages.last;
-        expect(msg.state, mock.MsgState.delivered);
+        expect(msg.state, MsgState.delivered);
         expect(msg.hops, 0);
       },
     );
@@ -102,7 +106,7 @@ void main() {
           (t) => t.id == 'someone-unknown',
         );
         final msg = thread.messages.last;
-        expect(msg.state, mock.MsgState.sent);
+        expect(msg.state, MsgState.sent);
         expect(msg.hops, 1);
       },
     );
@@ -141,6 +145,7 @@ void main() {
       'appends to an existing thread without dropping prior history',
       () async {
         final store = MeshStore(deviceId: 'me');
+        await store.send('thabo', 'hey');
         final before = store.threads
             .firstWhere((t) => t.id == 'thabo')
             .messages
@@ -156,11 +161,10 @@ void main() {
   });
 
   group('_handlePeer', () {
-    test('creates a thread for a previously unknown connected peer', () async {
+    test('connecting to a stranger does not create a conversation', () async {
       final transport = FakeTransport();
       final store = MeshStore(transport: transport, deviceId: 'me');
       await store.start();
-      expect(store.threads.any((t) => t.id == 'newperson'), isFalse);
 
       transport.onPeer?.call(
         const PeerInfo(
@@ -171,17 +175,37 @@ void main() {
         PeerLinkState.connected,
       );
 
-      final thread = store.threads.firstWhere((t) => t.id == 'newperson');
-      expect(thread.title, 'New Person');
-      expect(thread.hops, 0);
+      expect(store.threads.any((t) => t.id == 'newperson'), isFalse);
       expect(store.peers.containsKey('newperson'), isTrue);
     });
+
+    test(
+      'connecting to an already-paired contact updates the route on their thread',
+      () async {
+        final transport = FakeTransport();
+        final store = demoStore(transport: transport);
+        await store.start();
+        // Naledi is seeded reachable only via a relay (hops: 1).
+        expect(store.threads.firstWhere((t) => t.id == 'naledi').hops, 1);
+
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-naledi',
+            deviceId: 'naledi',
+            display: 'Naledi Khumalo',
+          ),
+          PeerLinkState.connected,
+        );
+
+        expect(store.threads.firstWhere((t) => t.id == 'naledi').hops, 0);
+      },
+    );
 
     test(
       'removes a lost peer entirely rather than marking it disconnected',
       () async {
         final transport = FakeTransport();
-        final store = MeshStore(transport: transport, deviceId: 'me');
+        final store = demoStore(transport: transport);
         await store.start();
         transport.onPeer?.call(
           const PeerInfo(
@@ -211,115 +235,78 @@ void main() {
     );
   });
 
-  group('_handleEnvelope (via transport.onEnvelope)', () {
-    test('a duplicate envelope increments stats.dropped', () async {
-      final transport = FakeTransport();
-      final store = MeshStore(transport: transport, deviceId: 'me');
-      await store.start();
-      final envelope = newEnvelope(
-        id: 'dup1',
-        from: 'thabo',
-        to: 'someone-else',
-        kind: EnvelopeKind.msg,
-        body: 'hi',
-        at: 0,
-      );
-
-      transport.onEnvelope?.call(envelope, 'p-thabo');
-      expect(store.stats.dropped, 0);
-      transport.onEnvelope?.call(envelope, 'p-thabo');
-      expect(store.stats.dropped, 1);
-    });
-
-    test('relaying increments stats.relayed and rebroadcasts', () async {
-      final transport = FakeTransport(fanout: 1);
-      final store = MeshStore(transport: transport, deviceId: 'me');
-      await store.start();
-      final envelope = newEnvelope(
-        id: 'r1',
-        from: 'someone',
-        to: 'not-me',
-        kind: EnvelopeKind.msg,
-        body: 'hi',
-        at: 0,
-      );
-
-      transport.onEnvelope?.call(envelope, 'p-x');
-
-      expect(store.stats.relayed, 1);
-      expect(transport.broadcasted, hasLength(1));
-      expect(transport.broadcasted.first.path, contains('me'));
-    });
-
+  group('contact gating (via transport.onEnvelope)', () {
     test(
-      'delivering an envelope addressed to me appends to the sender thread',
+      'a message from someone who is not a contact is dropped, not delivered',
       () async {
         final transport = FakeTransport();
         final store = MeshStore(transport: transport, deviceId: 'me');
         await store.start();
-        final envelope = newEnvelope(
-          id: 'd1',
-          from: 'thabo',
-          to: 'me',
-          kind: EnvelopeKind.msg,
-          body: 'yo',
-          at: 0,
+
+        transport.onEnvelope?.call(
+          newEnvelope(
+            id: 's1',
+            from: 'stranger',
+            to: 'me',
+            kind: EnvelopeKind.msg,
+            body: 'hi',
+            at: 0,
+          ),
+          'p-stranger',
         );
 
-        transport.onEnvelope?.call(envelope, 'p-thabo');
-
-        expect(store.stats.delivered, 1);
-        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-        expect(thread.messages.last.text, 'yo');
-        expect(thread.messages.last.from, 'thabo');
+        expect(store.stats.dropped, 1);
+        expect(store.stats.delivered, 0);
+        expect(store.threads.any((t) => t.id == 'stranger'), isFalse);
       },
     );
 
+    test('a message from a paired contact is delivered', () async {
+      final transport = FakeTransport();
+      final store = demoStore(transport: transport);
+      await store.start();
+
+      transport.onEnvelope?.call(
+        newEnvelope(
+          id: 's2',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 0,
+        ),
+        'p-thabo',
+      );
+
+      expect(store.stats.delivered, 1);
+      expect(store.stats.dropped, 0);
+    });
+
     test(
-      'delivering a revert marks the referenced message reverted, not a new one',
+      'an invite from a non-contact is dropped even though it names me as a member',
       () async {
-        final transport = FakeTransport();
+        final transport = FakeTransport(fanout: 1);
         final store = MeshStore(transport: transport, deviceId: 'me');
         await store.start();
-        transport.onEnvelope?.call(
-          newEnvelope(
-            id: 'c1',
-            from: 'thabo',
-            to: 'me',
-            kind: EnvelopeKind.coin,
-            body: '12.5',
-            at: 0,
-          ),
-          'p-thabo',
-        );
-        final before = store.threads
-            .firstWhere((t) => t.id == 'thabo')
-            .messages
-            .length;
 
         transport.onEnvelope?.call(
           newEnvelope(
-            id: 'rv1',
-            from: 'thabo',
-            to: 'me',
-            kind: EnvelopeKind.revert,
-            body: 'c1',
+            id: 'inv-stranger',
+            from: 'stranger',
+            to: 'g:x',
+            kind: EnvelopeKind.invite,
+            body: jsonEncode({
+              'id': 'g:x',
+              'name': 'X',
+              'members': ['me', 'stranger'],
+            }),
             at: 0,
           ),
-          'p-thabo',
+          'p-stranger',
         );
 
-        final thread = store.threads.firstWhere((t) => t.id == 'thabo');
-        expect(
-          thread.messages,
-          hasLength(before),
-          reason: 'a revert updates, never appends',
-        );
-        expect(
-          thread.messages.firstWhere((m) => m.id == 'c1').reverted,
-          isTrue,
-        );
-        expect(store.stats.delivered, 2);
+        expect(store.threads.any((t) => t.id == 'g:x'), isFalse);
+        expect(store.stats.dropped, 1);
       },
     );
   });
@@ -327,7 +314,7 @@ void main() {
   group('unread / markRead', () {
     test('a delivered message increments the thread unread count', () async {
       final transport = FakeTransport();
-      final store = MeshStore(transport: transport, deviceId: 'me');
+      final store = demoStore(transport: transport);
       await store.start();
       final before = store.threads.firstWhere((t) => t.id == 'thabo').unread;
 
@@ -350,7 +337,7 @@ void main() {
     });
 
     test('markRead resets a thread unread count to zero', () async {
-      final store = MeshStore(deviceId: 'me');
+      final store = demoStore();
       expect(
         store.threads.firstWhere((t) => t.id == 'braai').unread,
         greaterThan(0),
@@ -377,11 +364,7 @@ void main() {
     test('a delivered msg or coin notifies; a revert does not', () async {
       final notifier = MockMeshNotifier();
       final transport = FakeTransport();
-      final store = MeshStore(
-        transport: transport,
-        notifier: notifier,
-        deviceId: 'me',
-      );
+      final store = demoStore(transport: transport, notifier: notifier);
       await store.start();
 
       transport.onEnvelope?.call(
@@ -432,7 +415,7 @@ void main() {
     });
 
     test('cancelPending removes the placeholder and clears pending', () {
-      final store = MeshStore(deviceId: 'me');
+      final store = demoStore();
       final before = store.threads
           .firstWhere((t) => t.id == 'thabo')
           .messages
@@ -521,7 +504,7 @@ void main() {
     );
 
     test('returns false when there is no coin of mine to revert', () async {
-      final store = MeshStore(deviceId: 'me');
+      final store = demoStore();
       // The seeded thabo thread has a coin from thabo, not from me.
       expect(await store.revertLastCoin('thabo'), isFalse);
     });
@@ -537,7 +520,7 @@ void main() {
       'drops peers and sets hops to null on threads that were connected',
       () async {
         final transport = FakeTransport();
-        final store = MeshStore(transport: transport, deviceId: 'me');
+        final store = demoStore(transport: transport);
         await store.start();
         transport.onPeer?.call(
           const PeerInfo(
@@ -604,7 +587,7 @@ void main() {
   group('group traffic (via transport.onEnvelope)', () {
     test('an invite creates the group thread when I am a member', () async {
       final transport = FakeTransport(fanout: 1);
-      final store = MeshStore(transport: transport, deviceId: 'me');
+      final store = demoStore(transport: transport);
       await store.start();
 
       transport.onEnvelope?.call(
@@ -631,7 +614,7 @@ void main() {
 
     test('an invite that does not name me is ignored', () async {
       final transport = FakeTransport(fanout: 1);
-      final store = MeshStore(transport: transport, deviceId: 'me');
+      final store = demoStore(transport: transport);
       await store.start();
 
       transport.onEnvelope?.call(
@@ -655,7 +638,7 @@ void main() {
 
     test('a malformed invite is dropped without throwing', () async {
       final transport = FakeTransport(fanout: 1);
-      final store = MeshStore(transport: transport, deviceId: 'me');
+      final store = demoStore(transport: transport);
       await store.start();
 
       expect(
@@ -702,7 +685,8 @@ void main() {
     );
 
     test(
-      'group traffic is delivered into the thread when I am a member',
+      'group traffic is delivered into the thread when I am a member, even '
+      'from someone who is not a contact — the group is its own trust boundary',
       () async {
         final transport = FakeTransport(fanout: 1);
         final store = MeshStore(transport: transport, deviceId: 'me');
@@ -759,6 +743,114 @@ void main() {
     );
   });
 
+  group('pair', () {
+    test('creates a conversation for a newly met device', () async {
+      final store = MeshStore(deviceId: 'me');
+
+      await store.pair('thabo', 'Thabo Mokoena');
+
+      expect(store.contacts.containsKey('thabo'), isTrue);
+      final thread = store.threads.firstWhere((t) => t.id == 'thabo');
+      expect(thread.title, 'Thabo Mokoena');
+      expect(thread.messages, isEmpty);
+    });
+
+    test(
+      'pairing with someone already connected marks the thread reachable now',
+      () async {
+        final transport = FakeTransport();
+        final store = MeshStore(transport: transport, deviceId: 'me');
+        await store.start();
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.connected,
+        );
+
+        await store.pair('thabo', 'Thabo Mokoena');
+
+        expect(store.threads.firstWhere((t) => t.id == 'thabo').hops, 0);
+      },
+    );
+
+    test(
+      're-pairing an existing thread renames it rather than duplicating it',
+      () async {
+        final store = demoStore();
+        final before = store.threads.length;
+
+        await store.pair('thabo', 'Thabo M.');
+
+        expect(store.threads.length, before);
+        expect(
+          store.threads.firstWhere((t) => t.id == 'thabo').title,
+          'Thabo M.',
+        );
+      },
+    );
+  });
+
+  group('unpair', () {
+    test(
+      'removes the contact and its conversation, but the peer connection stays',
+      () async {
+        final transport = FakeTransport();
+        final store = demoStore(transport: transport);
+        await store.start();
+        transport.onPeer?.call(
+          const PeerInfo(
+            peerId: 'p-thabo',
+            deviceId: 'thabo',
+            display: 'Thabo Mokoena',
+          ),
+          PeerLinkState.connected,
+        );
+
+        await store.unpair('thabo');
+
+        expect(store.contacts.containsKey('thabo'), isFalse);
+        expect(store.threads.any((t) => t.id == 'thabo'), isFalse);
+        expect(store.peers.containsKey('thabo'), isTrue);
+      },
+    );
+
+    test('a message from an unpaired device is dropped again', () async {
+      final transport = FakeTransport();
+      final store = demoStore(transport: transport);
+      await store.start();
+      await store.unpair('thabo');
+
+      transport.onEnvelope?.call(
+        newEnvelope(
+          id: 'after-unpair',
+          from: 'thabo',
+          to: 'me',
+          kind: EnvelopeKind.msg,
+          body: 'hi',
+          at: 0,
+        ),
+        'p-thabo',
+      );
+
+      expect(store.stats.dropped, 1);
+      expect(store.stats.delivered, 0);
+    });
+  });
+
+  group('forgetThread', () {
+    test('removes a thread with no contact behind it, such as a group', () async {
+      final store = MeshStore(deviceId: 'me');
+      final id = await store.createGroup('Braai Crew', []);
+
+      store.forgetThread(id);
+
+      expect(store.threads.any((t) => t.id == id), isFalse);
+    });
+  });
+
   group('fromName', () {
     test('send() carries me.display as the envelope fromName', () async {
       final transport = FakeTransport(fanout: 1);
@@ -790,7 +882,7 @@ void main() {
     });
 
     test(
-      'a relayed sender not in the peer list is notified/titled by fromName',
+      'a paired sender not in the peer list is notified by fromName',
       () async {
         final notifier = MockMeshNotifier();
         final transport = FakeTransport();
@@ -800,6 +892,7 @@ void main() {
           deviceId: 'me',
         );
         await store.start();
+        await store.pair('stranger-device-id', 'Distant Cousin');
 
         transport.onEnvelope?.call(
           newEnvelope(
@@ -815,10 +908,6 @@ void main() {
         );
 
         expect(notifier.sent.single.from, 'Distant Cousin');
-        final thread = store.threads.firstWhere(
-          (t) => t.id == 'stranger-device-id',
-        );
-        expect(thread.title, 'Distant Cousin');
       },
     );
 
@@ -827,11 +916,7 @@ void main() {
       () async {
         final notifier = MockMeshNotifier();
         final transport = FakeTransport();
-        final store = MeshStore(
-          transport: transport,
-          notifier: notifier,
-          deviceId: 'me',
-        );
+        final store = demoStore(transport: transport, notifier: notifier);
         await store.start();
         transport.onPeer?.call(
           const PeerInfo(
@@ -855,83 +940,6 @@ void main() {
         );
 
         expect(notifier.sent.single.from, 'Thabo Mokoena');
-      },
-    );
-
-    test(
-      'a thread titled with the raw device id is renamed once the sender '
-      'becomes a peer',
-      () async {
-        final transport = FakeTransport();
-        final store = MeshStore(transport: transport, deviceId: 'me');
-        await store.start();
-
-        // No fromName: the thread is titled with the raw device id.
-        transport.onEnvelope?.call(
-          newEnvelope(
-            id: 'pre1',
-            from: 'newperson',
-            to: 'me',
-            kind: EnvelopeKind.msg,
-            body: 'hi',
-            at: 0,
-          ),
-          'p-x',
-        );
-        expect(
-          store.threads.firstWhere((t) => t.id == 'newperson').title,
-          'newperson',
-        );
-
-        transport.onPeer?.call(
-          const PeerInfo(
-            peerId: 'p-new',
-            deviceId: 'newperson',
-            display: 'New Person',
-          ),
-          PeerLinkState.connected,
-        );
-
-        final thread = store.threads.firstWhere((t) => t.id == 'newperson');
-        expect(thread.title, 'New Person');
-        expect(thread.initials, 'NP');
-      },
-    );
-
-    test(
-      'a thread already titled from fromName is left alone once the sender '
-      'becomes a peer',
-      () async {
-        final transport = FakeTransport();
-        final store = MeshStore(transport: transport, deviceId: 'me');
-        await store.start();
-
-        transport.onEnvelope?.call(
-          newEnvelope(
-            id: 'pre2',
-            from: 'newperson',
-            fromName: 'New Person (relayed)',
-            to: 'me',
-            kind: EnvelopeKind.msg,
-            body: 'hi',
-            at: 0,
-          ),
-          'p-x',
-        );
-
-        transport.onPeer?.call(
-          const PeerInfo(
-            peerId: 'p-new',
-            deviceId: 'newperson',
-            display: 'New Person',
-          ),
-          PeerLinkState.connected,
-        );
-
-        expect(
-          store.threads.firstWhere((t) => t.id == 'newperson').title,
-          'New Person (relayed)',
-        );
       },
     );
   });
@@ -972,7 +980,7 @@ void main() {
 
     test('receiving an image envelope stores it on the delivered message', () async {
       final transport = FakeTransport();
-      final store = MeshStore(transport: transport, deviceId: 'me');
+      final store = demoStore(transport: transport);
       await store.start();
 
       transport.onEnvelope?.call(
@@ -996,7 +1004,7 @@ void main() {
       'receiving an event envelope decodes it onto the delivered message',
       () async {
         final transport = FakeTransport();
-        final store = MeshStore(transport: transport, deviceId: 'me');
+        final store = demoStore(transport: transport);
         await store.start();
         final body = encodeEvent(
           const MeshEvent(title: 'Braai', startsAt: 1000),
@@ -1033,9 +1041,9 @@ void main() {
 
   group('persisted device identity', () {
     test('an explicit deviceId is never overridden by start()', () async {
-      final identityStore = InMemoryIdentityStore();
-      await identityStore.write('should-not-be-used');
-      final store = MeshStore(deviceId: 'me', identityStore: identityStore);
+      final profileStore = InMemoryProfileStore();
+      await profileStore.write(const Profile(id: 'should-not-be-used', name: 'Nope'));
+      final store = MeshStore(deviceId: 'me', profileStore: profileStore);
 
       await store.start();
 
@@ -1043,31 +1051,77 @@ void main() {
     });
 
     test(
-      'without an explicit deviceId, start() resolves and persists an id',
+      'without a profile yet, start() leaves the phone pending rather than minting an id',
       () async {
-        final identityStore = InMemoryIdentityStore();
-        final store = MeshStore(identityStore: identityStore);
+        final store = MeshStore(profileStore: InMemoryProfileStore());
 
         await store.start();
 
-        final resolved = store.me.deviceId;
-        expect(resolved, isNotEmpty);
-        expect(await identityStore.read(), resolved);
+        expect(store.ready, isFalse);
+        expect(store.me.deviceId, 'pending');
+      },
+    );
+
+    test('createIdentity mints and persists a profile', () async {
+      final profileStore = InMemoryProfileStore();
+      final store = MeshStore(profileStore: profileStore);
+
+      await store.createIdentity('Reon Fourie');
+
+      expect(store.ready, isTrue);
+      expect(store.me.deviceId, isNotEmpty);
+      expect(store.me.display, 'Reon Fourie');
+      expect((await profileStore.read())?.name, 'Reon Fourie');
+    });
+
+    test(
+      'a second store sharing the profile store resolves to the same id',
+      () async {
+        final profileStore = InMemoryProfileStore();
+        final first = MeshStore(profileStore: profileStore);
+        await first.createIdentity('Reon Fourie');
+
+        final second = MeshStore(profileStore: profileStore);
+        await second.start();
+
+        expect(second.me.deviceId, first.me.deviceId);
+        expect(second.ready, isTrue);
       },
     );
 
     test(
-      'a second store sharing the identity store resolves to the same id',
+      'contacts persisted under a shared store are rebuilt into threads on init',
       () async {
-        final identityStore = InMemoryIdentityStore();
-        final first = MeshStore(identityStore: identityStore);
-        await first.start();
+        final profileStore = InMemoryProfileStore();
+        final contactsStore = InMemoryContactsStore();
+        final first = MeshStore(profileStore: profileStore, contactsStore: contactsStore);
+        await first.createIdentity('Reon Fourie');
+        await first.pair('thabo', 'Thabo Mokoena');
 
-        final second = MeshStore(identityStore: identityStore);
+        final second = MeshStore(profileStore: profileStore, contactsStore: contactsStore);
         await second.start();
 
-        expect(second.me.deviceId, first.me.deviceId);
+        expect(second.contacts.containsKey('thabo'), isTrue);
+        expect(second.threads.any((t) => t.id == 'thabo'), isTrue);
       },
     );
+  });
+
+  group('resetApp', () {
+    test('wipes identity, contacts, and threads back to first-run', () async {
+      final profileStore = InMemoryProfileStore();
+      final contactsStore = InMemoryContactsStore();
+      final store = MeshStore(profileStore: profileStore, contactsStore: contactsStore);
+      await store.createIdentity('Reon Fourie');
+      await store.pair('thabo', 'Thabo Mokoena');
+
+      await store.resetApp();
+
+      expect(store.ready, isFalse);
+      expect(store.me.deviceId, 'pending');
+      expect(store.contacts, isEmpty);
+      expect(store.threads, isEmpty);
+      expect(await profileStore.read(), isNull);
+    });
   });
 }

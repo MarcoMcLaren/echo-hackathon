@@ -27,8 +27,10 @@ import 'package:echo/screens/tap_screen.dart';
 import 'package:echo/screens/wallet_screen.dart';
 import 'package:echo/services/shake_service.dart';
 import 'package:echo/store/mesh_store.dart';
-import 'package:echo/store/mock.dart' as mock;
 import 'package:echo/store/theme_store.dart';
+import 'package:echo/store/types.dart';
+
+import 'support/demo_data.dart';
 
 import 'support/fakes.dart';
 
@@ -69,7 +71,7 @@ class _FlakyOnceSummarizer implements ThreadSummarizer {
   int calls = 0;
 
   @override
-  Stream<SummaryState> summarize(mock.Thread thread, int unread) async* {
+  Stream<SummaryState> summarize(Thread thread, int unread) async* {
     calls++;
     if (calls == 1) {
       yield const SummaryState(
@@ -87,8 +89,8 @@ class _FlakyOnceSummarizer implements ThreadSummarizer {
 }
 
 void main() {
-  testWidgets('ReachScreen renders the demo threads and mesh status', (tester) async {
-    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {})));
+  testWidgets('ReachScreen renders paired conversations and mesh status', (tester) async {
+    await tester.pumpWidget(harness(ReachScreen(onOpen: (_) {}, onNewGroup: () {}), mesh: demoStore()));
     await tester.pump();
 
     expect(find.text('Reach'), findsOneWidget);
@@ -110,7 +112,9 @@ void main() {
   });
 
   testWidgets('ChatScreen renders thread title and messages', (tester) async {
-    await tester.pumpWidget(harness(ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {})));
+    await tester.pumpWidget(
+      harness(ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {}), mesh: demoStore()),
+    );
     await tester.pump();
 
     expect(find.text('Thabo Mokoena'), findsOneWidget);
@@ -118,7 +122,9 @@ void main() {
   });
 
   testWidgets('ChatScreen opens the CatchMeUpSheet once unread crosses the summary threshold', (tester) async {
-    await tester.pumpWidget(harness(ChatScreen(threadId: 'braai', onBack: () {}, onSendCoin: (_) {})));
+    await tester.pumpWidget(
+      harness(ChatScreen(threadId: 'braai', onBack: () {}, onSendCoin: (_) {}), mesh: demoStore()),
+    );
     await tester.pump();
 
     expect(find.text('Catch me up · 11 unread'), findsOneWidget);
@@ -132,7 +138,7 @@ void main() {
 
   testWidgets('CatchMeUpSheet retry clears the stale error before the new stream emits', (tester) async {
     final summarizer = _FlakyOnceSummarizer();
-    final thread = mock.threads.firstWhere((t) => t.id == 'braai');
+    final thread = demoThreads.firstWhere((t) => t.id == 'braai');
     await tester.pumpWidget(
       harness(
         Provider<ThreadSummarizer>.value(
@@ -153,7 +159,9 @@ void main() {
 
   testWidgets('ChatScreen sends a picked photo as an image bubble', (tester) async {
     final handle = tester.ensureSemantics();
-    await tester.pumpWidget(harness(ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {})));
+    await tester.pumpWidget(
+      harness(ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {}), mesh: demoStore()),
+    );
     await tester.pump();
 
     await tester.tap(find.bySemanticsLabel('Attach a photo or an event'));
@@ -179,6 +187,7 @@ void main() {
           value: calendar,
           child: ChatScreen(threadId: 'thabo', onBack: () {}, onSendCoin: (_) {}),
         ),
+        mesh: demoStore(),
       ),
     );
     await tester.pump();
@@ -241,16 +250,20 @@ void main() {
   });
 
   testWidgets('WalletScreen renders balance and ledger', (tester) async {
-    await tester.pumpWidget(harness(WalletScreen(onSend: () {}, onTap: () {})));
+    await tester.pumpWidget(harness(WalletScreen(onSend: () {}, onTap: () {}), mesh: demoStore()));
     await tester.pump();
 
     expect(find.text('Wallet'), findsOneWidget);
-    expect(find.text(mock.balance.toStringAsFixed(2)), findsOneWidget);
+    // Opening 100 + 12.50 from Thabo − 20 sent to Naledi, from the seeded
+    // coin messages — the balance is derived, not a stored number.
+    expect(find.text('92.50'), findsOneWidget);
     expect(find.text('Naledi Khumalo'), findsOneWidget);
   });
 
   testWidgets('SendCoinScreen renders the contact and keypad', (tester) async {
-    await tester.pumpWidget(harness(SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (_) {})));
+    await tester.pumpWidget(
+      harness(SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (_) {}), mesh: demoStore()),
+    );
     await tester.pump();
 
     expect(find.text('Send echocoin'), findsOneWidget);
@@ -264,7 +277,10 @@ void main() {
   testWidgets('SendCoinScreen queues a coin send and calls onQueued', (tester) async {
     String? queuedFor;
     await tester.pumpWidget(
-      harness(SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (id) => queuedFor = id)),
+      harness(
+        SendCoinScreen(contactId: 'naledi', onBack: () {}, onQueued: (id) => queuedFor = id),
+        mesh: demoStore(),
+      ),
     );
     await tester.pump();
 
