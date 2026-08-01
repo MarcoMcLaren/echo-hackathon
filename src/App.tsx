@@ -8,6 +8,7 @@ import ChatScreen from './screens/ChatScreen';
 import WalletScreen from './screens/WalletScreen';
 import TapScreen from './screens/TapScreen';
 import SendCoinScreen from './screens/SendCoinScreen';
+import LockScreen from './screens/LockScreen';
 import ReadScreen from './screens/ReadScreen';
 // Side-effect import: this module calls initExecutorch(), which is the only
 // thing that registers the ExecuTorch resource fetcher. Without it every model
@@ -27,6 +28,9 @@ export default function App() {
   const [mode, setMode] = useState<Mode>('system');
   const [tab, setTab] = useState<Tab>('reach');
   const [route, setRoute] = useState<Route>(null);
+  // Once past the door it stays open for the life of the launch — re-prompting
+  // every time you glance at another app would make the mesh unusable.
+  const [unlocked, setUnlocked] = useState(false);
   // Switching tabs mid-read unmounts ReadScreen, and executorch's cleanup
   // throws ModelGenerating if inference is still running. Lock the nav instead.
   const [readBusy, setReadBusy] = useState(false);
@@ -56,6 +60,17 @@ export default function App() {
     return () => sub.remove();
   }, [route, back]);
 
+  // Nothing behind the lock is rendered until it opens, so a shoulder-surfer
+  // can't read a thread off the screen behind a modal.
+  if (!unlocked) {
+    return (
+      <ThemeContext.Provider value={theme}>
+        <LockScreen onUnlocked={() => setUnlocked(true)} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </ThemeContext.Provider>
+    );
+  }
+
   return (
     <ThemeContext.Provider value={theme}>
       <Screen>
@@ -67,7 +82,11 @@ export default function App() {
               onSendCoin={(id) => setRoute({ name: 'send', id })}
             />
           ) : route?.name === 'send' ? (
-            <SendCoinScreen contactId={route.id} onBack={back} />
+            <SendCoinScreen
+              contactId={route.id}
+              onBack={back}
+              onQueued={(id) => setRoute({ name: 'chat', id })}
+            />
           ) : tab === 'reach' ? (
             <ReachScreen onOpen={(id) => setRoute({ name: 'chat', id })} />
           ) : tab === 'wallet' ? (
