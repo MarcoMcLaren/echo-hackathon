@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -24,6 +24,11 @@ import {
   MAX_IMAGE_CHARS,
 } from '../features/messaging/api/attachments';
 import { encodeEvent, saveToCalendar, type MeshEvent } from '../features/messaging/api/events';
+import MicButton from '../features/messaging/components/MicButton';
+import { useDictation, type StopOutcome } from '../features/ai/hooks/useDictation';
+import { notifyFail, notifyOk, tick } from '../features/feedback/api';
+import { mergeDraft, progressPercent } from '../utils/dictation';
+import { downloadSpeechModel, speechModelReady } from '../services/models';
 
 export default function ChatScreen({
   threadId,
@@ -49,19 +54,6 @@ export default function ChatScreen({
 
   const holding = pending?.threadId === threadId ? pending : null;
 
-  // Shake does whatever the visible control does: cancel what is still held,
-  // otherwise take back the last payment that already went.
-  useShake(() => {
-    if (holding) {
-      cancelPending();
-      setNote('Send cancelled');
-    } else {
-      revertLastCoin(threadId).then((did) =>
-        setNote(did ? 'Last payment taken back' : 'Nothing to take back')
-      );
-    }
-  });
-
   useEffect(() => {
     if (!holding) return setLeft(0);
     const tick = () => setLeft(Math.max(0, Math.ceil((holding.until - Date.now()) / 1000)));
@@ -82,6 +74,149 @@ export default function ChatScreen({
   const [attaching, setAttaching] = useState(false);
   const [composingEvent, setComposingEvent] = useState(false);
   const scroller = useRef<ScrollView>(null);
+
+  // Whisper is 224 MB — closer to the LLM than to the vision models — so it is
+  // opt-in, and opening a chat must never start that download or pull the model
+  // into RAM. `null` while the marker file is still being read.
+  const [speechReady, setSpeechReady] = useState<boolean | null>(null);
+  const [speechProgress, setSpeechProgress] = useState<number | null>(null);
+
+  // The download outlives the screen, so late setState has to be suppressed.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    void speechModelReady().then((ready) => {
+      if (mounted.current) setSpeechReady(ready);
+    });
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  // Dictation is owned here rather than inside MicButton, so the hook's identity
+  // survives every composer re-render rather than reloading Whisper.
+  const applyTranscript = useCallback(async (outcome: StopOutcome) => {
+    if (outcome.status === 'skipped') return;
+    if (outcome.status === 'ok') {
+      // Into the draft, never straight onto the mesh — you get to read it back
+      // and fix it before anyone else sees it.
+      setDraft((d) => mergeDraft(d, outcome.text));
+      await notifyOk();
+      return;
+    }
+    await notifyFail();
+    // Four different failures, four different things to do about them.
+    // Collapsing them into one message tells the user to try the same thing
+    // again when the fix is to wait, or to speak for longer.
+    setNote(
+      outcome.status === 'short'
+        ? 'Hold to talk'
+        : outcome.status === 'empty'
+          ? "Didn't catch that"
+          : outcome.status === 'discarded'
+            ? 'Still writing down the last one'
+            : outcome.message ?? 'Could not write that down'
+    );
+  }, []);
+
+  const dictation = useDictation({
+    // The marker is what gates loading. `null` counts as not-yet, so the few
+    // milliseconds before it resolves cannot start a fetch either.
+    enabled: speechReady === true,
+    onAutoStop: (o) => void applyTranscript(o),
+  });
+  const { start: startTake, lock: lockTake, stop: stopTake, cancel: cancelTake } = dictation;
+  const recording = dictation.phase !== 'idle';
+
+  const startDictation = useCallback(async () => {
+    // Confirm the press now, not after the permission round trip.
+    void tick();
+    const outcome = await startTake();
+    if (outcome.status === 'ok' || outcome.status === 'skipped') return;
+    await notifyFail();
+    setNote(
+      outcome.status === 'failed'
+        ? 'Could not open the microphone'
+        : outcome.blocked
+          ? 'Allow the microphone for Echo in Android Settings'
+          : 'Echo needs the microphone to dictate'
+    );
+  }, [startTake]);
+
+  const stopDictation = useCallback(async () => {
+    await applyTranscript(await stopTake());
+  }, [applyTranscript, stopTake]);
+
+  const cancelDictation = useCallback(async () => {
+    if ((await cancelTake()).status === 'skipped') return;
+    await tick();
+    setNote('Cancelled');
+  }, [cancelTake]);
+
+  const lockDictation = useCallback(() => {
+    if (lockTake().status === 'ok') void tick();
+  }, [lockTake]);
+
+  // The only route to this download in the shipped app: nothing mounts
+  // ModelPreloadScreen. It has to be a tap, because someone on mobile data
+  // should not pay 224 MB for a feature they never asked for.
+  const setUpDictation = useCallback(async () => {
+    if (speechProgress !== null) return;
+    void tick();
+    setSpeechProgress(0);
+
+    try {
+      await downloadSpeechModel((p) => {
+        if (mounted.current) setSpeechProgress(p);
+      });
+      if (mounted.current) {
+        // Flips `enabled`, which is what finally loads the model.
+        setSpeechReady(true);
+        setNote('Dictation ready');
+      }
+      await notifyOk();
+    } catch {
+      if (mounted.current) setNote('Download failed — try again on wifi');
+      await notifyFail();
+    } finally {
+      if (mounted.current) setSpeechProgress(null);
+    }
+  }, [speechProgress]);
+
+  // Shake does whatever the visible control does: cancel what is still held,
+  // otherwise take back the last payment that already went.
+  //
+  // Off while dictating: raising the phone to your mouth clears the 1.7 g
+  // threshold, and the second branch reverts a payment with no confirmation.
+  useShake(() => {
+    if (holding) {
+      cancelPending();
+      setNote('Send cancelled');
+    } else {
+      revertLastCoin(threadId).then((did) =>
+        setNote(did ? 'Last payment taken back' : 'Nothing to take back')
+      );
+    }
+  }, !recording);
+
+  // Never "Loading model 0%" on a model that already gave up.
+  const dictationDown = Boolean(dictation.error) && !dictation.isReady;
+  const setupNeeded = speechReady === false;
+  const micLabel = setupNeeded
+    ? speechProgress === null
+      ? 'Set up dictation. A 224 megabyte download, once, then it works offline'
+      : `Downloading dictation, ${progressPercent(speechProgress)} percent`
+    : dictationDown
+      ? 'Dictation unavailable'
+      : speechReady === null
+        ? 'Getting dictation ready'
+        : !dictation.isReady
+          ? `Loading model ${progressPercent(dictation.downloadProgress)}%`
+          : dictation.phase === 'transcribing'
+            ? 'Writing down what you said'
+            : recording
+              ? 'Recording. Release to put it in the message'
+              : 'Hold to dictate a message';
 
   // Anything past this index arrived while the screen was open, so its route
   // strip draws itself rather than appearing already there.
@@ -223,6 +358,40 @@ export default function ChatScreen({
         </View>
       ) : null}
 
+      {recording ? (
+        <View style={[s.note, { backgroundColor: c.direct }]} accessibilityLiveRegion="polite">
+          <Mono size={9} color="#fff">
+            {dictation.phase === 'transcribing'
+              ? 'WRITING IT DOWN'
+              : dictation.phase === 'locked'
+                ? 'RECORDING HANDS FREE'
+                : 'RECORDING · UP TO LOCK · LEFT TO CANCEL'}
+          </Mono>
+        </View>
+      ) : null}
+
+      {/* A 40 dp circle with an arrow in it explains nothing on its own, and
+          the price has to be visible before the tap, not after it. */}
+      {setupNeeded ? (
+        <View style={[s.note, { backgroundColor: c.ink }]}>
+          <Mono size={9} color={c.paper}>
+            {speechProgress === null
+              ? 'SET UP DICTATION · 224 MB'
+              : `DOWNLOADING DICTATION · ${progressPercent(speechProgress)}%`}
+          </Mono>
+        </View>
+      ) : null}
+
+      {/* A disabled 40 dp circle explains nothing on its own. The hook reloads
+          on mount, so leaving the thread and coming back is the retry. */}
+      {dictationDown ? (
+        <View style={[s.note, { backgroundColor: c.ink }]}>
+          <Mono size={9} color={c.paper}>
+            DICTATION UNAVAILABLE · LEAVE AND COME BACK TO RETRY
+          </Mono>
+        </View>
+      ) : null}
+
       {composingEvent ? (
         <EventComposer onCancel={() => setComposingEvent(false)} onSend={sendEvent} />
       ) : null}
@@ -278,16 +447,37 @@ export default function ChatScreen({
           returnKeyType="send"
           style={[s.field, { backgroundColor: c.paper, borderColor: c.hair2, color: c.ink }]}
         />
-        <Pressable
-          onPress={send}
-          accessibilityRole="button"
-          accessibilityLabel="Send message"
-          style={[s.rbtn, { backgroundColor: c.ink }]}
-        >
-          <Display size={15} color={c.paper}>
-            ↑
-          </Display>
-        </Pressable>
+        {/* The mic never leaves. Handing its slot to send the moment a
+            transcript lands made dictation single-shot: you could not add a
+            second sentence, or re-say one Whisper got wrong. Four controls
+            costs the field ~136 dp on a 360 dp screen; that trade is the
+            feature. */}
+        <MicButton
+          phase={dictation.phase}
+          disabled={dictationDown || !dictation.isReady}
+          label={micLabel}
+          onSetup={setupNeeded ? () => void setUpDictation() : undefined}
+          setupProgress={speechProgress}
+          onStart={() => void startDictation()}
+          onLock={lockDictation}
+          onStop={() => void stopDictation()}
+          onCancel={() => void cancelDictation()}
+        />
+        {/* Send steps aside for the length of a take: locking turns the mic
+            into two buttons, and a fifth control would leave the field under
+            60 dp right when the user is watching it fill up. */}
+        {draft.trim() && !recording ? (
+          <Pressable
+            onPress={send}
+            accessibilityRole="button"
+            accessibilityLabel="Send message"
+            style={[s.rbtn, { backgroundColor: c.ink }]}
+          >
+            <Display size={15} color={c.paper}>
+              ↑
+            </Display>
+          </Pressable>
+        ) : null}
       </View>
 
       {summary ? (
